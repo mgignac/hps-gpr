@@ -1,0 +1,120 @@
+# HPS GPR Analysis Configuration
+# ================================
+# This file contains all configuration parameters for the HPS GPR analysis.
+# Copy this file and modify paths/settings as needed for your analysis.
+
+# =====================
+# Dataset ROOT file paths
+# =====================
+path_2015: "/path/to/2015_data/invariant_mass_0pt5mm_full.root"
+path_2016: "/path/to/2016_data/EventSelection_Data_10Percent.root"
+path_2021: "/path/to/2021_data/limited_data_8kbins_0_04.root"
+
+# Optional: MC-only mode path
+path_2021_mc: "/path/to/2021_MC_dataset.root"
+only_2021_mc: false
+
+# =====================
+# Histogram names in ROOT files
+# =====================
+hist_2015: "invariant_mass"
+hist_2016: "h_Minv_General_Final_1"
+hist_2021: "unc_vtx_mass_hist"
+
+# =====================
+# Analysis mass ranges (GeV)
+# =====================
+range_2015: [0.015, 0.140]
+range_2016: [0.035, 0.190]
+range_2021: [0.035, 0.230]
+
+# =====================
+# Mass resolution sigma(m) polynomial coefficients
+# sigma(m) = sum_i coeffs[i] * m^i
+# =====================
+# 2015: linear model
+sigma_coeffs_2015: [-0.0000922283032152, 0.0532190838657]
+# 2016: 4th order
+sigma_coeffs_2016: [0.00038, 0.041, -0.27, 3.49, -11.11]
+# 2021: quadratic
+sigma_coeffs_2021: [0.00286957, -0.00851449, 0.25362319]
+
+# =====================
+# Radiative fraction f_rad(m) polynomial coefficients
+# f_rad(m) = sum_i coeffs[i] * m^i
+# =====================
+frad_coeffs_2015: [0.085]  # constant from paper
+frad_coeffs_2016: [-0.104070, 9.59977, -212.211, 2148.12, -10140.1, 18048.5]
+frad_coeffs_2021: [-0.211, 10.5, -161.8, 1189.0, -4165.0, 5565.0]
+
+# =====================
+# Dataset enable switches
+# =====================
+enable_2015: true
+enable_2016: false
+enable_2021: false
+
+# =====================
+# Kernel hyperparameters (RBF kernel)
+# =====================
+kernel_constant_init: 1.0
+kernel_constant_bounds: [1.0e-8, 1.0e+18]
+kernel_ls_init: 1.0
+kernel_ls_bounds: [0.001, 10.0]
+
+# =====================
+# Preprocessing options
+# =====================
+pre_log: true           # Use log-space fit
+pre_zero_alpha: 1.0     # Alpha when y=0
+alpha_model: "1/y"      # Alpha model: "1/y" or "1/sqrt(y)"
+pre_alpha_first_n: 0    # Number of first bins to adjust (0 = disabled)
+pre_alpha_first_factor: 0.1
+
+# =====================
+# Scan settings
+# =====================
+mass_step_gev: 0.001    # 1 MeV step
+blind_nsigma: 1.96      # Blind window half-width in sigma units
+neighborhood_rebin: 10  # Rebinning factor for speed
+n_restarts: 20          # GPR optimizer restarts
+
+# =====================
+# CLs settings
+# =====================
+cls_alpha: 0.05         # CLs confidence level (95%)
+cls_mode: "toys"        # "asymptotic" or "toys"
+cls_num_toys: 100       # Number of toys for CLs (if mode="toys")
+make_ul_bands: true     # Compute expected UL bands
+ul_bands_toys: 100      # Number of toys for UL bands
+
+# =====================
+# Injection/extraction settings
+# =====================
+inject_signal: false
+inj_dataset_key: "2015"
+inj_masses_gev: [0.030, 0.060, 0.090]
+inj_strengths: [0, 100, 200, 500, 1000, 2000, 5000]
+inj_mode: "multinomial"  # "multinomial" or "poisson"
+extract_allow_negative: true
+
+# =====================
+# Limit band settings
+# =====================
+run_limit_bands_on: "2015"  # "2015", "2016", "2021", or "none"
+make_eps2_bands: true
+
+# =====================
+# Output settings
+# =====================
+output_dir: "outputs/hps_gpr"
+
+# =====================
+# Debug/validation settings
+# =====================
+debug_print: true
+debug_max_errors: 10
+fail_fast: false
+save_per_mass_folders: true
+save_plots: true
+save_fit_json: true

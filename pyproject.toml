@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hps-gpr"
+version = "0.1.0"
+description = "HPS Gaussian Process Regression analysis for dark photon searches"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+authors = [
+    {name = "HPS Collaboration"}
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = [
+    "numpy>=1.20",
+    "pandas>=1.3",
+    "scipy>=1.7",
+    "scikit-learn>=1.0",
+    "matplotlib>=3.4",
+    "uproot>=4.0",
+    "click>=8.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+]
+
+[project.scripts]
+hps-gpr = "hps_gpr.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/hps-collaboration/hps-gpr"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["hps_gpr*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
