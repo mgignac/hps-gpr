@@ -29,7 +29,9 @@ dependencies = [
     "scipy>=1.7",
     "scikit-learn>=1.0",
     "matplotlib>=3.4",
+    "mplhep>=0.3",
     "uproot>=4.0",
+    "hist>=2.6",
     "click>=8.0",
     "pyyaml>=6.0",
 ]
@@ -48,7 +50,7 @@ Homepage = "https://github.com/hps-collaboration/hps-gpr"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["hps_gpr*"]
+include = ["hps_gpr*", "gp*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

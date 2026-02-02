@@ -11,13 +11,12 @@ scikit-learn>=1.0
 
 # Plotting
 matplotlib>=3.4
+mplhep>=0.3
 
 # ROOT file reading
 uproot>=4.0
+hist>=2.6
 
 # CLI and configuration
 click>=8.0
 pyyaml>=6.0
-
-# Note: The local 'gp' package must be installed separately
-# (typically via pip install -e /path/to/gp-repo)

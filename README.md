@@ -21,7 +21,6 @@ The package converts the original Jupyter notebook analysis into a modular, batc
 ### Prerequisites
 
 - Python 3.9 or higher
-- The local `gp` package (HPS-specific Gaussian Process utilities)
 
 ### Setup
 
@@ -41,17 +40,12 @@ The package converts the original Jupyter notebook analysis into a modular, batc
    pip install -r requirements.txt
    ```
 
-4. Install the local `gp` package (if not already installed):
-   ```bash
-   pip install -e /path/to/gp-package
-   ```
-
-5. Install hps_gpr in development mode:
+4. Install hps_gpr in development mode:
    ```bash
    pip install -e .
    ```
 
-6. Verify installation:
+5. Verify installation:
    ```bash
    hps-gpr --help
    ```
