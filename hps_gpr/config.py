@@ -127,6 +127,13 @@ class Config:
     make_ul_bands: bool = True
     ul_bands_toys: int = 100
 
+    # Scan edge guards and blinding policy
+    scan_require_two_sidebands: bool = False
+    scan_edge_guard_nsigma: Optional[float] = None  # defaults to gp_train_exclude_nsigma
+    data_visibility: Dict[str, str] = field(
+        default_factory=lambda: {"2015": "observed", "2016": "observed", "2021": "observed"}
+    )
+
     # Injection + extraction settings
     inject_signal: bool = False
     inj_dataset_key: str = "2015"
@@ -134,6 +141,10 @@ class Config:
     inj_strengths: List[int] = field(default_factory=lambda: [0, 100, 200, 500, 1000, 2000, 5000])
     inj_mode: str = "multinomial"
     extract_allow_negative: bool = True
+
+    # Combined fit settings
+    do_combined: bool = False
+    eps2_lrt_scale: float = 1e10
 
     # Limit-band dataset selector
     run_limit_bands_on: str = "2015"

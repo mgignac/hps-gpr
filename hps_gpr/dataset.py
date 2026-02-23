@@ -1,7 +1,7 @@
 """Dataset configuration and utilities."""
 
 from dataclasses import dataclass
-from typing import Dict, List, TYPE_CHECKING
+from typing import Dict, List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .config import Config
@@ -22,6 +22,11 @@ class DatasetConfig:
     sigma_coeffs: List[float]
     frad_coeffs: List[float]
     enabled: bool = True
+
+    # Optional GP training range (separate from scan range).
+    # If None, falls back to m_low/m_high.
+    data_low: Optional[float] = None
+    data_high: Optional[float] = None
 
     def sigma(self, m: float) -> float:
         """Compute mass resolution sigma(m) from polynomial coefficients."""
