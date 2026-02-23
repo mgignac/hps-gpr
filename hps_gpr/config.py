@@ -86,6 +86,25 @@ class Config:
     kernel_ls_init: float = 1.0
     kernel_ls_bounds: Tuple[float, float] = (0.001, 10.0)
 
+    # Kernel length-scale policy
+    # "manual"                   — use kernel_ls_init and kernel_ls_bounds directly
+    # "resolution_scaled_local"  — bounds derived from σ(mass) at each scan point (default)
+    # "resolution_scaled_global" — bounds derived from dataset-wide σ statistic
+    kernel_ls_policy: str = "resolution_scaled_local"
+    kernel_ls_res_upper_factor: float = 8.0
+    kernel_ls_res_lower_factor: float = 0.5
+    kernel_ls_res_stat: str = "median"
+    kernel_ls_res_npts: int = 200
+    kernel_ls_local_hi_floor_mode: str = "none"   # "none" | "dataset_stat"
+    kernel_ls_local_hi_floor_factor: float = 1.0
+    kernel_ls_local_hi_cap_xrange_frac: Optional[float] = None
+
+    # Per-dataset kernel overrides (empty dicts = use global factors)
+    kernel_ls_res_upper_factor_by_dataset: Dict[str, float] = field(default_factory=dict)
+    kernel_ls_res_lower_factor_by_dataset: Dict[str, float] = field(default_factory=dict)
+    kernel_ls_bounds_by_dataset: Dict[str, Any] = field(default_factory=dict)
+    kernel_ls_init_by_dataset: Dict[str, float] = field(default_factory=dict)
+
     # Preprocessing knobs
     pre_log: bool = True
     pre_zero_alpha: float = 1.0
@@ -95,14 +114,16 @@ class Config:
 
     # Scan settings
     mass_step_gev: float = 0.001
-    blind_nsigma: float = 1.96
-    neighborhood_rebin: int = 10
-    n_restarts: int = 20
+    blind_nsigma: float = 1.64
+    gp_train_exclude_nsigma: Optional[float] = None  # defaults to blind_nsigma when None
+    neighborhood_rebin: int = 5
+    n_restarts: int = 12
 
     # CLs settings
     cls_alpha: float = 0.05
-    cls_mode: str = "toys"
+    cls_mode: str = "asymptotic"
     cls_num_toys: int = 100
+    cls_seed_base: int = 12345
     make_ul_bands: bool = True
     ul_bands_toys: int = 100
 
@@ -162,6 +183,15 @@ def load_config(path: str) -> Config:
         "kernel_constant_bounds",
         "kernel_ls_bounds",
     ]
+    dict_fields = [
+        "kernel_ls_res_upper_factor_by_dataset",
+        "kernel_ls_res_lower_factor_by_dataset",
+        "kernel_ls_bounds_by_dataset",
+        "kernel_ls_init_by_dataset",
+    ]
+    for field_name in dict_fields:
+        if field_name in data and data[field_name] is None:
+            data[field_name] = {}
     for field_name in tuple_fields:
         if field_name in data and isinstance(data[field_name], list):
             data[field_name] = tuple(data[field_name])
