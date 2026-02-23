@@ -141,6 +141,20 @@ class Config:
     inj_strengths: List[int] = field(default_factory=lambda: [0, 100, 200, 500, 1000, 2000, 5000])
     inj_mode: str = "multinomial"
     extract_allow_negative: bool = True
+    # v15 injection extensions
+    inj_strength_mode: str = "absolute"   # "absolute" | "sigmaA"
+    inj_sigma_a_source: str = "asimov"    # "asimov" | "poisson"
+    inj_shape_mode: str = "full"          # "full" | "window"
+    inj_refit_gp_on_toy: bool = False
+    inj_refit_gp_restarts: int = 0
+    inj_refit_gp_optimize: bool = True
+    inj_train_exclude_nsigma: Optional[float] = None  # defaults to gp_train_exclude_nsigma
+    inj_sigma_multipliers: List[float] = field(
+        default_factory=lambda: [0.0, 1.0, 2.0, 3.0, 5.0]
+    )
+    # MVN non-negative sampling
+    mvn_trunc_method: str = "reject_then_clip"  # "clip" | "reject" | "reject_then_clip"
+    mvn_trunc_max_tries: int = 80
 
     # Combined fit settings
     do_combined: bool = False
@@ -199,6 +213,7 @@ def load_config(path: str) -> Config:
         "kernel_ls_res_lower_factor_by_dataset",
         "kernel_ls_bounds_by_dataset",
         "kernel_ls_init_by_dataset",
+        "data_visibility",
     ]
     for field_name in dict_fields:
         if field_name in data and data[field_name] is None:

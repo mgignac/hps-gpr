@@ -492,6 +492,61 @@ def _p_global_from_local(
     return np.clip(-np.expm1(N * np.log1p(-p)), 0.0, 1.0)
 
 
+def draw_bkg_mvn_nonneg(
+    mean: np.ndarray,
+    cov: Optional[np.ndarray],
+    size: int,
+    rng: np.random.Generator,
+    *,
+    method: str = "reject_then_clip",
+    max_tries: int = 80,
+) -> np.ndarray:
+    """Draw non-negative MVN background toys.
+
+    method:
+        'clip'             — draw MVN then clip negatives (fast, distorts correlations near 0)
+        'reject'           — rejection-sample until all non-negative (best fidelity, may be slow)
+        'reject_then_clip' — rejection-sample with a clip fallback if acceptance is too low
+    """
+    m = np.asarray(mean, dtype=float).reshape(-1)
+    size = int(max(1, size))
+    if cov is None:
+        return np.tile(m, (size, 1))
+
+    C = np.asarray(cov, dtype=float)
+
+    def _propose(n: int) -> np.ndarray:
+        try:
+            return rng.multivariate_normal(m, C, size=n, check_valid="ignore", tol=1e-8)
+        except Exception:
+            diag = np.clip(np.diag(C), 0.0, None)
+            return rng.normal(loc=m, scale=np.sqrt(diag), size=(n, m.size))
+
+    if method == "clip":
+        return np.clip(_propose(size), 0.0, None)
+
+    out = np.empty((size, m.size), dtype=float)
+    filled = 0
+    tries = 0
+    while filled < size and tries < int(max_tries):
+        n_prop = max(1, int(1.3 * (size - filled)))
+        prop = _propose(n_prop)
+        acc = prop[np.all(prop >= 0.0, axis=1)]
+        if acc.shape[0] > 0:
+            n_take = min(acc.shape[0], size - filled)
+            out[filled: filled + n_take] = acc[:n_take]
+            filled += n_take
+        tries += 1
+
+    if filled < size:
+        if method == "reject_then_clip":
+            out[filled:] = np.clip(_propose(size - filled), 0.0, None)
+        else:
+            out[filled:] = np.tile(m, (size - filled, 1))
+
+    return out
+
+
 def _lee_trials_from_grid(
     masses: np.ndarray,
     ds_keys: List[str],
