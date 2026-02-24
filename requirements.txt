@@ -20,3 +20,7 @@ hist>=2.6
 # CLI and configuration
 click>=8.0
 pyyaml>=6.0
+
+# Parallelization
+joblib>=1.0
+threadpoolctl>=3.0

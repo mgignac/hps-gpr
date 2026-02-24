@@ -8,6 +8,7 @@ import numpy as np
 
 if TYPE_CHECKING:
     from .config import Config
+    from .dataset import DatasetConfig
 
 
 def gaussian_bin_integrals(
@@ -275,3 +276,95 @@ def cls_limit_for_amplitude(
         "A_grid": np.array(gridA),
         "CLs_grid": np.array(gridC),
     }
+
+
+def cls_limit_for_template(
+    n_obs: np.ndarray,
+    b_mean: np.ndarray,
+    b_cov: Optional[np.ndarray],
+    template: np.ndarray,
+    *,
+    ds: Optional["DatasetConfig"] = None,
+    mass: Optional[float] = None,
+    integral_density: Optional[float] = None,
+    alpha: float = 0.05,
+    mode: str = "asymptotic",
+    use_eps2: bool = False,
+    num_toys: int = 100,
+    seed: int = 1,
+    A_hi0: Optional[float] = None,
+) -> Tuple[float, float]:
+    """CLs upper limit for a pre-built signal template.
+
+    More flexible than cls_limit_for_amplitude: accepts a pre-built template
+    and can optionally convert the amplitude limit to epsilon^2.
+
+    Args:
+        n_obs: Observed counts
+        b_mean: Background mean prediction
+        b_cov: Background covariance matrix
+        template: Pre-built normalized signal template
+        ds: Dataset config (required when use_eps2=True)
+        mass: Signal mass in GeV (required when use_eps2=True)
+        integral_density: Counts per GeV (required when use_eps2=True)
+        alpha: CL level (default 0.05 → 95% UL)
+        mode: "asymptotic" or "toys"
+        use_eps2: If True, convert A_up to eps2_up and return (eps2_up, A_up)
+        num_toys: Number of CLs toys (only used when mode="toys")
+        seed: Random seed
+        A_hi0: Initial upper bracket for bisection (auto-set if None)
+
+    Returns:
+        (limit, A_up) where limit = eps2_up if use_eps2=True else A_up
+    """
+    template = np.asarray(template, float)
+    rng = np.random.default_rng(int(seed))
+
+    def cls_at(A: float) -> float:
+        if mode == "asymptotic":
+            return cls_amplitude_asymptotic(float(A), n_obs, b_mean, b_cov, template)[0]
+        return cls_amplitude_toys(
+            float(A), n_obs, b_mean, b_cov, template, rng, max(1, int(num_toys))
+        )[0]
+
+    b_sum = float(np.sum(b_mean))
+    A_lo = 0.0
+    if A_hi0 is None:
+        A_hi = max(1.0, 3.0 * math.sqrt(max(b_sum, 1.0)))
+    else:
+        A_hi = float(A_hi0)
+
+    cls_hi = cls_at(A_hi)
+    it = 0
+    while cls_hi > alpha and A_hi < 1e7 and it < 40:
+        A_hi *= 2.0
+        cls_hi = cls_at(A_hi)
+        it += 1
+
+    for _ in range(60):
+        Amid = 0.5 * (A_lo + A_hi)
+        cls_mid = cls_at(Amid)
+        if abs(cls_mid - alpha) < 1e-3:
+            A_lo = A_hi = Amid
+            break
+        if cls_mid > alpha:
+            A_lo = Amid
+        else:
+            A_hi = Amid
+        if abs(A_hi - A_lo) <= max(1e-3, 1e-3 * (1.0 + A_hi)):
+            break
+
+    A_up = float(0.5 * (A_lo + A_hi))
+
+    if not bool(use_eps2):
+        return A_up, A_up
+
+    if ds is None or mass is None or integral_density is None:
+        raise ValueError(
+            "cls_limit_for_template(use_eps2=True) requires ds, mass, and integral_density."
+        )
+
+    from .conversion import epsilon2_from_A
+
+    eps2_up = float(epsilon2_from_A(ds, float(mass), A_up, float(integral_density)))
+    return eps2_up, A_up

@@ -126,6 +126,19 @@ class Config:
     cls_seed_base: int = 12345
     make_ul_bands: bool = True
     ul_bands_toys: int = 100
+    # v15 UL bands extensions
+    ul_bands_seed: int = 12345
+    ul_bands_n_workers: int = 1
+    ul_bands_parallel_backend: str = "loky"
+    ul_bands_threads_per_worker: int = 1
+    ul_bands_refit_gp_on_toy: bool = False
+    ul_bands_refit_gp_restarts: int = 0
+    ul_bands_refit_gp_optimize: bool = True
+    ul_bands_train_exclude_nsigma: Optional[float] = None  # defaults to gp_train_exclude_nsigma
+    # Combined bands settings
+    do_combined_bands: bool = False
+    combined_bands_n_toys: int = 100
+    combined_bands_seed: int = 24680
 
     # Scan edge guards and blinding policy
     scan_require_two_sidebands: bool = False

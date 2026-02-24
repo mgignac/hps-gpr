@@ -243,19 +243,39 @@ def build_combined_components(
     return obs, b, cov, s_unit
 
 
-def combined_cls_limit_epsilon2(
-    mass: float,
-    ds_list: List["DatasetConfig"],
-    preds: List[BlindPrediction],
+def combined_cls_limit_epsilon2_from_vectors(
+    obs: np.ndarray,
+    b: np.ndarray,
+    cov: np.ndarray,
+    s_unit: np.ndarray,
     config: "Config",
     seed: int = 1,
 ) -> float:
-    """Compute combined CLs limit on epsilon^2."""
-    obs, b, cov, s_unit = build_combined_components(float(mass), ds_list, preds)
+    """Compute combined CLs limit on epsilon^2 from pre-built concatenated vectors.
+
+    This lower-level function accepts pre-built (obs, b, cov, s_unit) arrays directly,
+    enabling repeated calls in toy loops without rebuilding from datasets each time.
+
+    Args:
+        obs: Concatenated observed counts across datasets
+        b: Concatenated background mean predictions
+        cov: Block-diagonal background covariance
+        s_unit: Expected counts per unit epsilon^2 (concatenated)
+        config: Global configuration
+        seed: Random seed
+
+    Returns:
+        epsilon^2 upper limit
+    """
+    obs = np.asarray(obs, int)
+    b = np.asarray(b, float)
+    cov = np.asarray(cov, float)
+    s_unit = np.asarray(s_unit, float)
+
     rng = np.random.default_rng(seed)
-    alpha = config.cls_alpha
-    mode = config.cls_mode
-    num_toys = config.cls_num_toys
+    alpha = float(config.cls_alpha)
+    mode = str(config.cls_mode)
+    num_toys = int(config.cls_num_toys)
 
     def cls_at_eps2(eps2: float) -> float:
         eps2 = float(max(eps2, 0.0))
@@ -291,6 +311,18 @@ def combined_cls_limit_epsilon2(
             break
 
     return float(0.5 * (eps_lo + eps_hi))
+
+
+def combined_cls_limit_epsilon2(
+    mass: float,
+    ds_list: List["DatasetConfig"],
+    preds: List[BlindPrediction],
+    config: "Config",
+    seed: int = 1,
+) -> float:
+    """Compute combined CLs limit on epsilon^2."""
+    obs, b, cov, s_unit = build_combined_components(float(mass), ds_list, preds)
+    return combined_cls_limit_epsilon2_from_vectors(obs, b, cov, s_unit, config, seed=seed)
 
 
 def evaluate_combined(
