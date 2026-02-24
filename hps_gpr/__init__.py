@@ -7,6 +7,15 @@ from .dataset import DatasetConfig, make_datasets, ALPHA_EM
 from .validation import validate_datasets
 from .gpr import fit_gpr, predict_counts_from_log_gpr
 from .template import build_template, cls_limit_for_amplitude, cls_limit_for_template
+from .plotting import (
+    set_plot_style,
+    plot_full_range, plot_blind_window, plot_s_over_b,
+    plot_scan_diagnostic_panels,
+    plot_ul_bands, plot_ul_pvalues,
+    plot_analytic_p0, plot_Z_local_global,
+    plot_linearity, plot_bias_vs_injected_strength, plot_pull_width, plot_coverage,
+    plot_eps2_curves, plot_bands,
+)
 from .statistics import p0_from_blind_vectors, fit_A_profiled_gaussian
 from .io import BlindPrediction, estimate_background_for_dataset
 from .conversion import epsilon2_from_A, A_from_epsilon2
@@ -64,4 +73,20 @@ __all__ = [
     "run_injection_extraction",
     "run_injection_extraction_toys",
     "summarize_injection_grid",
+    # Plotting
+    "set_plot_style",
+    "plot_full_range",
+    "plot_blind_window",
+    "plot_s_over_b",
+    "plot_scan_diagnostic_panels",
+    "plot_ul_bands",
+    "plot_ul_pvalues",
+    "plot_analytic_p0",
+    "plot_Z_local_global",
+    "plot_linearity",
+    "plot_bias_vs_injected_strength",
+    "plot_pull_width",
+    "plot_coverage",
+    "plot_eps2_curves",
+    "plot_bands",
 ]
