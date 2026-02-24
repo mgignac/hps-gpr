@@ -118,6 +118,14 @@ class Config:
     gp_train_exclude_nsigma: Optional[float] = None  # defaults to blind_nsigma when None
     neighborhood_rebin: int = 5
     n_restarts: int = 12
+    # Scan parallelization
+    scan_parallel: bool = False
+    scan_n_workers: int = 1
+    scan_parallel_backend: str = "loky"
+    scan_threads_per_worker: int = 1
+    # Scan diagnostic plots
+    scan_diagnostic_plot_every_n: Optional[int] = None
+    scan_diagnostic_zoom_half_sigma: float = 0.5
 
     # CLs settings
     cls_alpha: float = 0.05
