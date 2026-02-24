@@ -315,7 +315,7 @@ def test(config, output_dir):
         if ds.m_low <= test_mass <= ds.m_high:
             print(f"\n--- Testing {key} ({ds.label}) ---")
             try:
-                res, pred = evaluate_single_dataset(ds, test_mass, cfg, do_extraction=True)
+                res, pred, _ = evaluate_single_dataset(ds, test_mass, cfg, do_extraction=True)
                 print(f"A_up = {res.A_up:.2f}  eps2_up = {res.eps2_up:.3e}")
                 print(f"p0 = {res.p0_analytic:.3e}  Z = {res.Z_analytic:.2f}")
                 print(f"A_hat = {res.A_hat:.2f} +/- {res.sigma_A:.2f}  success = {res.extract_success}")
