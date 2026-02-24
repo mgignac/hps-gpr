@@ -16,7 +16,7 @@ from .plotting import (
     plot_linearity, plot_bias_vs_injected_strength, plot_pull_width, plot_coverage,
     plot_eps2_curves, plot_bands,
 )
-from .statistics import p0_from_blind_vectors, fit_A_profiled_gaussian
+from .statistics import p0_from_blind_vectors, fit_A_profiled_gaussian, _p_local_from_global_summary
 from .io import BlindPrediction, estimate_background_for_dataset
 from .conversion import epsilon2_from_A, A_from_epsilon2
 from .evaluation import (
@@ -49,6 +49,7 @@ __all__ = [
     # Statistics
     "p0_from_blind_vectors",
     "fit_A_profiled_gaussian",
+    "_p_local_from_global_summary",
     # IO
     "BlindPrediction",
     "estimate_background_for_dataset",

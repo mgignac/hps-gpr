@@ -20,7 +20,7 @@ except ImportError:
 
 from .io import estimate_background_for_dataset
 from .template import build_template, cls_limit_for_template
-from .statistics import draw_bkg_mvn_nonneg
+from .statistics import draw_bkg_mvn_nonneg, p0_profiled_gaussian_LRT
 from .gpr import make_kernel_for_dataset, fit_gpr, predict_counts_from_log_gpr
 from .evaluation import (
     build_combined_components,
@@ -123,7 +123,10 @@ def expected_ul_bands_for_dataset(
         rng = np.random.default_rng(child_ss[i])
 
         with _threadpool_limits(limits=int(threads_per_worker)):
-            pred = estimate_background_for_dataset(ds, float(m), config)
+            pred = estimate_background_for_dataset(
+                ds, float(m), config,
+                train_exclude_nsigma=float(train_exclude_nsigma),
+            )
 
         tmpl = build_template(pred.edges, m, pred.sigma_val)
         obs = np.asarray(pred.obs, int)
@@ -260,12 +263,26 @@ def expected_ul_bands_for_dataset(
         else:
             p_strong = p_weak = p_two = np.nan
 
+        # Analytic p0 / Z on observed data (only when unblinded)
+        if compute_obs:
+            try:
+                p0_obs = float(p0_profiled_gaussian_LRT(obs, mu, cov, tmpl))
+                from scipy.stats import norm as _norm
+                Z_obs = float(_norm.ppf(1.0 - p0_obs)) if np.isfinite(p0_obs) and p0_obs < 1.0 else np.nan
+            except Exception:
+                p0_obs = np.nan
+                Z_obs = np.nan
+        else:
+            p0_obs = np.nan
+            Z_obs = np.nan
+
         return dict(
             dataset=ds.key,
             mass_GeV=float(m),
             # Publication-facing columns
             eps2_obs=float(eps2_obs) if np.isfinite(eps2_obs) else np.nan,
             A_obs=float(A_obs) if np.isfinite(A_obs) else np.nan,
+            p0_analytic=float(p0_obs), Z_analytic=float(Z_obs),
             eps2_lo2=float(qE[0]), eps2_lo1=float(qE[1]), eps2_med=float(qE[2]),
             eps2_hi1=float(qE[3]), eps2_hi2=float(qE[4]), eps2_mean=float(mE),
             A_lo2=float(qA[0]), A_lo1=float(qA[1]), A_med=float(qA[2]),
@@ -334,7 +351,8 @@ def expected_ul_bands_for_combination(
         DataFrame with per-mass combined epsilon^2 band columns
     """
     masses = [float(m) for m in masses]
-    ds_keys = list(ds_keys)
+    # Accept either string keys or DatasetConfig objects
+    ds_keys = [getattr(d, "key", str(d)) for d in ds_keys]
 
     if n_toys is None:
         n_toys = int(getattr(config, "combined_bands_n_toys", config.ul_bands_toys))
@@ -385,7 +403,7 @@ def expected_ul_bands_for_combination(
     def _empty_row(tag: str, m: float) -> dict:
         return dict(
             dataset_set=str(tag), mass_GeV=float(m),
-            eps2_obs=nan,
+            eps2_obs=nan, p0_analytic=nan, Z_analytic=nan,
             eps2_lo2=nan, eps2_lo1=nan, eps2_med=nan, eps2_hi1=nan, eps2_hi2=nan, eps2_mean=nan,
             ul_eps2_obs=nan,
             toy_eps2_uls_q02=nan, toy_eps2_uls_q16=nan, toy_eps2_uls_q50=nan,
@@ -407,7 +425,10 @@ def expected_ul_bands_for_combination(
 
         with _threadpool_limits(limits=int(threads_per_worker)):
             preds = {
-                k: estimate_background_for_dataset(datasets[k], float(m), config)
+                k: estimate_background_for_dataset(
+                    datasets[k], float(m), config,
+                    train_exclude_nsigma=float(train_exclude_nsigma),
+                )
                 for k in ds_here
             }
 
@@ -553,11 +574,31 @@ def expected_ul_bands_for_combination(
         else:
             p_strong = p_weak = p_two = nan
 
+        # Analytic p0 / Z for combined observed data (null signal, A=0 template)
+        if compute_obs:
+            try:
+                # Build a unit template at eps2=1 to get a combined signal shape
+                from .template import build_template as _bt
+                tmpl_c = np.concatenate([
+                    _bt(preds[k].edges, float(m), float(preds[k].sigma_val))
+                    for k in ds_here
+                ])
+                p0_obs_c = float(p0_profiled_gaussian_LRT(obs_vec0, b_vec, cov_mat, tmpl_c))
+                from scipy.stats import norm as _norm
+                Z_obs_c = float(_norm.ppf(1.0 - p0_obs_c)) if np.isfinite(p0_obs_c) and p0_obs_c < 1.0 else nan
+            except Exception:
+                p0_obs_c = nan
+                Z_obs_c = nan
+        else:
+            p0_obs_c = nan
+            Z_obs_c = nan
+
         return dict(
             dataset_set=str(ds_tag),
             mass_GeV=float(m),
             # Publication-facing columns
             eps2_obs=float(eps2_obs) if np.isfinite(eps2_obs) else nan,
+            p0_analytic=float(p0_obs_c), Z_analytic=float(Z_obs_c),
             eps2_lo2=float(q02), eps2_lo1=float(q16), eps2_med=float(q50),
             eps2_hi1=float(q84), eps2_hi2=float(q97), eps2_mean=float(mean_e),
             # Backward-compatible aliases

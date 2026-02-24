@@ -1,7 +1,7 @@
 """Histogram loading and per-dataset background estimation."""
 
 from dataclasses import dataclass
-from typing import Tuple, TYPE_CHECKING
+from typing import Optional, Tuple, TYPE_CHECKING
 
 import numpy as np
 
@@ -152,6 +152,7 @@ def estimate_background_for_dataset(
     config: "Config",
     rebin: int = None,
     restarts: int = None,
+    train_exclude_nsigma: Optional[float] = None,
 ) -> BlindPrediction:
     """Estimate background for a dataset at a given mass.
 
@@ -161,6 +162,10 @@ def estimate_background_for_dataset(
         config: Global configuration
         rebin: Rebinning factor (defaults to config.neighborhood_rebin)
         restarts: Number of GPR restarts (defaults to config.n_restarts)
+        train_exclude_nsigma: Half-width of GP training exclusion in sigma units.
+            Defaults to config.gp_train_exclude_nsigma (or config.blind_nsigma if
+            gp_train_exclude_nsigma is None). The extraction blind window always uses
+            config.blind_nsigma; only the GP training mask is affected.
 
     Returns:
         BlindPrediction with background estimates
@@ -176,12 +181,22 @@ def estimate_background_for_dataset(
         mass + config.blind_nsigma * sigma_val,
     )
 
+    # GP training exclusion window (may differ from extraction blind window)
+    if train_exclude_nsigma is None:
+        train_exclude_nsigma = float(
+            getattr(config, "gp_train_exclude_nsigma", None) or config.blind_nsigma
+        )
+    blind_train = (
+        mass - float(train_exclude_nsigma) * sigma_val,
+        mass + float(train_exclude_nsigma) * sigma_val,
+    )
+
     model = _build_model(ds, blind, rebin=rebin, config=config)
 
     X = model.histogram.axes[0].centers
     y = model.histogram.values().astype(float)
 
-    mask_train = (X < blind[0]) | (X > blind[1])
+    mask_train = (X < blind_train[0]) | (X > blind_train[1])
     X_train = X[mask_train]
     y_train = y[mask_train]
 

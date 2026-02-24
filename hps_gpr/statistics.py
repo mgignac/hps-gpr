@@ -589,3 +589,31 @@ def _lee_trials_from_grid(
             Neff += float(dmi) / (W * float(sig))
 
     return float(np.clip(max(Neff, 1.0), 1.0, float(m.size)))
+
+
+def _p_local_from_global_summary(
+    p_global: float,
+    *,
+    neff: float,
+    method: str = "sidak",
+) -> float:
+    """Inverse trials-factor: given a desired global p-value, return the local p threshold.
+
+    This is the inverse of _p_global_from_local: given the global significance level
+    p_global and an effective number of trials N_eff, return the local p-value that
+    corresponds to that global significance.
+
+    Args:
+        p_global: Desired global p-value (0 to 1)
+        neff: Effective number of independent trials
+        method: "sidak" (default) or "bonferroni"
+
+    Returns:
+        Local p-value threshold corresponding to the global p-value
+    """
+    pg = float(np.clip(p_global, 0.0, 1.0))
+    N = max(float(neff), 1.0)
+    if str(method).lower() == "bonferroni":
+        return float(np.clip(pg / N, 0.0, 1.0))
+    # Šidák correction (exact for independent trials)
+    return float(np.clip(1.0 - (1.0 - pg) ** (1.0 / N), 0.0, 1.0))

@@ -317,8 +317,13 @@ def run_scan(
     df_single.to_csv(single_path, index=False)
     df_comb.to_csv(comb_path, index=False)
 
+    # Backward-compatible alias
+    comb_alias = os.path.join(config.output_dir, "combined.csv")
+    df_comb.to_csv(comb_alias, index=False)
+
     print("Wrote:", single_path)
     print("Wrote:", comb_path)
+    print("Wrote:", comb_alias)
 
     return df_single, df_comb
 
