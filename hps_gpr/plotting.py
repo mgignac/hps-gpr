@@ -244,6 +244,36 @@ def plot_blind_window(
             "--", color="C3", lw=1.4, label=rf"$\mu + A_{{up}}w$ ($A_{{up}}={float(A_up):.2g}$)", zorder=6,
         )
 
+    Args:
+        ds: Dataset configuration
+        mass: Signal mass hypothesis
+        pred: Background prediction results
+        A_show: Signal amplitude to overlay (or None)
+        outpath: Output file path
+        title_extra: Extra text for title
+    """
+    edges = np.asarray(pred.edges, float)
+    centers = 0.5 * (edges[:-1] + edges[1:])
+    w = build_template(edges, mass, pred.sigma_val)
+    y = pred.obs.astype(float)
+    mu = pred.mu.astype(float)
+
+    x_full = np.asarray(pred.x_full, float)
+    y_full = np.asarray(pred.y_full, float)
+    mu_full = np.asarray(pred.mu_full, float)
+    zhs = 0.5
+    zlo = float(pred.blind[0] - zhs * pred.sigma_val)
+    zhi = float(pred.blind[1] + zhs * pred.sigma_val)
+    m_zoom = (x_full >= zlo) & (x_full <= zhi)
+
+    fig, ax = plt.subplots(figsize=(8.8, 5.4))
+    yz = y_full[m_zoom]
+    ax.errorbar(x_full[m_zoom], yz, yerr=np.sqrt(np.clip(yz, 1.0, None)),
+                fmt="o", ms=3.3, lw=1.0, color="black", label="Data", zorder=3)
+    ax.plot(x_full[m_zoom], mu_full[m_zoom], color="C0", label="GPR mean", zorder=4)
+    if A_show is not None and np.isfinite(A_show):
+        ax.plot(centers, mu + float(A_show) * w, "--", color="C3", lw=1.8,
+                label=rf"$\mu + A w$ ($A={float(A_show):.2g}$)", zorder=5)
     _shade_blind_window(ax, pred.blind, blind_train=getattr(pred, "blind_train", None))
     ax.set_xlim(zlo, zhi)
     ax.set_xlabel("mass [GeV]")
@@ -253,6 +283,8 @@ def plot_blind_window(
         title += f" {title_extra}"
     _set_title_above(ax, title, pad=8.0)
     ax.legend(loc="upper left", fontsize=8, frameon=True)
+    _set_title_above(ax, f"{ds.label} — blind window @ m={mass*1000:.1f} MeV {title_extra}".strip())
+    ax.legend(loc="best", frameon=True)
     _grid(ax)
     plt.tight_layout()
     plt.savefig(outpath, dpi=220)
