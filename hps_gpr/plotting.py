@@ -260,6 +260,8 @@ def plot_blind_window(
         title += f" {title_extra}"
     _set_title_above(ax, title, pad=8.0)
     ax.legend(loc="upper left", fontsize=8, frameon=True)
+    _set_title_above(ax, f"{ds.label} — blind window @ m={mass*1000:.1f} MeV {title_extra}".strip())
+    ax.legend(loc="best", frameon=True)
     _grid(ax)
     plt.tight_layout()
     plt.savefig(outpath, dpi=220)
