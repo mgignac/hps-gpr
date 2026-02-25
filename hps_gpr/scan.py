@@ -110,6 +110,14 @@ def run_scan(
     diag_every_n = getattr(config, "scan_diagnostic_plot_every_n", None)
     do_combined = bool(getattr(config, "do_combined", False))
 
+    # Apply publication-style plotting defaults once for the full scan.
+    if bool(getattr(config, "save_plots", False)):
+        try:
+            from .plotting import set_plot_style
+            set_plot_style("paper")
+        except Exception:
+            pass
+
     def _process_one_mass(m: float) -> Tuple[List[dict], List[dict]]:
         """Process a single mass point. Returns (rows_single, rows_comb)."""
         rows_s: List[dict] = []
@@ -152,6 +160,7 @@ def run_scan(
                     plot_full_range(
                         ds, float(m), pred,
                         os.path.join(ds_dir, "fit_full.png"),
+                        A_show=res.A_up,
                     )
                     plot_blind_window(
                         ds, float(m), pred, res.A_up,
@@ -305,12 +314,13 @@ def run_scan(
         rows_single.extend(rs)
         rows_comb.extend(rc)
 
-    df_single = (
-        pd.DataFrame(rows_single)
-        .sort_values(["dataset", "mass_GeV"])
-        .reset_index(drop=True)
-    )
-    df_comb = pd.DataFrame(rows_comb).sort_values(["mass_GeV"]).reset_index(drop=True)
+    df_single = pd.DataFrame(rows_single)
+    if {"dataset", "mass_GeV"}.issubset(df_single.columns):
+        df_single = df_single.sort_values(["dataset", "mass_GeV"]).reset_index(drop=True)
+
+    df_comb = pd.DataFrame(rows_comb)
+    if "mass_GeV" in df_comb.columns:
+        df_comb = df_comb.sort_values(["mass_GeV"]).reset_index(drop=True)
 
     single_path = os.path.join(config.output_dir, "results_single.csv")
     comb_path = os.path.join(config.output_dir, "results_combined.csv")

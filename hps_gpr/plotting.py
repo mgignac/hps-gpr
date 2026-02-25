@@ -161,6 +161,7 @@ def plot_full_range(
     pred: "BlindPrediction",
     outpath: str,
     title_extra: str = "",
+    A_show: Optional[float] = None,
 ) -> None:
     """Plot full range data vs background fit.
 
@@ -170,22 +171,34 @@ def plot_full_range(
         pred: Background prediction results
         outpath: Output file path
         title_extra: Extra text for title
+        A_show: Optional signal amplitude to overlay
     """
     x = np.asarray(pred.x_full, float)
     y = np.asarray(pred.y_full, float)
     mu = np.asarray(pred.mu_full, float)
 
-    fig, ax = plt.subplots(figsize=(9, 4))
-    ax.step(x, y, where="mid", label="Data", zorder=3)
-    ax.plot(x, mu, label="GPR fit", zorder=4)
-    _shade_blind_window(ax, pred.blind)
-    ax.set_xlabel("m (GeV)")
-    ax.set_ylabel("Counts / bin")
-    _set_title_above(ax, f"{ds.label} — full range fit @ {mass:.4f} GeV {title_extra}")
-    ax.legend(loc="best")
+    fig, ax = plt.subplots(figsize=(10.2, 5.2))
+    yerr = np.sqrt(np.clip(y, 1.0, None))
+    ax.errorbar(x, y, yerr=yerr, fmt="o", ms=3.0, lw=1.0, color="black", label="Data", zorder=3)
+    ax.plot(x, mu, color="C0", label="GPR mean", zorder=4)
+
+    if A_show is not None and np.isfinite(A_show):
+        try:
+            w_full = build_template(np.asarray(pred.edges_full, float), mass, pred.sigma_val)
+            if w_full.size == mu.size:
+                ax.plot(x, mu + float(A_show) * w_full, "--", color="C3", lw=1.7,
+                        label=rf"GPR + $A w$ ($A={float(A_show):.2g}$)", zorder=5)
+        except Exception:
+            pass
+
+    _shade_blind_window(ax, pred.blind, blind_train=getattr(pred, "blind_train", None))
+    ax.set_xlabel("mass [GeV]")
+    ax.set_ylabel("counts / bin")
+    _set_title_above(ax, f"{ds.label} — full range @ m={mass*1000:.1f} MeV {title_extra}".strip())
+    ax.legend(loc="best", frameon=True)
     _grid(ax)
     plt.tight_layout()
-    plt.savefig(outpath, dpi=160)
+    plt.savefig(outpath, dpi=200)
     plt.close(fig)
 
 
@@ -207,26 +220,37 @@ def plot_blind_window(
         outpath: Output file path
         title_extra: Extra text for title
     """
-    edges = pred.edges
+    edges = np.asarray(pred.edges, float)
     centers = 0.5 * (edges[:-1] + edges[1:])
     w = build_template(edges, mass, pred.sigma_val)
     y = pred.obs.astype(float)
     mu = pred.mu.astype(float)
 
-    fig, ax = plt.subplots(figsize=(7, 4))
-    ax.step(centers, y, where="mid", label="Data", zorder=3)
-    ax.plot(centers, mu, label="Background", zorder=4)
+    x_full = np.asarray(pred.x_full, float)
+    y_full = np.asarray(pred.y_full, float)
+    mu_full = np.asarray(pred.mu_full, float)
+    zhs = 0.5
+    zlo = float(pred.blind[0] - zhs * pred.sigma_val)
+    zhi = float(pred.blind[1] + zhs * pred.sigma_val)
+    m_zoom = (x_full >= zlo) & (x_full <= zhi)
+
+    fig, ax = plt.subplots(figsize=(8.8, 5.4))
+    yz = y_full[m_zoom]
+    ax.errorbar(x_full[m_zoom], yz, yerr=np.sqrt(np.clip(yz, 1.0, None)),
+                fmt="o", ms=3.3, lw=1.0, color="black", label="Data", zorder=3)
+    ax.plot(x_full[m_zoom], mu_full[m_zoom], color="C0", label="GPR mean", zorder=4)
     if A_show is not None and np.isfinite(A_show):
-        ax.plot(centers, mu + float(A_show) * w,
-                label=f"Bkg + signal (A={A_show:.1f})", zorder=5)
-    _shade_blind_window(ax, pred.blind)
-    ax.set_xlabel("m (GeV)")
-    ax.set_ylabel("Counts / bin")
-    _set_title_above(ax, f"{ds.label} — blind window @ {mass:.4f} GeV {title_extra}")
-    ax.legend(loc="best")
+        ax.plot(centers, mu + float(A_show) * w, "--", color="C3", lw=1.8,
+                label=rf"$\mu + A w$ ($A={float(A_show):.2g}$)", zorder=5)
+    _shade_blind_window(ax, pred.blind, blind_train=getattr(pred, "blind_train", None))
+    ax.set_xlim(zlo, zhi)
+    ax.set_xlabel("mass [GeV]")
+    ax.set_ylabel("counts / bin")
+    _set_title_above(ax, f"{ds.label} — blind window @ m={mass*1000:.1f} MeV {title_extra}".strip())
+    ax.legend(loc="best", frameon=True)
     _grid(ax)
     plt.tight_layout()
-    plt.savefig(outpath, dpi=160)
+    plt.savefig(outpath, dpi=220)
     plt.close(fig)
 
 
@@ -252,11 +276,11 @@ def plot_s_over_b(
     s = float(A_show) * w
     b = np.clip(pred.mu.astype(float), 1e-12, None)
 
-    fig, ax = plt.subplots(figsize=(7, 4))
-    ax.plot(centers, s / b)
-    ax.set_xlabel("m (GeV)")
-    ax.set_ylabel("s/b (template)")
-    _set_title_above(ax, f"{ds.label} — s/b template @ {mass:.4f} GeV")
+    fig, ax = plt.subplots(figsize=(8.6, 4.8))
+    ax.step(centers, s / b, where="mid", color="C3", lw=1.8)
+    ax.set_xlabel("mass [GeV]")
+    ax.set_ylabel("s/b per bin")
+    _set_title_above(ax, f"{ds.label} — s/b in blind window @ m={mass*1000:.1f} MeV")
     _grid(ax)
     plt.tight_layout()
     plt.savefig(outpath, dpi=160)

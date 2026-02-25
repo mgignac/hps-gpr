@@ -30,6 +30,7 @@ class BlindPrediction:
     edges_full: np.ndarray  # All bin edges
 
     integral_density: float  # Counts per GeV in signal region
+    blind_train: Optional[Tuple[float, float]] = None  # GP training exclusion window
 
 
 def _gp_model(h, kernel, **kwargs):
@@ -222,4 +223,5 @@ def estimate_background_for_dataset(
         mu_full=np.asarray(mu_full, float),
         edges_full=np.asarray(model.histogram.axes[0].edges, float),
         integral_density=integral_density,
+        blind_train=blind_train,
     )
