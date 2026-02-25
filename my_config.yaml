@@ -71,7 +71,7 @@ kernel_ls_res_lower_factor_by_dataset:
   "2016": 0.5
   "2021": 0.4
 kernel_ls_res_upper_factor_by_dataset:
-  "2015": 10.0
+  "2015": 8.0
   "2016": 8.0
   "2021": 6.0
 
@@ -101,28 +101,28 @@ gp_train_exclude_nsigma: 1.64
 neighborhood_rebin: 5
 n_restarts: 12
 
-scan_parallel: false
-scan_n_workers: 1
+scan_parallel: true
+scan_n_workers: 5
 scan_parallel_backend: "loky"
 scan_threads_per_worker: 1
-scan_diagnostic_plot_every_n: 25
+scan_diagnostic_plot_every_n: 5
 scan_diagnostic_zoom_half_sigma: 0.5
 
-scan_require_two_sidebands: true
+scan_require_two_sidebands: false
 scan_edge_guard_nsigma: 1.64
 
 # =====================
 # CLs + limit bands
 # =====================
 cls_alpha: 0.05
-cls_mode: "toys"
-cls_num_toys: 500
+cls_mode: "asymptotic"
+cls_num_toys: 100
 cls_seed_base: 12345
 
 make_ul_bands: true
-ul_bands_toys: 500
+ul_bands_toys: 100 #500
 ul_bands_seed: 12345
-ul_bands_n_workers: 1
+ul_bands_n_workers: 5
 ul_bands_parallel_backend: "loky"
 ul_bands_threads_per_worker: 1
 ul_bands_refit_gp_on_toy: false
