@@ -157,21 +157,25 @@ def run_scan(
                 ds_list_here.append(ds)
 
                 if config.save_plots and compute_obs:
-                    plot_full_range(
-                        ds, float(m), pred,
-                        os.path.join(ds_dir, "fit_full.png"),
-                        A_show=res.A_up,
-                    )
-                    plot_blind_window(
-                        ds, float(m), pred,
-                        os.path.join(ds_dir, "blind_fit.png"),
-                        A_up=res.A_up,
-                        A_hat=res.A_hat,
-                    )
-                    plot_s_over_b(
-                        ds, float(m), pred, res.A_up,
-                        os.path.join(ds_dir, "s_over_b_ul.png"),
-                    )
+                    try:
+                        plot_full_range(
+                            ds, float(m), pred,
+                            os.path.join(ds_dir, "fit_full.png"),
+                            A_show=res.A_up,
+                        )
+                        plot_blind_window(
+                            ds, float(m), pred,
+                            os.path.join(ds_dir, "blind_fit.png"),
+                            A_up=res.A_up,
+                            A_hat=res.A_hat,
+                        )
+                        plot_s_over_b(
+                            ds, float(m), pred, res.A_up,
+                            os.path.join(ds_dir, "s_over_b_ul.png"),
+                        )
+                    except Exception as pe:
+                        if config.debug_print:
+                            print(f"[WARN] plot failure for {ds.key} @ {float(m):.4f} GeV: {pe}")
 
                 if config.save_fit_json:
                     _write_json(
