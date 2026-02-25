@@ -6,6 +6,10 @@ from typing import List, Optional, Tuple, TYPE_CHECKING
 import numpy as np
 import pandas as pd
 import matplotlib as mpl
+
+# Force non-interactive backend so plotting works reliably in batch/headless jobs.
+mpl.use("Agg", force=True)
+
 import matplotlib.pyplot as plt
 
 from .template import build_template
