@@ -255,11 +255,24 @@ def plot_blind_window(
     ax.set_xlim(zlo, zhi)
     ax.set_xlabel("mass [GeV]")
     ax.set_ylabel("counts / bin")
-    title = f"{ds.label}: blind-window fit @ m={mass*1000:.1f} MeV"
+
+    title = f"{ds.label}: blind-window fit @ m={mass*1001:.1f} MeV"
     if title_extra:
         title += f" {title_extra}"
     ax.set_title(title, fontsize=10, pad=6.0, loc="center")
     ax.legend(loc="best", fontsize=7, frameon=True)
+
+
+
+
+
+
+
+
+
+
+
+
     _grid(ax)
     plt.tight_layout()
     plt.savefig(outpath, dpi=220)
