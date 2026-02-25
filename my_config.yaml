@@ -9,6 +9,8 @@
 path_2015: "/sdf/home/e/epeets/move/2015_IMD.root"
 path_2016: "/sdf/home/e/epeets/move/EventSelection_Data_10Percent.root"
 path_2021: "/sdf/home/e/epeets/move/near_1pct_8kbins_0_04.root"
+
+#MC Paths
 path_2021_mc: ""
 only_2021_mc: false
 
@@ -69,7 +71,7 @@ kernel_ls_res_npts: 300
 kernel_ls_res_lower_factor_by_dataset:
   "2015": 0.5
   "2016": 0.5
-  "2021": 0.4
+  "2021": 0.5
 kernel_ls_res_upper_factor_by_dataset:
   "2015": 8.0
   "2016": 8.0
@@ -104,7 +106,7 @@ n_restarts: 12
 scan_parallel: true
 scan_n_workers: 5
 scan_parallel_backend: "loky"
-scan_threads_per_worker: 1
+scan_threads_per_worker: 2
 scan_diagnostic_plot_every_n: 5
 scan_diagnostic_zoom_half_sigma: 0.5
 
