@@ -206,11 +206,43 @@ def plot_blind_window(
     ds: "DatasetConfig",
     mass: float,
     pred: "BlindPrediction",
-    A_show: Optional[float],
     outpath: str,
+    *,
+    A_up: Optional[float] = None,
+    A_hat: Optional[float] = None,
     title_extra: str = "",
+    zoom_half_sigma: float = 0.5,
 ) -> None:
-    """Plot blind window region with optional signal overlay.
+    """Plot blind-window region with Ahat and UL overlays."""
+    x_full = np.asarray(pred.x_full, float)
+    y_full = np.asarray(pred.y_full, float)
+    mu_full = np.asarray(pred.mu_full, float)
+    edges_full = np.asarray(pred.edges_full, float)
+
+    zlo = float(pred.blind[0] - float(zoom_half_sigma) * pred.sigma_val)
+    zhi = float(pred.blind[1] + float(zoom_half_sigma) * pred.sigma_val)
+    m_zoom = (x_full >= zlo) & (x_full <= zhi)
+
+    w_full = build_template(edges_full, mass, pred.sigma_val)
+
+    fig, ax = plt.subplots(figsize=(8.6, 5.0))
+    yz = y_full[m_zoom]
+    ax.errorbar(
+        x_full[m_zoom], yz, yerr=np.sqrt(np.clip(yz, 1.0, None)),
+        fmt="o", ms=2.8, lw=0.9, color="black", label="Data", zorder=3,
+    )
+    ax.plot(x_full[m_zoom], mu_full[m_zoom], color="C0", lw=1.5, label="GPR mean", zorder=4)
+
+    if A_hat is not None and np.isfinite(A_hat):
+        ax.plot(
+            x_full[m_zoom], (mu_full + float(A_hat) * w_full)[m_zoom],
+            color="C2", lw=1.4, label=rf"$\mu + \hat{{A}}w$ ($\hat{{A}}={float(A_hat):.2g}$)", zorder=5,
+        )
+    if A_up is not None and np.isfinite(A_up):
+        ax.plot(
+            x_full[m_zoom], (mu_full + float(A_up) * w_full)[m_zoom],
+            "--", color="C3", lw=1.4, label=rf"$\mu + A_{{up}}w$ ($A_{{up}}={float(A_up):.2g}$)", zorder=6,
+        )
 
     Args:
         ds: Dataset configuration
@@ -246,6 +278,11 @@ def plot_blind_window(
     ax.set_xlim(zlo, zhi)
     ax.set_xlabel("mass [GeV]")
     ax.set_ylabel("counts / bin")
+    title = f"{ds.label}: blind-window fit, m={mass*1000:.1f} MeV"
+    if title_extra:
+        title += f" {title_extra}"
+    _set_title_above(ax, title, pad=8.0)
+    ax.legend(loc="upper left", fontsize=8, frameon=True)
     _set_title_above(ax, f"{ds.label} — blind window @ m={mass*1000:.1f} MeV {title_extra}".strip())
     ax.legend(loc="best", frameon=True)
     _grid(ax)
@@ -546,7 +583,7 @@ def plot_analytic_p0(
         if neff is None:
             neff = float(len(masses))
         p0_global = np.asarray([
-            _p_global_from_local(float(p), neff=neff, method=lee_method)
+            _p_global_from_local(float(p), Neff=neff, method=lee_method)
             for p in p0_local
         ], float)
         ax.plot(masses, p0_global, "--", label=f"Global p0 (N_eff={neff:.1f})")
@@ -616,7 +653,7 @@ def plot_Z_local_global(
             neff = float(len(masses))
         p_local = np.asarray([_p_from_z_one_sided(float(z)) for z in Z_local], float)
         p_global = np.asarray([
-            _p_global_from_local(float(p), neff=neff, method=lee_method)
+            _p_global_from_local(float(p), Neff=neff, method=lee_method)
             for p in p_local
         ], float)
         Z_global = np.asarray([_z_from_p_one_sided(float(p)) for p in p_global], float)
@@ -795,52 +832,183 @@ def plot_eps2_curves(
     df_comb: pd.DataFrame,
     outdir: str,
 ) -> None:
-    """Plot epsilon^2 upper limit curves (individual + combined).
+    """Write full scan summary plots (UL, Ahat, p0, Z, and GP hyperparameters)."""
+    ensure_dir(outdir)
 
-    Args:
-        df_single: Single-dataset results DataFrame
-        df_comb: Combined results DataFrame
-        outdir: Output directory
-    """
+    datasets = sorted(df_single["dataset"].unique()) if len(df_single) and "dataset" in df_single.columns else []
+
+    def _finite(sub: pd.DataFrame, col: str) -> pd.DataFrame:
+        return sub[np.isfinite(sub[col].to_numpy(float))].copy() if col in sub.columns else sub.iloc[0:0].copy()
+
+    for ds in datasets:
+        sub = df_single[df_single["dataset"] == ds].copy().sort_values("mass_GeV")
+        if len(sub) == 0:
+            continue
+
+        # A_up summary
+        sA = _finite(sub, "A_up")
+        if len(sA):
+            fig, ax = plt.subplots(figsize=(9, 4))
+            ax.plot(sA["mass_GeV"], sA["A_up"], color="C0")
+            ax.set_yscale("log")
+            ax.set_xlabel("m (GeV)")
+            ax.set_ylabel(r"$A_{up}$")
+            _set_title_above(ax, f"{ds}: signal-yield UL (95% CL)")
+            _grid(ax)
+            plt.tight_layout()
+            plt.savefig(os.path.join(outdir, f"A_up_{ds}.png"), dpi=200)
+            plt.close(fig)
+
+        # eps2 UL summary
+        se = _finite(sub, "eps2_up")
+        if len(se):
+            fig, ax = plt.subplots(figsize=(9, 4))
+            ax.plot(se["mass_GeV"], se["eps2_up"], color="C1")
+            ax.set_yscale("log")
+            ax.set_xlabel("m (GeV)")
+            ax.set_ylabel(r"$\epsilon^2_{up}$")
+            _set_title_above(ax, f"{ds}: epsilon^2 UL (95% CL)")
+            _grid(ax)
+            plt.tight_layout()
+            plt.savefig(os.path.join(outdir, f"eps2_ul_{ds}.png"), dpi=200)
+            plt.close(fig)
+
+        # A_hat summary
+        sh = _finite(sub, "A_hat")
+        if len(sh):
+            fig, ax = plt.subplots(figsize=(9, 4))
+            ax.plot(sh["mass_GeV"], sh["A_hat"], color="C2", label=r"$\hat{A}$")
+            if "sigma_A" in sh.columns:
+                sig = sh["sigma_A"].to_numpy(float)
+                ah = sh["A_hat"].to_numpy(float)
+                ax.fill_between(sh["mass_GeV"], ah - sig, ah + sig, color="C2", alpha=0.2, label=r"$\hat{A}\pm\sigma_A$")
+            ax.axhline(0.0, color="k", lw=0.8)
+            ax.set_xlabel("m (GeV)")
+            ax.set_ylabel(r"$\hat{A}$")
+            _set_title_above(ax, f"{ds}: extracted signal amplitude")
+            ax.legend(loc="best", fontsize=8, frameon=True)
+            _grid(ax)
+            plt.tight_layout()
+            plt.savefig(os.path.join(outdir, f"A_hat_{ds}.png"), dpi=200)
+            plt.close(fig)
+
+        # p0 and Z summaries (local+global)
+        sp = _finite(sub, "p0_analytic")
+        if len(sp):
+            plot_analytic_p0(
+                sp,
+                title=f"{ds}: analytic local/global p0",
+                outpath=os.path.join(outdir, f"p0_{ds}.png"),
+                apply_lee=True,
+                neff=float(max(len(sp), 1.0)),
+            )
+            plot_Z_local_global(
+                sp,
+                title=f"{ds}: local/global Z",
+                outpath=os.path.join(outdir, f"Z_local_global_{ds}.png"),
+                apply_lee=True,
+                neff=float(max(len(sp), 1.0)),
+            )
+
+    # Overlay curves including combined eps2
+    if len(datasets):
+        fig, ax = plt.subplots(figsize=(9, 4))
+        for ds in datasets:
+            sub = _finite(df_single[df_single["dataset"] == ds].copy(), "eps2_up")
+            if len(sub):
+                ax.plot(sub["mass_GeV"], sub["eps2_up"], label=ds)
+        if len(df_comb) and "eps2_up" in df_comb.columns:
+            subc = _finite(df_comb.copy(), "eps2_up")
+            if len(subc):
+                ax.plot(subc["mass_GeV"], subc["eps2_up"], label="combined", lw=2.0, color="k")
+        ax.set_yscale("log")
+        ax.set_xlabel("m (GeV)")
+        ax.set_ylabel(r"$\epsilon^2_{up}$")
+        _set_title_above(ax, "epsilon^2 UL: datasets and combined")
+        ax.legend(loc="best", fontsize=8, frameon=True)
+        _grid(ax)
+        plt.tight_layout()
+        plt.savefig(os.path.join(outdir, "eps2_ul_overlay.png"), dpi=200)
+        plt.close(fig)
+
+    plot_gp_hyperparameters(df_single, os.path.join(outdir, "gp_hyperparameters"))
+
+    # summary CSV for rapid publication workflows
+    summary_csv = os.path.join(outdir, "scan_summary_single.csv")
+    df_single.to_csv(summary_csv, index=False)
+    print("Wrote summary plots to", outdir)
+    print("Wrote:", summary_csv)
+
+
+def plot_gp_hyperparameters(df_single: pd.DataFrame, outdir: str) -> None:
+    """Write GP kernel/hyper-parameter QA plots from scan dataframe."""
+    if df_single is None or df_single.empty or "dataset" not in df_single.columns:
+        return
     ensure_dir(outdir)
 
     for ds in sorted(df_single["dataset"].unique()):
-        sub = df_single[df_single["dataset"] == ds].copy()
-        sub = sub[np.isfinite(sub["eps2_up"].to_numpy(float))]
+        sub = df_single[df_single["dataset"] == ds].copy().sort_values("mass_GeV")
         if len(sub) == 0:
             continue
-        fig, ax = plt.subplots(figsize=(9, 4))
-        ax.plot(sub["mass_GeV"], sub["eps2_up"])
-        ax.set_yscale("log")
-        ax.set_xlabel("m (GeV)")
-        ax.set_ylabel(r"$\epsilon^2$ upper limit")
-        _set_title_above(ax, f"{ds}: epsilon^2 UL (95% CL)")
-        _grid(ax)
-        plt.tight_layout()
-        plt.savefig(os.path.join(outdir, f"eps2_ul_{ds}.png"), dpi=180)
-        plt.close(fig)
+        x = sub["mass_GeV"].to_numpy(float)
 
-    subc = df_comb.copy()
-    subc = subc[np.isfinite(subc["eps2_up"].to_numpy(float))] if "eps2_up" in subc.columns else subc
-    if len(subc) > 0 and "eps2_up" in subc.columns:
-        fig, ax = plt.subplots(figsize=(9, 4))
-        for ds in sorted(df_single["dataset"].unique()):
-            sub = df_single[df_single["dataset"] == ds].copy()
-            sub = sub[np.isfinite(sub["eps2_up"].to_numpy(float))]
-            if len(sub):
-                ax.plot(sub["mass_GeV"], sub["eps2_up"], label=ds)
-        ax.plot(subc["mass_GeV"], subc["eps2_up"], label="combined", lw=2)
-        ax.set_yscale("log")
-        ax.set_xlabel("m (GeV)")
-        ax.set_ylabel(r"$\epsilon^2$ upper limit")
-        _set_title_above(ax, "epsilon^2 UL: individual + combined")
-        ax.legend(loc="best")
-        _grid(ax)
-        plt.tight_layout()
-        plt.savefig(os.path.join(outdir, "eps2_ul_overlay.png"), dpi=180)
-        plt.close(fig)
+        if "ls_opt_over_sigma_x" in sub.columns and np.isfinite(sub["ls_opt_over_sigma_x"].to_numpy(float)).any():
+            fig, ax = plt.subplots(figsize=(9, 4))
+            ax.plot(x, sub["ls_opt_over_sigma_x"], label=r"$\ell_{opt}/\sigma_x$")
+            if "ls_hi_over_sigma_x" in sub.columns:
+                ax.plot(x, sub["ls_hi_over_sigma_x"], "--", label=r"$\ell_{hi}/\sigma_x$")
+            if "ls_lo_over_sigma_x" in sub.columns:
+                ax.plot(x, sub["ls_lo_over_sigma_x"], "--", label=r"$\ell_{lo}/\sigma_x$")
+            ax.set_xlabel("m (GeV)")
+            ax.set_ylabel("dimensionless ratio")
+            _set_title_above(ax, f"{ds}: GP length-scale / sigma_x")
+            ax.legend(loc="best", fontsize=8, frameon=True)
+            _grid(ax)
+            plt.tight_layout()
+            plt.savefig(os.path.join(outdir, f"gp_ls_ratio_{ds}.png"), dpi=200)
+            plt.close(fig)
 
-    print("Wrote summary plots to", outdir)
+        if "ls_opt" in sub.columns and np.isfinite(sub["ls_opt"].to_numpy(float)).any():
+            fig, ax = plt.subplots(figsize=(9, 4))
+            ax.plot(x, sub["ls_opt"], label=r"$\ell_{opt}$")
+            if "ls_hi" in sub.columns:
+                ax.plot(x, sub["ls_hi"], "--", label=r"$\ell_{hi}$")
+            if "ls_lo" in sub.columns:
+                ax.plot(x, sub["ls_lo"], "--", label=r"$\ell_{lo}$")
+            if "sigma_x" in sub.columns:
+                ax.plot(x, sub["sigma_x"], ":", label=r"$\sigma_x$")
+            ax.set_xlabel("m (GeV)")
+            ax.set_ylabel("x-space scale")
+            _set_title_above(ax, f"{ds}: GP length scales")
+            ax.legend(loc="best", fontsize=8, frameon=True)
+            _grid(ax)
+            plt.tight_layout()
+            plt.savefig(os.path.join(outdir, f"gp_ls_abs_{ds}.png"), dpi=200)
+            plt.close(fig)
+
+        if "const_opt" in sub.columns and np.isfinite(sub["const_opt"].to_numpy(float)).any():
+            fig, ax = plt.subplots(figsize=(9, 4))
+            ax.plot(x, sub["const_opt"], label="constant amplitude")
+            ax.set_xlabel("m (GeV)")
+            ax.set_ylabel("ConstantKernel")
+            _set_title_above(ax, f"{ds}: ConstantKernel amplitude")
+            ax.legend(loc="best", fontsize=8, frameon=True)
+            _grid(ax)
+            plt.tight_layout()
+            plt.savefig(os.path.join(outdir, f"gp_const_{ds}.png"), dpi=200)
+            plt.close(fig)
+
+        if "lml" in sub.columns and np.isfinite(sub["lml"].to_numpy(float)).any():
+            fig, ax = plt.subplots(figsize=(9, 4))
+            ax.plot(x, sub["lml"], label="log marginal likelihood")
+            ax.set_xlabel("m (GeV)")
+            ax.set_ylabel("LML")
+            _set_title_above(ax, f"{ds}: GP log marginal likelihood")
+            ax.legend(loc="best", fontsize=8, frameon=True)
+            _grid(ax)
+            plt.tight_layout()
+            plt.savefig(os.path.join(outdir, f"gp_lml_{ds}.png"), dpi=200)
+            plt.close(fig)
 
 
 def plot_bands(
