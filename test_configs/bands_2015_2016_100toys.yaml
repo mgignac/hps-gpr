@@ -17,8 +17,8 @@ n_restarts: 4
 
 make_ul_bands: true
 ul_bands_toys: 100
-ul_bands_n_workers: 1
-ul_bands_threads_per_worker: 1
+ul_bands_n_workers: 5
+ul_bands_threads_per_worker: 2
 
 save_plots: true
 save_fit_json: true
