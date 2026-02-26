@@ -187,6 +187,38 @@ hps-gpr slurm-gen \
   --output submit_2015_2016_combined_bands_10k.slurm
 ```
 
+
+Submit all three scripts (**run directly; do not wrap with `sbatch submit_all.sh`**):
+
+```bash
+./submit_all.sh \
+  submit_2015_bands_10k.slurm \
+  submit_2016_10pct_bands_10k.slurm \
+  submit_2015_2016_combined_bands_10k.slurm
+```
+
+
+If your site requires submission-time account/QOS flags, pass them through:
+
+```bash
+./submit_all.sh --account hps:hps-prod --qos normal \
+  submit_2015_bands_10k.slurm \
+  submit_2016_10pct_bands_10k.slurm \
+  submit_2015_2016_combined_bands_10k.slurm
+```
+
+If you see `sbatch: command not found`, you are not on a SLURM submit node. Verify with:
+
+```bash
+command -v sbatch
+```
+
+Then SSH to your SLURM login host (example):
+
+```bash
+ssh <your_user>@s3dflogin.slac.stanford.edu
+```
+
 ## Output Files
 
 The scan produces the following outputs:
