@@ -380,9 +380,15 @@ def test(config, output_dir):
     "--conda-env",
     help="Conda environment to activate",
 )
-def slurm_gen(config, n_jobs, output, job_name, partition, time, memory, conda_env):
+@click.option(
+    "--account",
+    help="SLURM account/project to charge",
+)
+def slurm_gen(config, n_jobs, output, job_name, partition, time, memory, conda_env, account):
     """Generate SLURM array job script."""
     from .slurm import generate_slurm_script
+
+    extra = [f"--account={account}"] if account else None
 
     generate_slurm_script(
         config_path=config,
@@ -393,6 +399,7 @@ def slurm_gen(config, n_jobs, output, job_name, partition, time, memory, conda_e
         time_limit=time,
         memory=memory,
         conda_env=conda_env,
+        extra_sbatch=extra,
     )
 
 
