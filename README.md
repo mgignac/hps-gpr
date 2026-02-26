@@ -149,6 +149,44 @@ sbatch submit.slurm
 hps-gpr slurm-combine --output-dir outputs/my_analysis/
 ```
 
+Example: generate job files for 10k-toy limit-band production on S3DF (`milano`),
+including explicit account charging:
+
+```bash
+# 2015-only limit bands (126 mass points => 126 array jobs)
+hps-gpr slurm-gen \
+  --config config_2015_10k.yaml \
+  --n-jobs 126 \
+  --job-name hps2015_bands_10k \
+  --partition milano \
+  --account hps:hps-prod \
+  --time 24:00:00 \
+  --memory 8G \
+  --output submit_2015_bands_10k.slurm
+
+# 2016 10% limit bands (156 mass points => 156 array jobs)
+hps-gpr slurm-gen \
+  --config config_2016_10pct_10k.yaml \
+  --n-jobs 156 \
+  --job-name hps2016_10pct_bands_10k \
+  --partition milano \
+  --account hps:hps-prod \
+  --time 24:00:00 \
+  --memory 8G \
+  --output submit_2016_10pct_bands_10k.slurm
+
+# 2015+2016 combined limit bands over overlap (106 mass points => 106 array jobs)
+hps-gpr slurm-gen \
+  --config config_2015_2016_combined_10k.yaml \
+  --n-jobs 106 \
+  --job-name hps2015_2016_combined_bands_10k \
+  --partition milano \
+  --account hps:hps-prod \
+  --time 24:00:00 \
+  --memory 8G \
+  --output submit_2015_2016_combined_bands_10k.slurm
+```
+
 ## Output Files
 
 The scan produces the following outputs:
