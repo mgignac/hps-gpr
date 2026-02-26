@@ -390,7 +390,7 @@ def slurm_gen(config, n_jobs, output, job_name, partition, time, memory, conda_e
 
     extra = [f"--account={account}"] if account else None
 
-    generate_slurm_script(
+    job_script, submit_script = generate_slurm_script(
         config_path=config,
         n_jobs=n_jobs,
         output_path=output,
@@ -401,6 +401,8 @@ def slurm_gen(config, n_jobs, output, job_name, partition, time, memory, conda_e
         conda_env=conda_env,
         extra_sbatch=extra,
     )
+    print(f"\nTo submit all {n_jobs} jobs, run:")
+    print(f"  bash {submit_script}")
 
 
 @main.command("slurm-combine")

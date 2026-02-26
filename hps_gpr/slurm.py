@@ -22,66 +22,96 @@ def generate_slurm_script(
     memory: str = "4G",
     conda_env: Optional[str] = None,
     extra_sbatch: Optional[List[str]] = None,
-) -> str:
-    """Generate a SLURM array job script for parallel mass scans.
+) -> tuple:
+    """Generate a single-job SLURM script and a bash submission loop script.
+
+    Produces two files:
+      - output_path (e.g. job.slurm): the single-job SLURM script that reads
+        TASK_ID and N_TASKS from environment variables passed at sbatch time.
+      - submit_all.sh (alongside output_path): a bash loop that calls sbatch
+        once per task, passing TASK_ID and N_TASKS via --export.
 
     Args:
         config_path: Path to configuration YAML file
-        n_jobs: Number of array tasks to split the scan into
-        output_path: Path to write the SLURM script
+        n_jobs: Number of individual jobs to submit
+        output_path: Path to write the SLURM job script
         job_name: SLURM job name
         partition: SLURM partition
-        time_limit: Time limit per task
-        memory: Memory per task
+        time_limit: Time limit per job
+        memory: Memory per job
         conda_env: Conda environment to activate (optional)
         extra_sbatch: Additional SBATCH directives
 
     Returns:
-        Path to generated script
+        Tuple of (job_script_path, submit_script_path)
     """
-    script_lines = [
+    # --- Job script (no --array; TASK_ID/N_TASKS injected at submission) ---
+    job_lines = [
         "#!/bin/bash",
         f"#SBATCH --job-name={job_name}",
-        f"#SBATCH --array=0-{n_jobs - 1}",
         f"#SBATCH --partition={partition}",
         f"#SBATCH --time={time_limit}",
         f"#SBATCH --mem={memory}",
-        "#SBATCH --output=logs/%A_%a.out",
-        "#SBATCH --error=logs/%A_%a.err",
+        "#SBATCH --output=logs/%j.out",
+        "#SBATCH --error=logs/%j.err",
     ]
 
     if extra_sbatch:
         for directive in extra_sbatch:
-            script_lines.append(f"#SBATCH {directive}")
+            job_lines.append(f"#SBATCH {directive}")
 
-    script_lines.append("")
-    script_lines.append("# Create logs directory")
-    script_lines.append("mkdir -p logs")
-    script_lines.append("")
+    job_lines.append("")
+    job_lines.append("mkdir -p logs")
+    job_lines.append("")
 
     if conda_env:
-        script_lines.append(f"# Activate conda environment")
-        script_lines.append(f"source $(conda info --base)/etc/profile.d/conda.sh")
-        script_lines.append(f"conda activate {conda_env}")
-        script_lines.append("")
+        job_lines.append("# Activate conda environment")
+        job_lines.append("source $(conda info --base)/etc/profile.d/conda.sh")
+        job_lines.append(f"conda activate {conda_env}")
+        job_lines.append("")
 
-    script_lines.extend([
-        "# Run the scan for this array task",
+    job_lines.extend([
+        "# TASK_ID and N_TASKS are passed via --export at submission time",
         f"hps-gpr scan \\",
         f"    --config {config_path} \\",
-        f"    --array-task $SLURM_ARRAY_TASK_ID \\",
-        f"    --n-tasks {n_jobs}",
+        f"    --array-task ${{TASK_ID}} \\",
+        f"    --n-tasks ${{N_TASKS}}",
     ])
 
-    script_content = "\n".join(script_lines) + "\n"
+    job_content = "\n".join(job_lines) + "\n"
 
     with open(output_path, "w") as f:
-        f.write(script_content)
-
+        f.write(job_content)
     os.chmod(output_path, 0o755)
-    print(f"Wrote SLURM script to {output_path}")
+    print(f"Wrote SLURM job script to {output_path}")
 
-    return output_path
+    # --- Submit loop script ---
+    submit_path = os.path.join(os.path.dirname(os.path.abspath(output_path)), "submit_all.sh")
+    abs_job = os.path.abspath(output_path)
+
+    submit_lines = [
+        "#!/bin/bash",
+        f"# Submit {n_jobs} individual SLURM jobs for hps-gpr scan",
+        f"N_TASKS={n_jobs}",
+        f'JOB_SCRIPT="{abs_job}"',
+        "",
+        "mkdir -p logs",
+        "",
+        f"for TASK_ID in $(seq 0 $(( N_TASKS - 1 ))); do",
+        f'    sbatch --export=ALL,TASK_ID=${{TASK_ID}},N_TASKS=${{N_TASKS}} "${{JOB_SCRIPT}}"',
+        "done",
+        "",
+        f'echo "Submitted ${{N_TASKS}} jobs."',
+    ]
+
+    submit_content = "\n".join(submit_lines) + "\n"
+
+    with open(submit_path, "w") as f:
+        f.write(submit_content)
+    os.chmod(submit_path, 0o755)
+    print(f"Wrote submission loop script to {submit_path}")
+
+    return output_path, submit_path
 
 
 def get_mass_range_for_task(
