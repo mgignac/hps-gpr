@@ -134,8 +134,8 @@ def expected_ul_bands_for_dataset(
         cov = np.asarray(pred.cov, float)
 
         alpha = float(config.cls_alpha)
-        mode = str(config.cls_mode)
-        num_toys_cls = int(config.cls_num_toys)
+        mode = str(getattr(config, "ul_bands_cls_mode", None) or config.cls_mode)
+        num_toys_cls = int(getattr(config, "ul_bands_cls_num_toys", None) or config.cls_num_toys)
 
         # Observed UL
         if compute_obs:
@@ -266,9 +266,9 @@ def expected_ul_bands_for_dataset(
         # Analytic p0 / Z on observed data (only when unblinded)
         if compute_obs:
             try:
-                p0_obs = float(p0_profiled_gaussian_LRT(obs, mu, cov, tmpl))
-                from scipy.stats import norm as _norm
-                Z_obs = float(_norm.ppf(1.0 - p0_obs)) if np.isfinite(p0_obs) and p0_obs < 1.0 else np.nan
+                p0_obs, Z_obs, _, _ = p0_profiled_gaussian_LRT(obs, mu, cov, tmpl)
+                p0_obs = float(p0_obs)
+                Z_obs = float(Z_obs)
             except Exception:
                 p0_obs = np.nan
                 Z_obs = np.nan
@@ -442,8 +442,8 @@ def expected_ul_bands_for_combination(
         obs_vec0, b_vec, cov_mat, s_unit = build_combined_components(float(m), ds_list, preds_list)
 
         alpha = float(config.cls_alpha)
-        mode = str(config.cls_mode)
-        num_toys_cls = int(config.cls_num_toys)
+        mode = str(getattr(config, "ul_bands_cls_mode", None) or config.cls_mode)
+        num_toys_cls = int(getattr(config, "ul_bands_cls_num_toys", None) or config.cls_num_toys)
 
         # Blinding: compute obs only if all datasets are "observed"
         compute_obs = all(
@@ -583,9 +583,9 @@ def expected_ul_bands_for_combination(
                     _bt(preds[k].edges, float(m), float(preds[k].sigma_val))
                     for k in ds_here
                 ])
-                p0_obs_c = float(p0_profiled_gaussian_LRT(obs_vec0, b_vec, cov_mat, tmpl_c))
-                from scipy.stats import norm as _norm
-                Z_obs_c = float(_norm.ppf(1.0 - p0_obs_c)) if np.isfinite(p0_obs_c) and p0_obs_c < 1.0 else nan
+                p0_obs_c, Z_obs_c, _, _ = p0_profiled_gaussian_LRT(obs_vec0, b_vec, cov_mat, tmpl_c)
+                p0_obs_c = float(p0_obs_c)
+                Z_obs_c = float(Z_obs_c)
             except Exception:
                 p0_obs_c = nan
                 Z_obs_c = nan

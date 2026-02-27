@@ -92,9 +92,12 @@ def _build_model(
     first_edge = float(edges_all[0])
     last_edge = float(edges_all[-1])
 
-    # Clamp to dataset analysis range
-    lower = max(first_edge, ds.m_low)
-    upper = min(last_edge, ds.m_high)
+    # Prefer explicit data-range overrides for training/fits; otherwise use
+    # full histogram extent to avoid edge instabilities near the search range.
+    data_lo = getattr(ds, "data_low", None)
+    data_hi = getattr(ds, "data_high", None)
+    lower = max(first_edge, float(data_lo)) if data_lo is not None else first_edge
+    upper = min(last_edge, float(data_hi)) if data_hi is not None else last_edge
 
     manip = gp._hist.manipulation.rebin_and_limit(int(rebin), lower, upper)
 

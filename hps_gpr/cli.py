@@ -101,6 +101,42 @@ def scan(config, output_dir, mass_min, mass_max, array_task, n_tasks):
             df_single, df_comb, os.path.join(cfg.output_dir, "summary_plots")
         )
 
+    if bool(getattr(cfg, "make_ul_bands", False)):
+        from .bands import expected_ul_bands_for_dataset, expected_ul_bands_for_combination
+        from .plotting import plot_ul_bands
+
+        masses_all = np.round(np.arange(min(d.m_low for d in datasets.values()),
+                                        max(d.m_high for d in datasets.values()) + cfg.mass_step_gev / 2,
+                                        cfg.mass_step_gev), 3)
+        if mass_min is not None:
+            masses_all = masses_all[masses_all >= float(mass_min)]
+        if mass_max is not None:
+            masses_all = masses_all[masses_all <= float(mass_max)]
+
+        ds_key = str(getattr(cfg, "run_limit_bands_on", "2015"))
+        if ds_key in datasets:
+            ds = datasets[ds_key]
+            masses_ds = [float(m) for m in masses_all if float(ds.m_low) <= float(m) <= float(ds.m_high)]
+            if masses_ds:
+                print(f"\nComputing UL bands for {ds_key} ({len(masses_ds)} masses)")
+                df_bands = expected_ul_bands_for_dataset(ds, masses_ds, cfg)
+                out_csv = os.path.join(cfg.output_dir, f"ul_bands_{ds.key}.csv")
+                out_png = os.path.join(cfg.output_dir, f"ul_bands_{ds.key}.png")
+                out_eps2 = os.path.join(cfg.output_dir, f"ul_bands_eps2_{ds.key}.png")
+                df_bands.to_csv(out_csv, index=False)
+                plot_ul_bands(df_bands, use_eps2=False, title=f"Expected UL bands ({ds.key})", outpath=out_png)
+                if bool(getattr(cfg, "make_eps2_bands", True)):
+                    plot_ul_bands(df_bands, use_eps2=True, title=f"Expected $\epsilon^2$ UL bands ({ds.key})", outpath=out_eps2)
+
+        if bool(getattr(cfg, "do_combined_bands", False)):
+            keys = list(datasets.keys())
+            print(f"\nComputing combined UL bands for datasets: {keys}")
+            df_cb = expected_ul_bands_for_combination(keys, datasets, [float(m) for m in masses_all], cfg)
+            out_csv_c = os.path.join(cfg.output_dir, "ul_bands_combined_all.csv")
+            out_png_c = os.path.join(cfg.output_dir, "ul_bands_combined_all.png")
+            df_cb.to_csv(out_csv_c, index=False)
+            plot_ul_bands(df_cb, use_eps2=True, title="Expected combined $\epsilon^2$ UL bands", outpath=out_png_c)
+
     print("\nScan complete!")
 
 
@@ -421,13 +457,44 @@ def slurm_gen(config, n_jobs, output, job_name, partition, time, memory, conda_e
 def slurm_combine(output_dir, prefix):
     """Combine results from parallel SLURM jobs."""
     from .slurm import combine_results
+    from .plotting import plot_ul_bands
 
-    df_single, df_comb = combine_results(output_dir, prefix)
+    df_single, df_comb, bands_a, bands_eps2, bands_comb = combine_results(output_dir, prefix)
 
     if df_single is not None:
         print(f"\nCombined single results: {len(df_single)} rows")
     if df_comb is not None:
         print(f"Combined results: {len(df_comb)} rows")
+
+    for name, path in (bands_a or {}).items():
+        try:
+            import pandas as pd
+            df = pd.read_csv(path)
+            png = path[:-4] + ".png"
+            plot_ul_bands(df, use_eps2=False, title=f"Expected UL bands ({name})", outpath=png)
+            print(f"Wrote {png}")
+        except Exception as e:
+            print(f"Warning: could not plot A bands for {name}: {e}")
+
+    for name, path in (bands_eps2 or {}).items():
+        try:
+            import pandas as pd
+            df = pd.read_csv(path)
+            png = path[:-4] + ".png"
+            plot_ul_bands(df, use_eps2=True, title=f"Expected $\epsilon^2$ UL bands ({name})", outpath=png)
+            print(f"Wrote {png}")
+        except Exception as e:
+            print(f"Warning: could not plot eps2 bands for {name}: {e}")
+
+    for name, path in (bands_comb or {}).items():
+        try:
+            import pandas as pd
+            df = pd.read_csv(path)
+            png = path[:-4] + ".png"
+            plot_ul_bands(df, use_eps2=True, title=f"Expected combined $\epsilon^2$ UL bands ({name})", outpath=png)
+            print(f"Wrote {png}")
+        except Exception as e:
+            print(f"Warning: could not plot combined bands for {name}: {e}")
 
 
 if __name__ == "__main__":

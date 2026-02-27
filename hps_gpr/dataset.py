@@ -67,6 +67,8 @@ def make_datasets(config: "Config") -> Dict[str, DatasetConfig]:
             sigma_coeffs=config.sigma_coeffs_2015,
             frad_coeffs=config.frad_coeffs_2015,
             enabled=config.enable_2015 and (not config.only_2021_mc),
+            data_low=(config.data_range_2015[0] if config.data_range_2015 is not None else None),
+            data_high=(config.data_range_2015[1] if config.data_range_2015 is not None else None),
         ),
         "2016": DatasetConfig(
             key="2016",
@@ -78,6 +80,8 @@ def make_datasets(config: "Config") -> Dict[str, DatasetConfig]:
             sigma_coeffs=config.sigma_coeffs_2016,
             frad_coeffs=config.frad_coeffs_2016,
             enabled=config.enable_2016 and (not config.only_2021_mc),
+            data_low=(config.data_range_2016[0] if config.data_range_2016 is not None else None),
+            data_high=(config.data_range_2016[1] if config.data_range_2016 is not None else None),
         ),
         "2021": DatasetConfig(
             key="2021",
@@ -89,6 +93,8 @@ def make_datasets(config: "Config") -> Dict[str, DatasetConfig]:
             sigma_coeffs=config.sigma_coeffs_2021,
             frad_coeffs=config.frad_coeffs_2021,
             enabled=config.enable_2021,
+            data_low=(config.data_range_2021[0] if config.data_range_2021 is not None else None),
+            data_high=(config.data_range_2021[1] if config.data_range_2021 is not None else None),
         ),
     }
 

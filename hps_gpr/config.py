@@ -53,6 +53,11 @@ class Config:
     range_2015: Tuple[float, float] = (0.015, 0.140)
     range_2016: Tuple[float, float] = (0.035, 0.190)
     range_2021: Tuple[float, float] = (0.035, 0.230)
+    # Optional full histogram fit/training ranges (GeV).
+    # If None, model training uses full histogram extent.
+    data_range_2015: Optional[Tuple[float, float]] = None
+    data_range_2016: Optional[Tuple[float, float]] = None
+    data_range_2021: Optional[Tuple[float, float]] = None
 
     # Mass resolution sigma(m) polynomial coefficients
     # sigma(m) = sum_i coeffs[i] * m**i
@@ -134,6 +139,10 @@ class Config:
     cls_seed_base: int = 12345
     make_ul_bands: bool = True
     ul_bands_toys: int = 100
+    # Optional CLs settings specifically for UL-band evaluation.
+    # When None, fall back to cls_mode / cls_num_toys.
+    ul_bands_cls_mode: Optional[str] = None
+    ul_bands_cls_num_toys: Optional[int] = None
     # v15 UL bands extensions
     ul_bands_seed: int = 12345
     ul_bands_n_workers: int = 1
@@ -226,6 +235,9 @@ def load_config(path: str) -> Config:
         "range_2015",
         "range_2016",
         "range_2021",
+        "data_range_2015",
+        "data_range_2016",
+        "data_range_2021",
         "kernel_constant_bounds",
         "kernel_ls_bounds",
     ]
