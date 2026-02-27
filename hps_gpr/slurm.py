@@ -160,6 +160,48 @@ def get_mass_range_for_task(
     return mass_min, mass_max
 
 
+
+
+def _combine_band_family(output_dir: str, output_prefix: str, stem: str, subset_cols: List[str]):
+    """Combine per-task UL-band CSV files with matching stem pattern."""
+    files = glob.glob(os.path.join(output_dir, "**", f"{stem}_*.csv"), recursive=True)
+    if not files:
+        return {}
+
+    out = {}
+    by_name = {}
+    for f in files:
+        base = os.path.basename(f)
+        # expect e.g. ul_bands_2015.csv -> name='2015'
+        if not base.startswith(stem + "_") or not base.endswith('.csv'):
+            continue
+        name = base[len(stem) + 1:-4]
+        by_name.setdefault(name, []).append(f)
+
+    for name, paths in by_name.items():
+        dfs = []
+        for fp in paths:
+            try:
+                dfs.append(pd.read_csv(fp))
+            except Exception as e:
+                print(f"Warning: Could not read {fp}: {e}")
+        if not dfs:
+            continue
+        df = pd.concat(dfs, ignore_index=True)
+        keep = [c for c in subset_cols if c in df.columns]
+        if keep:
+            df = df.drop_duplicates(subset=keep)
+        sort_cols = [c for c in ["dataset", "dataset_set", "mass_GeV"] if c in df.columns]
+        if sort_cols:
+            df = df.sort_values(sort_cols).reset_index(drop=True)
+        else:
+            df = df.reset_index(drop=True)
+        out_path = os.path.join(output_dir, f"{output_prefix}_{stem}_{name}.csv")
+        df.to_csv(out_path, index=False)
+        print(f"Wrote combined band table to {out_path}")
+        out[name] = out_path
+
+    return out
 def combine_results(output_dir: str, output_prefix: str = "combined") -> tuple:
     """Combine results from parallel SLURM jobs.
 
@@ -218,4 +260,8 @@ def combine_results(output_dir: str, output_prefix: str = "combined") -> tuple:
     else:
         df_comb = None
 
-    return df_single, df_comb
+    combined_ul_bands = _combine_band_family(output_dir, output_prefix, "ul_bands", ["dataset", "mass_GeV"])
+    combined_ul_bands_eps2 = _combine_band_family(output_dir, output_prefix, "ul_bands_eps2", ["dataset", "mass_GeV"])
+    combined_ul_bands_combined = _combine_band_family(output_dir, output_prefix, "ul_bands_combined", ["dataset_set", "mass_GeV"])
+
+    return df_single, df_comb, combined_ul_bands, combined_ul_bands_eps2, combined_ul_bands_combined
