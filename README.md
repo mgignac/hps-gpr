@@ -149,28 +149,111 @@ sbatch submit.slurm
 hps-gpr slurm-combine --output-dir outputs/my_analysis/
 ```
 
+Example: generate job files for 10k-toy limit-band production on S3DF (`milano`),
+including explicit account charging:
+
+```bash
+# 2015-only limit bands (126 mass points => 126 array jobs)
+hps-gpr slurm-gen \
+  --config config_2015_10k.yaml \
+  --n-jobs 126 \
+  --job-name hps2015_bands_10k \
+  --partition milano \
+  --account hps:hps-prod \
+  --time 24:00:00 \
+  --memory 8G \
+  --output submit_2015_bands_10k.slurm
+
+# 2016 10% limit bands (156 mass points => 156 array jobs)
+hps-gpr slurm-gen \
+  --config config_2016_10pct_10k.yaml \
+  --n-jobs 156 \
+  --job-name hps2016_10pct_bands_10k \
+  --partition milano \
+  --account hps:hps-prod \
+  --time 24:00:00 \
+  --memory 8G \
+  --output submit_2016_10pct_bands_10k.slurm
+
+# 2015+2016 combined limit bands over overlap (106 mass points => 106 array jobs)
+hps-gpr slurm-gen \
+  --config config_2015_2016_combined_10k.yaml \
+  --n-jobs 106 \
+  --job-name hps2015_2016_combined_bands_10k \
+  --partition milano \
+  --account hps:hps-prod \
+  --time 24:00:00 \
+  --memory 8G \
+  --output submit_2015_2016_combined_bands_10k.slurm
+```
+
+
+Submit all three scripts (**run directly; do not wrap with `sbatch submit_all.sh`**):
+
+```bash
+./submit_all.sh \
+  submit_2015_bands_10k.slurm \
+  submit_2016_10pct_bands_10k.slurm \
+  submit_2015_2016_combined_bands_10k.slurm
+```
+
+
+If your site requires submission-time account/QOS flags, pass them through:
+
+```bash
+./submit_all.sh --account hps:hps-prod --qos normal \
+  submit_2015_bands_10k.slurm \
+  submit_2016_10pct_bands_10k.slurm \
+  submit_2015_2016_combined_bands_10k.slurm
+```
+
+If you see `sbatch: command not found`, you are not on a SLURM submit node. Verify with:
+
+```bash
+command -v sbatch
+```
+
+Then SSH to your SLURM login host (example):
+
+```bash
+ssh <your_user>@s3dflogin.slac.stanford.edu
+```
+
 ## Output Files
 
 The scan produces the following outputs:
 
 ```
 outputs/
-├── validation_report.json    # Dataset validation results
-├── results_single.csv        # Per-dataset results
-├── results_combined.csv      # Combined fit results (overlap regions)
+├── validation_report.json          # Dataset validation results
+├── results_single.csv              # Per-dataset scan results (+ GP diagnostics columns)
+├── results_combined.csv            # Combined-fit scan results
+├── combined.csv                    # Backward-compatible alias of results_combined.csv
 ├── summary_plots/
-│   ├── eps2_ul_2015.png     # Per-dataset epsilon^2 limits
-│   ├── eps2_ul_combined.png # Combined limits
-│   └── eps2_ul_overlay.png  # All limits overlaid
-└── m030MeV/                  # Per-mass-point folders
-    ├── 2015/
-    │   ├── fit_full.png     # Full range fit
-    │   ├── blind_ul.png     # Blind window with UL
-    │   ├── s_over_b_ul.png  # Signal/background ratio
-    │   └── numbers.json     # Numerical results
+│   ├── scan_summary_single.csv     # Copy of per-dataset scan table for plotting workflows
+│   ├── A_up_<dataset>.png          # 95% CL amplitude UL vs mass
+│   ├── eps2_ul_<dataset>.png       # 95% CL epsilon^2 UL vs mass
+│   ├── A_hat_<dataset>.png         # Extracted signal yield (with ±1σ band)
+│   ├── p0_<dataset>.png            # Local/global p0 summaries
+│   ├── Z_local_global_<dataset>.png# Local/global significance summaries
+│   ├── eps2_ul_overlay.png         # Overlay of all datasets + combined eps2 UL
+│   └── gp_hyperparameters/
+│       ├── gp_ls_ratio_<dataset>.png # Length-scale ratios (l/sigma_x)
+│       ├── gp_ls_abs_<dataset>.png   # Absolute GP length scales (l_hi, l_lo, l_opt)
+│       ├── gp_const_<dataset>.png    # ConstantKernel amplitude vs mass
+│       └── gp_lml_<dataset>.png      # GP log marginal likelihood vs mass
+└── mXXXMeV/                        # Optional per-mass folders (if save_per_mass_folders=true)
+    ├── <dataset>/
+    │   ├── fit_full.png            # Full-range fit diagnostic
+    │   ├── blind_fit.png           # Blind-window fit diagnostic
+    │   ├── s_over_b_ul.png         # Signal/background ratio for UL
+    │   ├── numbers.json            # Per-mass numerical summary
+    │   └── error.txt               # Present only when that mass-point fit fails
     └── combined/
-        └── numbers.json
+        ├── combined_summary.png    # Combined-fit text summary plot
+        └── numbers.json            # Combined per-mass numerical summary
 ```
+
 
 ## Package Structure
 
