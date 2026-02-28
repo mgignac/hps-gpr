@@ -455,9 +455,19 @@ def slurm_gen(config, n_jobs, output, job_name, partition, time, memory, conda_e
     help="Prefix for combined output files",
 )
 def slurm_combine(output_dir, prefix):
-    """Combine results from parallel SLURM jobs."""
+    """Combine results from parallel SLURM jobs and generate summary plot suites."""
+    import pandas as pd
+
     from .slurm import combine_results
-    from .plotting import plot_ul_bands
+    from .plotting import (
+        ensure_dir,
+        plot_ul_bands,
+        plot_observed_ul_only,
+        plot_ul_pvalues,
+        plot_ul_pvalue_components,
+        plot_analytic_p0,
+        plot_Z_local_global,
+    )
 
     df_single, df_comb, bands_a, bands_eps2, bands_comb = combine_results(output_dir, prefix)
 
@@ -468,17 +478,15 @@ def slurm_combine(output_dir, prefix):
 
     for name, path in (bands_a or {}).items():
         try:
-            import pandas as pd
             df = pd.read_csv(path)
             png = path[:-4] + ".png"
-            plot_ul_bands(df, use_eps2=False, title=f"Expected UL bands ({name})", outpath=png)
+            plot_ul_bands(df, use_eps2=False, title=f"Expected signal-yield UL bands ({name})", outpath=png)
             print(f"Wrote {png}")
         except Exception as e:
             print(f"Warning: could not plot A bands for {name}: {e}")
 
     for name, path in (bands_eps2 or {}).items():
         try:
-            import pandas as pd
             df = pd.read_csv(path)
             png = path[:-4] + ".png"
             plot_ul_bands(df, use_eps2=True, title=f"Expected $\epsilon^2$ UL bands ({name})", outpath=png)
@@ -488,13 +496,83 @@ def slurm_combine(output_dir, prefix):
 
     for name, path in (bands_comb or {}).items():
         try:
-            import pandas as pd
             df = pd.read_csv(path)
             png = path[:-4] + ".png"
             plot_ul_bands(df, use_eps2=True, title=f"Expected combined $\epsilon^2$ UL bands ({name})", outpath=png)
             print(f"Wrote {png}")
         except Exception as e:
             print(f"Warning: could not plot combined bands for {name}: {e}")
+
+    # Publication-style summary suites from combined UL-band CSVs.
+    summary_inputs = dict((bands_comb or {}))
+    if not summary_inputs:
+        summary_inputs = dict((bands_eps2 or {}))
+
+    for name, path in summary_inputs.items():
+        try:
+            df = pd.read_csv(path).sort_values("mass_GeV").reset_index(drop=True)
+            tag = str(name).replace("__", "_").strip("_")
+            suite_dir = os.path.join(output_dir, f"summary_combined_{tag}")
+            ensure_dir(suite_dir)
+
+            plot_ul_bands(
+                df,
+                use_eps2=True,
+                title=f"Expected/observed 95% CL upper limits on $\epsilon^2$ ({tag})",
+                outpath=os.path.join(suite_dir, "ul_bands_eps2_obsexp.png"),
+            )
+            if "A_obs" in df.columns or "ul_A_obs" in df.columns:
+                plot_ul_bands(
+                    df,
+                    use_eps2=False,
+                    title=f"Expected/observed 95% CL upper limits on signal yield ({tag})",
+                    outpath=os.path.join(suite_dir, "ul_bands_signal_yield_obsexp.png"),
+                )
+
+            plot_observed_ul_only(
+                df,
+                y="eps2",
+                title=f"Observed 95% CL upper limit on $\epsilon^2$ ({tag})",
+                outpath=os.path.join(suite_dir, "ul_observed_only_eps2.png"),
+            )
+            if "A_obs" in df.columns or "ul_A_obs" in df.columns:
+                plot_observed_ul_only(
+                    df,
+                    y="yield",
+                    title=f"Observed 95% CL upper limit on signal yield ({tag})",
+                    outpath=os.path.join(suite_dir, "ul_observed_only_signal_yield.png"),
+                )
+
+            plot_ul_pvalues(
+                df,
+                title=f"UL toy-tail p-values ({tag})",
+                outpath=os.path.join(suite_dir, "ul_pvalues.png"),
+            )
+            plot_ul_pvalue_components(
+                df,
+                title=f"UL toy-tail p-value components + local/global references ({tag})",
+                outpath=os.path.join(suite_dir, "ul_pvalues_components_local_global_refs.png"),
+            )
+
+            if "p0_analytic" in df.columns:
+                plot_analytic_p0(
+                    df,
+                    title=f"Analytic local/global p0 vs mass ({tag})",
+                    outpath=os.path.join(suite_dir, "p0_analytic_local_global.png"),
+                    apply_lee=True,
+                    lee_method="sidak",
+                )
+                plot_Z_local_global(
+                    df,
+                    title=f"Local/global Z vs mass ({tag})",
+                    outpath=os.path.join(suite_dir, "Z_local_global.png"),
+                    apply_lee=True,
+                    lee_method="sidak",
+                )
+
+            print(f"Wrote summary plot suite: {suite_dir}")
+        except Exception as e:
+            print(f"Warning: could not generate summary suite for {name}: {e}")
 
 
 if __name__ == "__main__":
