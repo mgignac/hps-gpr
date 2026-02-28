@@ -503,10 +503,13 @@ def slurm_combine(output_dir, prefix):
         except Exception as e:
             print(f"Warning: could not plot combined bands for {name}: {e}")
 
-    # Publication-style summary suites from combined UL-band CSVs.
+    # Publication-style summary suites from merged UL-band CSVs.
+    # Priority: explicit combination bands -> eps2 bands -> generic UL-band tables.
     summary_inputs = dict((bands_comb or {}))
     if not summary_inputs:
         summary_inputs = dict((bands_eps2 or {}))
+    if not summary_inputs:
+        summary_inputs = dict((bands_a or {}))
 
     for name, path in summary_inputs.items():
         try:

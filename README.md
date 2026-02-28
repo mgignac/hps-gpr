@@ -150,7 +150,8 @@ hps-gpr slurm-combine --output-dir outputs/my_analysis/
 ```
 
 `slurm-combine` now writes `summary_combined_<dataset_tag>/` folders (for example,
-`summary_combined_2015` or `summary_combined_2015_2016`) containing:
+`summary_combined_2015` or `summary_combined_2015_2016`) containing: The suite is generated
+from merged UL-band CSVs with priority `ul_bands_combined_*` → `ul_bands_eps2_*` → `ul_bands_*`:
 - expected/observed UL bands for signal yield and $\epsilon^2$
 - observed-only UL curves (signal yield and $\epsilon^2$)
 - UL-tail p-value summaries (`p_strong`, `p_weak`, `p_two`)
