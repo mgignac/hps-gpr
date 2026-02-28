@@ -161,6 +161,66 @@ def get_mass_range_for_task(
     return mass_min, mass_max
 
 
+def infer_n_tasks_from_output_dir(output_dir: str) -> Optional[int]:
+    """Infer the total task count from ``task_####`` folders in an output directory."""
+    if not os.path.isdir(output_dir):
+        return None
+
+    task_ids: List[int] = []
+    for name in os.listdir(output_dir):
+        m = re.fullmatch(r"task_(\d{4})", str(name))
+        if m:
+            task_ids.append(int(m.group(1)))
+
+    if not task_ids:
+        return None
+
+    # Tasks are generated with contiguous IDs [0, N_TASKS-1].
+    return max(task_ids) + 1
+
+
+def get_task_ids_for_masses(
+    datasets: dict,
+    mass_step: float,
+    n_tasks: int,
+    masses_gev: List[float],
+) -> List[int]:
+    """Map requested masses to the SLURM task IDs that own those mass points."""
+    lo = min([d.m_low for d in datasets.values()])
+    hi = max([d.m_high for d in datasets.values()])
+
+    all_masses = np.arange(lo, hi + 0.5 * mass_step, mass_step)
+    all_masses = np.round(all_masses, 3)
+    n_masses = len(all_masses)
+
+    if n_tasks <= 0:
+        raise ValueError(f"n_tasks must be > 0, got {n_tasks}")
+
+    task_ids = set()
+    for req_mass in masses_gev:
+        req_mass = float(np.round(req_mass, 3))
+        idx = np.where(np.isclose(all_masses, req_mass, atol=1e-9))[0]
+        if idx.size == 0:
+            raise ValueError(
+                f"Requested mass {req_mass:.3f} GeV is not on the scan grid "
+                f"[{lo:.3f}, {hi:.3f}] with step {mass_step:.3f} GeV"
+            )
+        i = int(idx[0])
+
+        chunk_size = n_masses // n_tasks
+        remainder = n_masses % n_tasks
+
+        boundary = (chunk_size + 1) * remainder
+        if i < boundary:
+            task_id = i // (chunk_size + 1)
+        else:
+            task_id = remainder + (i - boundary) // max(chunk_size, 1)
+
+        task_ids.add(int(task_id))
+
+    return sorted(task_ids)
+
+
 
 
 def _combine_band_family(output_dir: str, output_prefix: str, stem: str, subset_cols: List[str]):

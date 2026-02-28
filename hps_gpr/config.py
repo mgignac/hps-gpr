@@ -67,6 +67,11 @@ class Config:
     sigma_coeffs_2016: List[float] = field(
         default_factory=lambda: [0.00038, 0.041, -0.27, 3.49, -11.11]
     )
+    # Optional linear tail for 2016 sigma(m):
+    # for m > sigma_tail_m0_2016, enforce sigma(m) = sigma(m0) + slope*(m-m0)
+    sigma_tail_m0_2016: Optional[float] = 0.18
+    sigma_tail_slope_floor_2016: float = 0.0
+    sigma_tail_slope_override_2016: Optional[float] = 0.0239
     sigma_coeffs_2021: List[float] = field(
         default_factory=lambda: [0.00286957, -0.00851449, 0.25362319]
     )

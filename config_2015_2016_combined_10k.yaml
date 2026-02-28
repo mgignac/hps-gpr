@@ -24,6 +24,9 @@ sigma_coeffs_2016:
 - -0.27
 - 3.49
 - -11.11
+sigma_tail_m0_2016: 0.18
+sigma_tail_slope_floor_2016: 0.0
+sigma_tail_slope_override_2016: 0.0239
 sigma_coeffs_2021:
 - 0.00286957
 - -0.00851449

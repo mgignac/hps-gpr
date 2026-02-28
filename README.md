@@ -66,6 +66,7 @@ cp config_example.yaml my_config.yaml
 | `hist_*` | Histogram names within each ROOT file |
 | `range_*` | Analysis mass ranges (GeV) for each dataset |
 | `sigma_coeffs_*` | Mass resolution polynomial coefficients |
+| `sigma_tail_*_2016` | Optional 2016 high-mass linear-tail controls for σ(m) |
 | `frad_coeffs_*` | Radiative fraction polynomial coefficients |
 | `enable_*` | Enable/disable individual datasets |
 | `cls_*` | CLs calculation settings (alpha, mode, toys) |
@@ -125,6 +126,22 @@ Compute expected upper limit bands for a specific dataset:
 ```bash
 hps-gpr bands --config my_config.yaml --dataset 2015 --n-toys 100
 ```
+
+### Re-run Selected Failed Mass Points
+
+If only a few mass points failed in a SLURM production, re-run just the owning task(s) and overwrite those task outputs in place:
+
+```bash
+hps-gpr re-run --config config_2016_10pct_10k.yaml -m 37 -m 48
+```
+
+Compatibility alias matching existing workflow wording:
+
+```bash
+hps-gpr re-run-2016-bands --config config_2016_10pct_10k.yaml -mass 37 -mass 48
+```
+
+Masses are given in **MeV**; the command reuses the original mass-step and toy settings from the config.
 
 ### Injection/Extraction Study
 

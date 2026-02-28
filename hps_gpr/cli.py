@@ -578,5 +578,118 @@ def slurm_combine(output_dir, prefix):
             print(f"Warning: could not generate summary suite for {name}: {e}")
 
 
+
+
+@main.command("re-run-2016-bands")
+@click.option(
+    "--config",
+    "-c",
+    required=True,
+    type=click.Path(exists=True),
+    help="Path to configuration YAML file",
+)
+@click.option(
+    "--mass",
+    "-mass",
+    required=True,
+    multiple=True,
+    type=float,
+    help="Mass(es) in MeV to re-run (repeat option, e.g. -mass 37 -mass 48)",
+)
+@click.option(
+    "--output-dir",
+    "-o",
+    type=click.Path(),
+    help="Output directory containing task_#### subdirectories (defaults to config output_dir)",
+)
+@click.option(
+    "--n-tasks",
+    type=int,
+    help="Total number of original SLURM tasks (auto-inferred from task_#### folders when omitted)",
+)
+def re_run_2016_bands(config, mass, output_dir, n_tasks):
+    """Compatibility wrapper for re-running selected masses (MeV)."""
+    ctx = click.get_current_context()
+    ctx.invoke(re_run, config=config, masses=mass, output_dir=output_dir, n_tasks=n_tasks)
+
+@main.command("re-run")
+@click.option(
+    "--config",
+    "-c",
+    required=True,
+    type=click.Path(exists=True),
+    help="Path to configuration YAML file",
+)
+@click.option(
+    "--masses",
+    "-m",
+    required=True,
+    multiple=True,
+    type=float,
+    help="Mass(es) in MeV to re-run (repeat option, e.g. -m 37 -m 48)",
+)
+@click.option(
+    "--output-dir",
+    "-o",
+    type=click.Path(),
+    help="Output directory containing task_#### subdirectories (defaults to config output_dir)",
+)
+@click.option(
+    "--n-tasks",
+    type=int,
+    help="Total number of original SLURM tasks (auto-inferred from task_#### folders when omitted)",
+)
+def re_run(config, masses, output_dir, n_tasks):
+    """Re-run one or more masses by re-executing the owning task IDs."""
+    from .config import load_config
+    from .dataset import make_datasets
+    from .slurm import infer_n_tasks_from_output_dir, get_task_ids_for_masses
+
+    cfg = load_config(config)
+    run_outdir = output_dir or cfg.output_dir
+
+    if not masses:
+        print("No masses were provided. Use --masses/-m with MeV values (e.g. -m 37 -m 48).")
+        sys.exit(1)
+
+    datasets = make_datasets(cfg)
+    if not datasets:
+        print("No datasets enabled. Check configuration.")
+        sys.exit(1)
+
+    if n_tasks is None:
+        n_tasks = infer_n_tasks_from_output_dir(run_outdir)
+        if n_tasks is None:
+            print(
+                "Could not infer --n-tasks from output directory. "
+                "Either provide --n-tasks or ensure task_#### folders exist."
+            )
+            sys.exit(1)
+
+    masses_gev = [float(m) / 1000.0 for m in masses]
+    try:
+        task_ids = get_task_ids_for_masses(datasets, cfg.mass_step_gev, int(n_tasks), masses_gev)
+    except ValueError as e:
+        print(f"Error: {e}")
+        sys.exit(1)
+
+    if not task_ids:
+        print("No tasks selected for re-run.")
+        return
+
+    print(f"Re-running tasks in {run_outdir}: {task_ids}")
+    for tid in task_ids:
+        print(f"\n[re-run] task_{tid:04d}")
+        # Re-use the existing scan command path so output files are overwritten in-place.
+        scan.callback(
+            config=config,
+            output_dir=run_outdir,
+            mass_min=None,
+            mass_max=None,
+            array_task=int(tid),
+            n_tasks=int(n_tasks),
+        )
+
+
 if __name__ == "__main__":
     main()
