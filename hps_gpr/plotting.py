@@ -17,7 +17,6 @@ from .statistics import (
     _z_from_p_one_sided,
     _p_from_z_one_sided,
     _p_global_from_local,
-    _lee_trials_from_grid,
 )
 
 if TYPE_CHECKING:
@@ -627,7 +626,8 @@ def plot_ul_pvalue_components(
 
     masses = df["mass_GeV"].to_numpy(float)
     if neff is None:
-        neff = max(1.0, float(_lee_trials_from_grid(masses)))
+        # For UL-tail diagnostics we use the tested-grid count as a robust default.
+        neff = max(1.0, float(len(masses)))
 
     fig, ax = plt.subplots(figsize=(10, 4.5))
     vals = []

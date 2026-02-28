@@ -2,6 +2,7 @@
 
 import glob
 import os
+import re
 from typing import List, Optional, TYPE_CHECKING
 
 import numpy as np
@@ -164,18 +165,22 @@ def get_mass_range_for_task(
 
 def _combine_band_family(output_dir: str, output_prefix: str, stem: str, subset_cols: List[str]):
     """Combine per-task UL-band CSV files with matching stem pattern."""
-    files = glob.glob(os.path.join(output_dir, "**", f"{stem}_*.csv"), recursive=True)
+    files = glob.glob(os.path.join(output_dir, "**", "*.csv"), recursive=True)
     if not files:
         return {}
 
     out = {}
     by_name = {}
+    pat = re.compile(rf"^{re.escape(stem)}_(.+)\.csv$")
     for f in files:
         base = os.path.basename(f)
-        # expect e.g. ul_bands_2015.csv -> name='2015'
-        if not base.startswith(stem + "_") or not base.endswith('.csv'):
+        m = pat.match(base)
+        if not m:
             continue
-        name = base[len(stem) + 1:-4]
+        # keep families disjoint: ul_bands_* should not absorb ul_bands_eps2_* or ul_bands_combined_*
+        name = str(m.group(1))
+        if stem == "ul_bands" and (name.startswith("eps2_") or name.startswith("combined_")):
+            continue
         by_name.setdefault(name, []).append(f)
 
     for name, paths in by_name.items():
