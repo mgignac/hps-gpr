@@ -17,7 +17,6 @@ from .statistics import (
     _z_from_p_one_sided,
     _p_from_z_one_sided,
     _p_global_from_local,
-    _lee_trials_from_grid,
 )
 
 if TYPE_CHECKING:
@@ -475,7 +474,7 @@ def plot_ul_bands(
     if use_eps2:
         prefix, ylabel = "eps2", r"$\epsilon^2$ upper limit"
     else:
-        prefix, ylabel = "A", "Amplitude upper limit (A)"
+        prefix, ylabel = "A", "Signal-yield upper limit (95% CL)"
 
     # Try publication column names first, then legacy aliases
     def _col(key: str) -> Optional[np.ndarray]:
@@ -558,6 +557,109 @@ def plot_ul_pvalues(
     ax.set_ylabel("p-value")
     ax.set_ylim(0, 1)
     _set_title_above(ax, title or "UL p-values vs mass")
+    ax.legend(loc="best")
+    _grid(ax)
+    plt.tight_layout()
+
+    if outpath is not None:
+        plt.savefig(outpath, dpi=180)
+        plt.close(fig)
+    else:
+        plt.show()
+
+
+def plot_observed_ul_only(
+    df: pd.DataFrame,
+    *,
+    y: str = "eps2",
+    title: str = "",
+    outpath: Optional[str] = None,
+) -> None:
+    """Plot only observed upper limit vs mass for either signal yield or epsilon^2."""
+    y = str(y).strip().lower()
+    if y == "eps2":
+        col, ylabel = "eps2_obs", r"Observed 95% CL upper limit on $\epsilon^2$"
+        legacy = "ul_eps2_obs"
+    elif y in {"yield", "signal_yield", "a"}:
+        col, ylabel = "A_obs", "Observed 95% CL upper limit on signal yield"
+        legacy = "ul_A_obs"
+    else:
+        raise ValueError("y must be 'eps2' or 'yield'")
+
+    if col not in df.columns and legacy in df.columns:
+        col = legacy
+    if col not in df.columns:
+        return
+
+    masses = df["mass_GeV"].to_numpy(float)
+    obs = df[col].to_numpy(float)
+
+    fig, ax = plt.subplots(figsize=(10, 4))
+    ax.plot(masses, obs, "k-", lw=2.0)
+    finite_pos = obs[np.isfinite(obs) & (obs > 0)]
+    if finite_pos.size > 0:
+        ax.set_yscale("log")
+    ax.set_xlabel("Mass hypothesis m (GeV)")
+    ax.set_ylabel(ylabel)
+    _set_title_above(ax, title or f"{ylabel} vs mass")
+    _grid(ax)
+    plt.tight_layout()
+
+    if outpath is not None:
+        plt.savefig(outpath, dpi=180)
+        plt.close(fig)
+    else:
+        plt.show()
+
+
+def plot_ul_pvalue_components(
+    df: pd.DataFrame,
+    *,
+    title: str = "",
+    outpath: Optional[str] = None,
+    neff: Optional[float] = None,
+    lee_method: str = "sidak",
+) -> None:
+    """Overlay p_strong, p_weak, p_two with local/global sigma-reference p-values."""
+    if not {"p_strong", "p_weak", "p_two"}.intersection(set(df.columns)):
+        return
+
+    masses = df["mass_GeV"].to_numpy(float)
+    if neff is None:
+        # For UL-tail diagnostics we use the tested-grid count as a robust default.
+        neff = max(1.0, float(len(masses)))
+
+    fig, ax = plt.subplots(figsize=(10, 4.5))
+    vals = []
+    for col, label, color in [
+        ("p_strong", r"$p_{\rm strong}$", "C0"),
+        ("p_weak", r"$p_{\rm weak}$", "C1"),
+        ("p_two", r"$p_{\rm two}$", "C2"),
+    ]:
+        if col in df.columns:
+            v = np.clip(df[col].to_numpy(float), 1e-300, 1.0)
+            vals.append(v)
+            ax.plot(masses, v, label=label, color=color)
+
+    y_all = np.concatenate(vals) if vals else np.array([1.0])
+    ymin_data = np.nanmin(y_all[np.isfinite(y_all)]) if np.isfinite(y_all).any() else 1e-3
+    ymin_plot = max(1e-6, min(0.8 * ymin_data, 0.2))
+
+    for z in [1.0, 2.0, 3.0]:
+        p_local = _p_from_z_one_sided(z)
+        p_global = _p_global_from_local(p_local, Neff=neff, method=lee_method)
+        if z <= 2.0 or ymin_plot <= p_local * 1.2:
+            ax.axhline(p_local, color="0.35", ls=":", lw=0.9)
+            ax.text(masses.max(), p_local, f" local {int(z)}σ", va="bottom", ha="right", fontsize=8)
+        if z <= 2.0 or ymin_plot <= p_global * 1.2:
+            ax.axhline(p_global, color="0.15", ls="--", lw=0.9)
+            ax.text(masses.min(), p_global, f"global {int(z)}σ ", va="bottom", ha="left", fontsize=8)
+
+    ax.set_yscale("log")
+    ax.set_ylim(min(1.0, max(ymin_plot, 1e-6)), 1.0)
+    ax.set_xlabel("Mass hypothesis m (GeV)")
+    ax.set_ylabel("p-value")
+    _set_title_above(ax, title or "UL-tail p-value components with local/global references")
     ax.legend(loc="best")
     _grid(ax)
     plt.tight_layout()

@@ -145,9 +145,19 @@ hps-gpr slurm-gen --config my_config.yaml --n-jobs 100 --output submit.slurm
 # Submit to cluster
 sbatch submit.slurm
 
-# After jobs complete, combine results
+# After jobs complete, combine results and auto-build publication-style summary suites
 hps-gpr slurm-combine --output-dir outputs/my_analysis/
 ```
+
+`slurm-combine` now writes `summary_combined_<dataset_tag>/` folders (for example,
+`summary_combined_2015` or `summary_combined_2015_2016`) containing: The suite is generated
+from merged UL-band CSVs with priority `ul_bands_combined_*` → `ul_bands_eps2_*` → `ul_bands_*`:
+- expected/observed UL bands for signal yield and $\epsilon^2$
+- observed-only UL curves (signal yield and $\epsilon^2$)
+- UL-tail p-value summaries (`p_strong`, `p_weak`, `p_two`)
+- analytic local/global $p_0$ and local/global $Z$ (with Sidak LEE correction)
+- p-value component overlays with local/global 1$\sigma$, 2$\sigma$, and (when visible) 3$\sigma$ references.
+
 
 Example: generate job files for 10k-toy limit-band production on S3DF (`milano`),
 including explicit account charging:
@@ -242,6 +252,15 @@ outputs/
 │       ├── gp_ls_abs_<dataset>.png   # Absolute GP length scales (l_hi, l_lo, l_opt)
 │       ├── gp_const_<dataset>.png    # ConstantKernel amplitude vs mass
 │       └── gp_lml_<dataset>.png      # GP log marginal likelihood vs mass
+├── summary_combined_<dataset_tag>/ # Created by `hps-gpr slurm-combine`
+│   ├── ul_bands_signal_yield_obsexp.png
+│   ├── ul_bands_eps2_obsexp.png
+│   ├── ul_observed_only_signal_yield.png
+│   ├── ul_observed_only_eps2.png
+│   ├── ul_pvalues.png
+│   ├── ul_pvalues_components_local_global_refs.png
+│   ├── p0_analytic_local_global.png
+│   └── Z_local_global.png
 └── mXXXMeV/                        # Optional per-mass folders (if save_per_mass_folders=true)
     ├── <dataset>/
     │   ├── fit_full.png            # Full-range fit diagnostic
