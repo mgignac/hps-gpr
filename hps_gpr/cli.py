@@ -531,6 +531,111 @@ def slurm_gen(config, n_jobs, output, job_name, partition, time, memory, conda_e
     print(f"  bash {submit_script}")
 
 
+
+
+@main.command("slurm-gen-inject")
+@click.option(
+    "--config",
+    "-c",
+    required=True,
+    type=click.Path(exists=True),
+    help="Path to configuration YAML file",
+)
+@click.option(
+    "--datasets",
+    required=True,
+    help="Comma-separated dataset keys for injection jobs (e.g. 2015,2016,combined)",
+)
+@click.option(
+    "--masses",
+    required=True,
+    help="Comma-separated masses (GeV)",
+)
+@click.option(
+    "--strengths",
+    required=True,
+    help="Comma-separated injection strengths",
+)
+@click.option(
+    "--n-toys",
+    type=int,
+    default=10000,
+    show_default=True,
+    help="Pseudoexperiments per job",
+)
+@click.option(
+    "--output",
+    "-o",
+    default="submit_injection.slurm",
+    help="Output SLURM script path",
+)
+@click.option(
+    "--job-name",
+    default="hps-gpr-inj",
+    help="SLURM job name",
+)
+@click.option(
+    "--partition",
+    default="batch",
+    help="SLURM partition",
+)
+@click.option(
+    "--time",
+    default="4:00:00",
+    help="Time limit per task",
+)
+@click.option(
+    "--memory",
+    default="4G",
+    help="Memory per task",
+)
+@click.option(
+    "--conda-env",
+    help="Conda environment to activate",
+)
+@click.option(
+    "--account",
+    help="SLURM account/project to charge",
+)
+def slurm_gen_inject(config, datasets, masses, strengths, n_toys, output, job_name, partition, time, memory, conda_env, account):
+    """Generate SLURM scripts for per-(dataset,mass,strength) injection jobs."""
+    from .config import load_config
+    from .slurm import generate_injection_slurm_scripts
+
+    cfg = load_config(config)
+
+    dataset_list = [d.strip() for d in str(datasets).split(",") if d.strip()]
+    mass_list = [float(m.strip()) for m in str(masses).split(",") if m.strip()]
+    strength_list = [float(s.strip()) for s in str(strengths).split(",") if s.strip()]
+
+    if not dataset_list:
+        raise click.BadParameter("No datasets provided", param_hint="--datasets")
+    if not mass_list:
+        raise click.BadParameter("No masses provided", param_hint="--masses")
+    if not strength_list:
+        raise click.BadParameter("No strengths provided", param_hint="--strengths")
+
+    extra = [f"--account={account}"] if account else None
+
+    job_script, submit_script, n_jobs = generate_injection_slurm_scripts(
+        config_path=config,
+        output_path=output,
+        datasets=dataset_list,
+        masses=mass_list,
+        strengths=strength_list,
+        n_toys=int(n_toys),
+        output_root=cfg.output_dir,
+        job_name=job_name,
+        partition=partition,
+        time_limit=time,
+        memory=memory,
+        conda_env=conda_env,
+        extra_sbatch=extra,
+    )
+    print(f"\nPrepared {n_jobs} injection jobs.")
+    print("To submit all jobs, run:")
+    print(f"  bash {submit_script}")
+
 @main.command("slurm-combine")
 @click.option(
     "--output-dir",

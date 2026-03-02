@@ -87,7 +87,7 @@ range_2015: [0.020, 0.130]
 
 # CLs settings
 cls_alpha: 0.05
-cls_mode: "toys"
+cls_mode: "asymptotic"
 cls_num_toys: 100
 
 # Output
@@ -170,12 +170,14 @@ hps-gpr inject --config study_configs/config_2016_10pct_blind1p96_95CL_10k_injec
 
 # Combined 2015+2016 production scan + summary suite (95% CL)
 
-# Combined injection/extraction matrix (per-mass, per-strength)
+# Combined injection/extraction matrix (single-process run)
 # strengths in sigma_A: 1,2,3,5 ; masses in GeV: 0.025,0.030,0.040,0.050,0.065,0.080,0.095,0.115,0.135,0.150,0.170,0.200
-hps-gpr inject --config study_configs/config_2015_2016_combined_blind1p96_95CL_10k_injection.yaml --dataset combined --masses 0.025,0.030,0.040,0.050,0.065,0.080,0.095,0.115,0.135,0.150,0.170,0.200 --strengths 1,2,3,5 --n-toys 10000
-hps-gpr slurm-gen --config study_configs/config_2015_2016_combined_blind1p96_95CL_10k_injection.yaml --n-jobs 191 --job-name hps2015_2016_comb_95CL_w196 --partition milano --account hps:hps-prod --time 24:00:00 --memory 8G --output submit_2015_2016_combined_95CL_w196.slurm
-./submit_all.sh submit_2015_2016_combined_95CL_w196.slurm
-hps-gpr slurm-combine --output-dir outputs/study_2015_2016_combined_w1p96_95CL
+hps-gpr inject --config study_configs/config_2015_2016_combined_blind1p64_95CL_10k_injection.yaml --dataset combined --masses 0.025,0.030,0.040,0.050,0.065,0.080,0.095,0.115,0.135,0.150,0.170,0.200 --strengths 1,2,3,5 --n-toys 10000
+
+# Batch production: one job per (dataset, mass, strength)
+# datasets include individual and combined extraction to compare behavior directly
+hps-gpr slurm-gen-inject --config study_configs/config_2015_2016_combined_blind1p64_95CL_10k_injection.yaml --datasets 2015,2016,combined --masses 0.025,0.030,0.040,0.050,0.065,0.080,0.095,0.115,0.135,0.150,0.170,0.200 --strengths 1,2,3,5 --n-toys 10000 --job-name hps2015_2016_inj_95CL_w164 --partition milano --account hps:hps-prod --time 24:00:00 --memory 8G --output submit_2015_2016_injection_95CL_w164.slurm
+bash submit_injection_all.sh
 ```
 
 Mass-range convention in all production configs:
