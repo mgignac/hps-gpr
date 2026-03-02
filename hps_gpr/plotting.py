@@ -861,10 +861,13 @@ def plot_linearity(
         outpath: Save path (if None, displays interactively)
     """
     fig, ax = plt.subplots(figsize=(8, 4))
-    for ds, sub in df_sum.groupby("dataset"):
+    groups = [(str(dataset_filter), df_sum[df_sum["dataset"].astype(str) == str(dataset_filter)].copy())] if dataset_filter else list(df_sum.groupby("dataset"))
+    for ds, sub in groups:
         x = sub[xvar].to_numpy(float)
         y = sub["A_hat_mean"].to_numpy(float)
-        ax.plot(x, y, "o-", label=str(ds))
+        xerr = sub["inj_nsigma_xerr"].to_numpy(float) if (xvar == "inj_nsigma" and "inj_nsigma_xerr" in sub.columns) else None
+        yerr = sub["sigma_A_mean"].to_numpy(float) / np.sqrt(np.clip(sub.get("n_toys", pd.Series(np.ones(len(sub)))).to_numpy(float), 1.0, None)) if "sigma_A_mean" in sub.columns else None
+        ax.errorbar(x, y, xerr=xerr, yerr=yerr, fmt="o-", capsize=2, label=str(ds))
     # Identity reference
     xlim = ax.get_xlim()
     ax.plot(xlim, xlim, "k--", lw=0.8, label="ideal")
@@ -901,7 +904,9 @@ def plot_bias_vs_injected_strength(
     for ds, sub in df_sum.groupby("dataset"):
         x = sub[xvar].to_numpy(float)
         bias = sub["A_hat_mean"].to_numpy(float) - sub["strength"].to_numpy(float)
-        ax.plot(x, bias, "o-", label=str(ds))
+        xerr = sub["inj_nsigma_xerr"].to_numpy(float) if (xvar == "inj_nsigma" and "inj_nsigma_xerr" in sub.columns) else None
+        yerr = sub["sigma_A_mean"].to_numpy(float) / np.sqrt(np.clip(sub.get("n_toys", pd.Series(np.ones(len(sub)))).to_numpy(float), 1.0, None)) if "sigma_A_mean" in sub.columns else None
+        ax.errorbar(x, bias, xerr=xerr, yerr=yerr, fmt="o-", capsize=2, label=str(ds))
     ax.axhline(0, color="k", lw=0.8)
     ax.set_xlabel(xvar)
     ax.set_ylabel(r"$\langle\hat{A}\rangle - A_{\rm inj}$")
@@ -993,6 +998,7 @@ def plot_injection_heatmap(
     value_col: str = "pull_mean",
     title: str = "",
     outpath: Optional[str] = None,
+    dataset_filter: Optional[str] = None,
 ) -> None:
     """Heatmap for injection/extraction summary over (mass, injected strength)."""
     if df_sum.empty or value_col not in df_sum.columns:

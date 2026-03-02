@@ -343,6 +343,60 @@ def run_injection_extraction(
     )
 
 
+
+
+def combine_injection_toy_tables(df_toys_by_dataset: Dict[str, pd.DataFrame]) -> pd.DataFrame:
+    """Build toy-level combined injection results from per-dataset toy tables.
+
+    Combines available datasets at each (mass, strength, toy) using inverse-variance
+    weighting of extracted amplitudes:
+
+      Ahat_comb = sum_i (Ahat_i / sigma_i^2) / sum_i (1/sigma_i^2)
+
+    with sigma_comb = 1 / sqrt(sum_i 1/sigma_i^2).
+    """
+    frames = []
+    for key, df in (df_toys_by_dataset or {}).items():
+        if df is None or df.empty:
+            continue
+        d = df.copy()
+        d["dataset"] = str(key)
+        frames.append(d)
+    if not frames:
+        return pd.DataFrame()
+
+    all_df = pd.concat(frames, ignore_index=True)
+    rows = []
+    grp_cols = ["mass_GeV", "strength", "toy"]
+    for (m, s, toy), sub in all_df.groupby(grp_cols, dropna=False):
+        valid = sub[np.isfinite(sub["sigma_A"].to_numpy(float)) & (sub["sigma_A"].to_numpy(float) > 0)]
+        if valid.empty:
+            continue
+        A_inj = float(np.nanmean(valid["strength"].to_numpy(float)))
+        sig = valid["sigma_A"].to_numpy(float)
+        w = 1.0 / np.square(sig)
+        Ahat = valid["A_hat"].to_numpy(float)
+        Ahat_c = float(np.sum(w * Ahat) / np.sum(w))
+        sigma_c = float(1.0 / np.sqrt(np.sum(w)))
+        pull_c = float((Ahat_c - A_inj) / sigma_c) if sigma_c > 0 else float("nan")
+        rows.append(dict(
+            dataset="combined",
+            mass_GeV=float(m),
+            toy=int(toy),
+            strength=float(s),
+            inj_nsigma=float(np.nanmean(valid["inj_nsigma"].to_numpy(float))),
+            sigmaA_ref=float(np.nanmean(valid["sigmaA_ref"].to_numpy(float))),
+            A_hat=float(Ahat_c),
+            sigma_A=float(sigma_c),
+            pull_param=float(pull_c),
+            Zhat=float(Ahat_c / sigma_c) if sigma_c > 0 else float("nan"),
+            n_contrib=int(len(valid)),
+            contrib_datasets="+".join(sorted(set(valid["dataset"].astype(str).tolist()))),
+            success=bool(np.all(valid["success"].astype(bool).to_numpy())),
+        ))
+
+    return pd.DataFrame(rows).sort_values(["mass_GeV", "strength", "toy"]).reset_index(drop=True)
+
 def summarize_injection_grid(df_toys: pd.DataFrame) -> pd.DataFrame:
     """Summarize injection toys by (dataset, mass, strength)."""
     if df_toys.empty:
@@ -359,9 +413,16 @@ def summarize_injection_grid(df_toys: pd.DataFrame) -> pd.DataFrame:
         pull = sub["pull_param"].to_numpy(float)
         Zhat = sub["Zhat"].to_numpy(float)
 
+        n_toys = int(len(sub))
+        pull_finite = pull[np.isfinite(pull)]
+        inj_nsigma_vals = sub["inj_nsigma"].to_numpy(float)
+        inj_nsigma_std = float(np.nanstd(inj_nsigma_vals, ddof=1)) if np.sum(np.isfinite(inj_nsigma_vals)) > 1 else 0.0
+
         rows.append(dict(
             dataset=ds, mass_GeV=float(m), strength=float(A),
-            inj_nsigma=float(np.nanmean(sub["inj_nsigma"].to_numpy(float))),
+            n_toys=n_toys,
+            inj_nsigma=float(np.nanmean(inj_nsigma_vals)),
+            inj_nsigma_xerr=float(inj_nsigma_std),
             sigmaA_ref=float(np.nanmean(sub["sigmaA_ref"].to_numpy(float))),
             f_win=float(np.nanmean(sub["f_win"].to_numpy(float))),
             f_train_frac=float(np.nanmean(sub["f_train_frac"].to_numpy(float))) if "f_train_frac" in sub.columns else float("nan"),
@@ -370,6 +431,7 @@ def summarize_injection_grid(df_toys: pd.DataFrame) -> pd.DataFrame:
             sigma_A_mean=float(np.nanmean(sigA)),
             pull_mean=float(np.nanmean(pull)),
             pull_std=float(np.nanstd(pull, ddof=1)),
+            pull_std_err=float(np.nanstd(pull_finite, ddof=1) / np.sqrt(max(1, 2*(len(pull_finite)-1)))) if len(pull_finite) > 1 else float("nan"),
             pull_q16=q(pull, 0.16), pull_q84=q(pull, 0.84),
             pull_q02=q(pull, 0.025), pull_q97=q(pull, 0.975),
             cov_1sigma=float(np.nanmean(np.abs(pull) < 1.0)),

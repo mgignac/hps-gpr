@@ -84,7 +84,7 @@ scan_diagnostic_plot_every_n: 5
 scan_diagnostic_zoom_half_sigma: 0.5
 scan_require_two_sidebands: false
 scan_edge_guard_nsigma: 1.64
-cls_alpha: 0.1
+cls_alpha: 0.05
 cls_mode: asymptotic
 cls_num_toys: 10000
 cls_seed_base: 12345
@@ -142,7 +142,7 @@ do_combined: false
 eps2_lrt_scale: 1.0e10
 run_limit_bands_on: '2015'
 make_eps2_bands: true
-output_dir: outputs/study_2015_w1p64_90CL
+output_dir: outputs/study_2015_w1p64_95CL
 debug_print: true
 debug_max_errors: 10
 fail_fast: false

@@ -83,7 +83,7 @@ enable_2021: false
 # Paths to data
 path_2015: "/data/hps/2015_invariant_mass.root"
 hist_2015: "invariant_mass"
-range_2015: [0.015, 0.140]
+range_2015: [0.020, 0.130]
 
 # CLs settings
 cls_alpha: 0.05
@@ -151,6 +151,38 @@ Run signal injection and extraction closure tests:
 hps-gpr inject --config my_config.yaml --dataset 2015 --masses 0.03,0.06,0.09 --n-toys 10000
 ```
 
+
+### Signal-injection studies (copy/paste examples)
+
+The repository supports injection/extraction studies for:
+- **2015-only**
+- **2016 10%-only**
+- **2015+2016 combined**
+
+Ready-to-run study configs live in `study_configs/` for both legacy 90% CL and new 95% CL settings (for blind widths 1.64 and 1.96).
+
+```bash
+# 2015 injection study (95% CL, blind width 1.96)
+hps-gpr inject --config study_configs/config_2015_blind1p96_95CL_10k_injection.yaml --dataset 2015 --masses 0.020,0.040,0.060,0.080,0.100,0.120
+
+# 2016 10% injection study (95% CL, blind width 1.96)
+hps-gpr inject --config study_configs/config_2016_10pct_blind1p96_95CL_10k_injection.yaml --dataset 2016 --masses 0.040,0.060,0.080,0.100,0.140,0.180,0.210
+
+# Combined 2015+2016 production scan + summary suite (95% CL)
+
+# Combined injection/extraction matrix (per-mass, per-strength)
+# strengths in sigma_A: 1,2,3,5 ; masses in GeV: 0.025,0.030,0.040,0.050,0.065,0.080,0.095,0.115,0.135,0.150,0.170,0.200
+hps-gpr inject --config study_configs/config_2015_2016_combined_blind1p96_95CL_10k_injection.yaml --dataset combined --masses 0.025,0.030,0.040,0.050,0.065,0.080,0.095,0.115,0.135,0.150,0.170,0.200 --strengths 1,2,3,5 --n-toys 10000
+hps-gpr slurm-gen --config study_configs/config_2015_2016_combined_blind1p96_95CL_10k_injection.yaml --n-jobs 191 --job-name hps2015_2016_comb_95CL_w196 --partition milano --account hps:hps-prod --time 24:00:00 --memory 8G --output submit_2015_2016_combined_95CL_w196.slurm
+./submit_all.sh submit_2015_2016_combined_95CL_w196.slurm
+hps-gpr slurm-combine --output-dir outputs/study_2015_2016_combined_w1p96_95CL
+```
+
+Mass-range convention in all production configs:
+- 2015: **20–130 MeV**
+- 2016: **35–210 MeV**
+- Combined scan window: **20–210 MeV** (combined-fit significance populated in overlap region where multiple datasets are active)
+
 ### SLURM Batch Processing
 
 Generate a SLURM array job script for parallel processing:
@@ -180,10 +212,10 @@ Example: generate job files for 10k-toy limit-band production on S3DF (`milano`)
 including explicit account charging:
 
 ```bash
-# 2015-only limit bands (126 mass points => 126 array jobs)
+# 2015-only limit bands (111 mass points => 111 array jobs)
 hps-gpr slurm-gen \
   --config config_2015_10k.yaml \
-  --n-jobs 126 \
+  --n-jobs 111 \
   --job-name hps2015_bands_10k \
   --partition milano \
   --account hps:hps-prod \
@@ -191,10 +223,10 @@ hps-gpr slurm-gen \
   --memory 8G \
   --output submit_2015_bands_10k.slurm
 
-# 2016 10% limit bands (156 mass points => 156 array jobs)
+# 2016 10% limit bands (176 mass points => 176 array jobs)
 hps-gpr slurm-gen \
   --config config_2016_10pct_10k.yaml \
-  --n-jobs 156 \
+  --n-jobs 176 \
   --job-name hps2016_10pct_bands_10k \
   --partition milano \
   --account hps:hps-prod \
@@ -202,10 +234,10 @@ hps-gpr slurm-gen \
   --memory 8G \
   --output submit_2016_10pct_bands_10k.slurm
 
-# 2015+2016 combined limit bands over overlap (106 mass points => 106 array jobs)
+# 2015+2016 combined scan window (20–210 MeV => 191 array jobs)
 hps-gpr slurm-gen \
   --config config_2015_2016_combined_10k.yaml \
-  --n-jobs 106 \
+  --n-jobs 191 \
   --job-name hps2015_2016_combined_bands_10k \
   --partition milano \
   --account hps:hps-prod \
@@ -367,3 +399,6 @@ where ρ is the integral density (counts per GeV) in the signal region.
 - HPS Collaboration dark photon search publications
 - Gaussian Process Regression: Rasmussen & Williams, "Gaussian Processes for Machine Learning"
 - CLs method: Read, A.L., "Presentation of search results: the CL_s technique"
+
+
+For combined runs, `slurm-combine` also writes per-dataset publication overlays inside the summary suite, e.g. `2015_UL_sig_yield_bands.png`, `2015_UL_eps2_yield_bands.png`, `2016_UL_sig_yield_bands.png`, `2016_UL_eps2_yield_bands.png`, plus dataset-specific `*_p0_local_global.png` and `*_Z_local_global.png`.

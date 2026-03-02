@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=hps2015_10k
-#SBATCH --array=0-119
+#SBATCH --array=0-110
 #SBATCH --account hps:hps-prod
 #SBATCH --partition=milano
 #SBATCH --time=24:00:00
@@ -16,4 +16,4 @@ mkdir -p logs
 hps-gpr scan \
     --config config_2015_10k.yaml \
     --array-task $SLURM_ARRAY_TASK_ID \
-    --n-tasks 120
+    --n-tasks 111
