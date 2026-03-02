@@ -1,0 +1,150 @@
+path_2015: /sdf/home/e/epeets/move/2015_IMD.root
+path_2016: /sdf/home/e/epeets/move/EventSelection_Data_10Percent.root
+path_2021: /sdf/home/e/epeets/move/near_1pct_8kbins_0_04.root
+path_2021_mc: ''
+only_2021_mc: false
+hist_2015: invariant_mass
+hist_2016: h_Minv_General_Final_1
+hist_2021: unc_vtx_mass_hist
+range_2015:
+- 0.015
+- 0.14
+range_2016:
+- 0.035
+- 0.19
+range_2021:
+- 0.035
+- 0.23
+sigma_coeffs_2015:
+- -9.22283032152e-05
+- 0.0532190838657
+sigma_coeffs_2016:
+- 0.00038
+- 0.041
+- -0.27
+- 3.49
+- -11.11
+sigma_tail_m0_2016: 0.18
+sigma_tail_slope_floor_2016: 0.0
+sigma_tail_slope_override_2016: 0.0239
+sigma_coeffs_2021:
+- 0.00286957
+- -0.00851449
+- 0.25362319
+frad_coeffs_2015:
+- 0.085
+frad_coeffs_2016:
+- 0.05
+frad_coeffs_2021:
+- 0.05
+enable_2015: true
+enable_2016: true
+enable_2021: false
+kernel_constant_init: 1.0
+kernel_constant_bounds:
+- 1.0e-08
+- 1.0e+18
+kernel_ls_init: 0.03
+kernel_ls_bounds:
+- 0.001
+- 0.5
+kernel_ls_policy: resolution_scaled_local
+kernel_ls_res_lower_factor: 0.5
+kernel_ls_res_upper_factor: 8.0
+kernel_ls_res_stat: median
+kernel_ls_res_npts: 300
+kernel_ls_res_lower_factor_by_dataset:
+  '2015': 0.5
+  '2016': 0.5
+  '2021': 0.5
+kernel_ls_res_upper_factor_by_dataset:
+  '2015': 8.0
+  '2016': 8.0
+  '2021': 6.0
+kernel_ls_bounds_by_dataset: {}
+kernel_ls_init_by_dataset: {}
+kernel_ls_local_hi_floor_mode: dataset_stat
+kernel_ls_local_hi_floor_factor: 0.8
+kernel_ls_local_hi_cap_xrange_frac: 0.25
+pre_log: true
+pre_zero_alpha: 1.0
+alpha_model: 1/y
+pre_alpha_first_n: 0
+pre_alpha_first_factor: 0.1
+mass_step_gev: 0.001
+blind_nsigma: 1.64
+gp_train_exclude_nsigma: 1.64
+neighborhood_rebin: 5
+n_restarts: 12
+scan_parallel: true
+scan_n_workers: 5
+scan_parallel_backend: loky
+scan_threads_per_worker: 2
+scan_diagnostic_plot_every_n: 5
+scan_diagnostic_zoom_half_sigma: 0.5
+scan_require_two_sidebands: false
+scan_edge_guard_nsigma: 1.64
+cls_alpha: 0.1
+cls_mode: toys
+cls_num_toys: 10000
+cls_seed_base: 12345
+make_ul_bands: true
+ul_bands_toys: 10000
+ul_bands_seed: 12345
+ul_bands_n_workers: 5
+ul_bands_parallel_backend: loky
+ul_bands_threads_per_worker: 1
+ul_bands_refit_gp_on_toy: false
+ul_bands_refit_gp_restarts: 0
+ul_bands_refit_gp_optimize: true
+ul_bands_train_exclude_nsigma: 1.64
+do_combined_bands: false
+combined_bands_n_toys: 500
+combined_bands_seed: 24680
+data_visibility:
+  '2015': observed
+  '2016': observed
+  '2021': observed
+inject_signal: true
+inj_dataset_key: '2015'
+inj_masses_gev:
+- 0.03
+- 0.06
+- 0.09
+inj_strengths:
+- 0
+- 100
+- 200
+- 500
+- 1000
+- 2000
+- 5000
+inj_mode: multinomial
+extract_allow_negative: true
+inj_strength_mode: sigmaA
+inj_sigma_a_source: asimov
+inj_shape_mode: full
+inj_refit_gp_on_toy: false
+inj_refit_gp_restarts: 0
+inj_refit_gp_optimize: true
+inj_train_exclude_nsigma: 1.64
+inj_sigma_multipliers:
+- 0.0
+- 1.0
+- 2.0
+- 3.0
+- 4.0
+- 5.0
+mvn_trunc_method: reject_then_clip
+mvn_trunc_max_tries: 80
+do_combined: true
+eps2_lrt_scale: 1.0e10
+run_limit_bands_on: '2015'
+make_eps2_bands: true
+output_dir: outputs/study_2015_2016_combined_w1p64_90CL
+debug_print: true
+debug_max_errors: 10
+fail_fast: false
+save_per_mass_folders: true
+save_plots: true
+save_fit_json: true

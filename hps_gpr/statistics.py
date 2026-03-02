@@ -552,7 +552,7 @@ def _lee_trials_from_grid(
     ds_keys: List[str],
     *,
     datasets: dict,
-    indep_width_sigma: float = 2.355,
+    indep_width_sigma: float = 1.96,
     combo_sigma_method: str = "min",
 ) -> float:
     """Approximate effective trials factor N_eff for the look-elsewhere effect.

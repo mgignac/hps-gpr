@@ -247,16 +247,31 @@ def bands(config, dataset, n_toys, output_dir):
     help="Comma-separated list of injection strengths (overrides config)",
 )
 @click.option(
+    "--n-toys",
+    type=int,
+    default=1,
+    show_default=True,
+    help="Number of pseudoexperiments per (mass,strength) point",
+)
+@click.option(
     "--output-dir",
     "-o",
     type=click.Path(),
     help="Override output directory from config",
 )
-def inject(config, dataset, masses, strengths, output_dir):
+def inject(config, dataset, masses, strengths, n_toys, output_dir):
     """Run injection/extraction study."""
     from .config import load_config
     from .dataset import make_datasets
-    from .injection import run_injection_extraction
+    from .injection import run_injection_extraction_toys, summarize_injection_grid
+    from .plotting import (
+        ensure_dir,
+        plot_linearity,
+        plot_bias_vs_injected_strength,
+        plot_pull_width,
+        plot_coverage,
+        plot_injection_heatmap,
+    )
 
     cfg = load_config(config)
 
@@ -287,10 +302,33 @@ def inject(config, dataset, masses, strengths, output_dir):
     print(f"Masses: {mass_list}")
     print(f"Strengths: {strength_list}")
 
-    df = run_injection_extraction(ds, mass_list, strength_list, cfg)
+    strengths_mode = str(getattr(cfg, "inj_strength_mode", "absolute")).lower().strip()
+    df = run_injection_extraction_toys(
+        ds,
+        cfg,
+        masses=mass_list,
+        strengths=[float(x) for x in strength_list],
+        n_toys=int(n_toys),
+        strengths_mode=strengths_mode,
+    )
 
-    print(f"\nResults summary:")
-    print(df.head(20).to_string())
+    df_sum = summarize_injection_grid(df)
+    outdir = os.path.join(cfg.output_dir, "injection_extraction")
+    ensure_dir(outdir)
+    out_sum = os.path.join(outdir, f"inj_extract_summary_{ds.key}.csv")
+    df_sum.to_csv(out_sum, index=False)
+
+    xvar = "inj_nsigma" if "inj_nsigma" in df_sum.columns and np.isfinite(df_sum["inj_nsigma"]).any() else "strength"
+    plot_linearity(df_sum, xvar=xvar, title=f"{ds.label}: linearity", outpath=os.path.join(outdir, f"linearity_{ds.key}.png"))
+    plot_bias_vs_injected_strength(df_sum, xvar=xvar, title=f"{ds.label}: bias", outpath=os.path.join(outdir, f"bias_{ds.key}.png"))
+    plot_pull_width(df_sum, xvar=xvar, title=f"{ds.label}: pull width", outpath=os.path.join(outdir, f"pull_width_{ds.key}.png"))
+    plot_coverage(df_sum, xvar=xvar, title=f"{ds.label}: coverage", outpath=os.path.join(outdir, f"coverage_{ds.key}.png"))
+    plot_injection_heatmap(df_sum, value_col="pull_mean", title=f"{ds.label}: mean pull heatmap", outpath=os.path.join(outdir, f"heatmap_pull_mean_{ds.key}.png"))
+
+    print(f"\nToy-level rows: {len(df)}")
+    print(f"Summary rows: {len(df_sum)}")
+    print(f"Wrote summary table: {out_sum}")
+    print(df_sum.head(20).to_string())
 
 
 @main.command()
@@ -518,31 +556,36 @@ def slurm_combine(output_dir, prefix):
             suite_dir = os.path.join(output_dir, f"summary_combined_{tag}")
             ensure_dir(suite_dir)
 
+            alpha_vals = df["cls_alpha"].to_numpy(float) if "cls_alpha" in df.columns else np.array([0.05])
+            alpha_vals = alpha_vals[np.isfinite(alpha_vals)]
+            alpha_used = float(alpha_vals[0]) if alpha_vals.size else 0.05
+            cl_pct = int(round(100.0 * (1.0 - alpha_used)))
+
             plot_ul_bands(
                 df,
                 use_eps2=True,
-                title=f"Expected/observed 95% CL upper limits on $\epsilon^2$ ({tag})",
+                title=f"Expected/observed {cl_pct}% CL upper limits on $\epsilon^2$ ({tag})",
                 outpath=os.path.join(suite_dir, "ul_bands_eps2_obsexp.png"),
             )
             if "A_obs" in df.columns or "ul_A_obs" in df.columns:
                 plot_ul_bands(
                     df,
                     use_eps2=False,
-                    title=f"Expected/observed 95% CL upper limits on signal yield ({tag})",
+                    title=f"Expected/observed {cl_pct}% CL upper limits on signal yield ({tag})",
                     outpath=os.path.join(suite_dir, "ul_bands_signal_yield_obsexp.png"),
                 )
 
             plot_observed_ul_only(
                 df,
                 y="eps2",
-                title=f"Observed 95% CL upper limit on $\epsilon^2$ ({tag})",
+                title=f"Observed {cl_pct}% CL upper limit on $\epsilon^2$ ({tag})",
                 outpath=os.path.join(suite_dir, "ul_observed_only_eps2.png"),
             )
             if "A_obs" in df.columns or "ul_A_obs" in df.columns:
                 plot_observed_ul_only(
                     df,
                     y="yield",
-                    title=f"Observed 95% CL upper limit on signal yield ({tag})",
+                    title=f"Observed {cl_pct}% CL upper limit on signal yield ({tag})",
                     outpath=os.path.join(suite_dir, "ul_observed_only_signal_yield.png"),
                 )
 
@@ -558,12 +601,14 @@ def slurm_combine(output_dir, prefix):
             )
 
             if "p0_analytic" in df.columns:
+                lee_width = float(df["bands_train_exclude_nsigma"].dropna().iloc[0]) if "bands_train_exclude_nsigma" in df.columns and df["bands_train_exclude_nsigma"].notna().any() else 1.96
                 plot_analytic_p0(
                     df,
                     title=f"Analytic local/global p0 vs mass ({tag})",
                     outpath=os.path.join(suite_dir, "p0_analytic_local_global.png"),
                     apply_lee=True,
                     lee_method="sidak",
+                    indep_width_sigma=lee_width,
                 )
                 plot_Z_local_global(
                     df,
@@ -571,6 +616,7 @@ def slurm_combine(output_dir, prefix):
                     outpath=os.path.join(suite_dir, "Z_local_global.png"),
                     apply_lee=True,
                     lee_method="sidak",
+                    indep_width_sigma=lee_width,
                 )
 
             print(f"Wrote summary plot suite: {suite_dir}")

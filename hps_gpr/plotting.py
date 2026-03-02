@@ -684,6 +684,8 @@ def plot_analytic_p0(
     lee_method: str = "sidak",
     neff: Optional[float] = None,
     sigma_lines: Optional[List[float]] = None,
+    indep_width_sigma: float = 1.96,
+    sigma_col: str = "sigma_mass_res_GeV",
 ) -> None:
     """Plot analytic bump-hunt p0 (from profiled LRT) vs mass.
 
@@ -708,7 +710,17 @@ def plot_analytic_p0(
     p0_global = None
     if apply_lee:
         if neff is None:
-            neff = float(len(masses))
+            sig = df[sigma_col].to_numpy(float) if sigma_col in df.columns else None
+            if sig is not None and np.isfinite(sig).any():
+                dm = np.diff(masses)
+                if dm.size > 0:
+                    sig_mid = 0.5 * (sig[:-1] + sig[1:])
+                    ok = np.isfinite(sig_mid) & (sig_mid > 0) & np.isfinite(dm) & (dm > 0)
+                    neff = float(np.clip(np.sum(dm[ok] / (float(indep_width_sigma) * sig_mid[ok])), 1.0, float(len(masses))))
+                else:
+                    neff = 1.0
+            else:
+                neff = float(len(masses))
         p0_global = np.asarray([
             _p_global_from_local(float(p), Neff=neff, method=lee_method)
             for p in p0_local
@@ -752,6 +764,8 @@ def plot_Z_local_global(
     lee_method: str = "sidak",
     neff: Optional[float] = None,
     z_lines: Optional[List[float]] = None,
+    indep_width_sigma: float = 1.96,
+    sigma_col: str = "sigma_mass_res_GeV",
 ) -> None:
     """Plot local Z (and optionally global Z with LEE correction) vs mass.
 
@@ -787,7 +801,17 @@ def plot_Z_local_global(
 
     if apply_lee:
         if neff is None:
-            neff = float(len(masses))
+            sig = df[sigma_col].to_numpy(float) if sigma_col in df.columns else None
+            if sig is not None and np.isfinite(sig).any():
+                dm = np.diff(masses)
+                if dm.size > 0:
+                    sig_mid = 0.5 * (sig[:-1] + sig[1:])
+                    ok = np.isfinite(sig_mid) & (sig_mid > 0) & np.isfinite(dm) & (dm > 0)
+                    neff = float(np.clip(np.sum(dm[ok] / (float(indep_width_sigma) * sig_mid[ok])), 1.0, float(len(masses))))
+                else:
+                    neff = 1.0
+            else:
+                neff = float(len(masses))
         p_local = np.asarray([_p_from_z_one_sided(float(z)) for z in Z_local], float)
         p_global = np.asarray([
             _p_global_from_local(float(p), Neff=neff, method=lee_method)
@@ -961,6 +985,45 @@ def plot_coverage(
     else:
         plt.show()
 
+
+
+def plot_injection_heatmap(
+    df_sum: pd.DataFrame,
+    *,
+    value_col: str = "pull_mean",
+    title: str = "",
+    outpath: Optional[str] = None,
+) -> None:
+    """Heatmap for injection/extraction summary over (mass, injected strength)."""
+    if df_sum.empty or value_col not in df_sum.columns:
+        return
+    xcol = "mass_GeV" if "mass_GeV" in df_sum.columns else "mass"
+    ycol = "inj_nsigma" if "inj_nsigma" in df_sum.columns else "strength"
+    for ds, sub in df_sum.groupby("dataset"):
+        piv = sub.pivot_table(index=ycol, columns=xcol, values=value_col, aggfunc="mean")
+        if piv.empty:
+            continue
+        fig, ax = plt.subplots(figsize=(9, 4.8))
+        im = ax.imshow(piv.to_numpy(float), aspect="auto", origin="lower", cmap="coolwarm")
+        ax.set_yticks(np.arange(len(piv.index)))
+        ax.set_yticklabels([f"{v:.2g}" for v in piv.index.to_numpy(float)])
+        ax.set_xticks(np.arange(len(piv.columns))[::max(1, len(piv.columns)//8)])
+        cols = piv.columns.to_numpy(float)
+        idx = np.arange(len(cols))[::max(1, len(cols)//8)]
+        ax.set_xticklabels([f"{cols[i]*1e3:.0f}" for i in idx])
+        ax.set_xlabel("Mass hypothesis [MeV]")
+        ax.set_ylabel("Injected strength [sigma_A]")
+        _set_title_above(ax, title or f"{ds}: injection/extraction heatmap ({value_col})")
+        cbar = fig.colorbar(im, ax=ax)
+        cbar.set_label(value_col)
+        plt.tight_layout()
+        if outpath:
+            root, ext = os.path.splitext(outpath)
+            pth = f"{root}_{ds}{ext or '.png'}"
+            plt.savefig(pth, dpi=200)
+            plt.close(fig)
+        else:
+            plt.show()
 
 # ---------------------------------------------------------------------------
 # Summary plots (UL curves)
