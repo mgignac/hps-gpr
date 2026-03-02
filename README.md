@@ -148,7 +148,7 @@ Masses are given in **MeV**; the command reuses the original mass-step and toy s
 Run signal injection and extraction closure tests:
 
 ```bash
-hps-gpr inject --config my_config.yaml --dataset 2015 --masses 0.03,0.06,0.09
+hps-gpr inject --config my_config.yaml --dataset 2015 --masses 0.03,0.06,0.09 --n-toys 10000
 ```
 
 ### SLURM Batch Processing
@@ -172,7 +172,7 @@ from merged UL-band CSVs with priority `ul_bands_combined_*` → `ul_bands_eps2_
 - expected/observed UL bands for signal yield and $\epsilon^2$
 - observed-only UL curves (signal yield and $\epsilon^2$)
 - UL-tail p-value summaries (`p_strong`, `p_weak`, `p_two`)
-- analytic local/global $p_0$ and local/global $Z$ (with Sidak LEE correction)
+- analytic local/global $p_0$ and local/global $Z$ (with Sidak LEE correction and $N_{\mathrm{eff}}$ derived from mass-resolution spacing via the configured blind-window width, typically 1.64 or 1.96)
 - p-value component overlays with local/global 1$\sigma$, 2$\sigma$, and (when visible) 3$\sigma$ references.
 
 
