@@ -279,6 +279,8 @@ def expected_ul_bands_for_dataset(
         return dict(
             dataset=ds.key,
             mass_GeV=float(m),
+            sigma_mass_res_GeV=float(pred.sigma_val),
+            cls_alpha=float(alpha),
             # Publication-facing columns
             eps2_obs=float(eps2_obs) if np.isfinite(eps2_obs) else np.nan,
             A_obs=float(A_obs) if np.isfinite(A_obs) else np.nan,
@@ -596,6 +598,9 @@ def expected_ul_bands_for_combination(
         return dict(
             dataset_set=str(ds_tag),
             mass_GeV=float(m),
+            sigma_mass_res_GeV=float(np.mean([float(preds[k].sigma_val) for k in ds_here])) if ds_here else nan,
+            sigma_mass_res_min_GeV=float(np.min([float(preds[k].sigma_val) for k in ds_here])) if ds_here else nan,
+            cls_alpha=float(config.cls_alpha),
             # Publication-facing columns
             eps2_obs=float(eps2_obs) if np.isfinite(eps2_obs) else nan,
             p0_analytic=float(p0_obs_c), Z_analytic=float(Z_obs_c),
