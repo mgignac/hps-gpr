@@ -11,7 +11,7 @@ range_2015:
 - 0.14
 range_2016:
 - 0.035
-- 0.19
+- 0.210
 range_2021:
 - 0.035
 - 0.23
@@ -85,7 +85,7 @@ scan_diagnostic_zoom_half_sigma: 0.5
 scan_require_two_sidebands: false
 scan_edge_guard_nsigma: 1.64
 cls_alpha: 0.05
-cls_mode: toys
+cls_mode: asymptotic
 cls_num_toys: 10000
 cls_seed_base: 12345
 make_ul_bands: true
@@ -138,7 +138,7 @@ mvn_trunc_method: reject_then_clip
 mvn_trunc_max_tries: 80
 do_combined: false
 eps2_lrt_scale: 1.0e10
-run_limit_bands_on: '2015'
+run_limit_bands_on: '2016'
 make_eps2_bands: true
 output_dir: outputs/prod_2016_10pct_10k
 debug_print: true

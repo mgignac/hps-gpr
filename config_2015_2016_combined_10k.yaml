@@ -7,11 +7,11 @@ hist_2015: invariant_mass
 hist_2016: h_Minv_General_Final_1
 hist_2021: unc_vtx_mass_hist
 range_2015:
-- 0.015
-- 0.14
+- 0.020
+- 0.130
 range_2016:
 - 0.035
-- 0.19
+- 0.210
 range_2021:
 - 0.035
 - 0.23
@@ -85,7 +85,7 @@ scan_diagnostic_zoom_half_sigma: 0.5
 scan_require_two_sidebands: false
 scan_edge_guard_nsigma: 1.64
 cls_alpha: 0.05
-cls_mode: toys
+cls_mode: asymptotic
 cls_num_toys: 10000
 cls_seed_base: 12345
 make_ul_bands: true
@@ -98,8 +98,8 @@ ul_bands_refit_gp_on_toy: false
 ul_bands_refit_gp_restarts: 0
 ul_bands_refit_gp_optimize: true
 ul_bands_train_exclude_nsigma: 1.64
-do_combined_bands: false
-combined_bands_n_toys: 500
+do_combined_bands: true
+combined_bands_n_toys: 10000
 combined_bands_seed: 24680
 data_visibility:
   '2015': observed
@@ -138,9 +138,9 @@ mvn_trunc_method: reject_then_clip
 mvn_trunc_max_tries: 80
 do_combined: true
 eps2_lrt_scale: 1.0e10
-run_limit_bands_on: '2015'
+run_limit_bands_on: 'None'
 make_eps2_bands: true
-output_dir: outputs/prod_2015_2016_combined_10k
+output_dir: outputs/prod_2015_2016_combined_10k_bands
 debug_print: true
 debug_max_errors: 10
 fail_fast: false
