@@ -115,6 +115,115 @@ def generate_slurm_script(
     return output_path, submit_path
 
 
+def generate_injection_slurm_scripts(
+    config_path: str,
+    output_path: str,
+    datasets: List[str],
+    masses: List[float],
+    strengths: List[float],
+    n_toys: int,
+    output_root: str,
+    job_name: str = "hps-gpr-inj",
+    partition: str = "batch",
+    time_limit: str = "4:00:00",
+    memory: str = "4G",
+    conda_env: Optional[str] = None,
+    extra_sbatch: Optional[List[str]] = None,
+) -> tuple:
+    """Generate SLURM scripts for one injection job per (dataset, mass, strength)."""
+    job_lines = [
+        "#!/bin/bash",
+        f"#SBATCH --job-name={job_name}",
+        f"#SBATCH --partition={partition}",
+        f"#SBATCH --time={time_limit}",
+        f"#SBATCH --mem={memory}",
+        "#SBATCH --output=logs/%j.out",
+        "#SBATCH --error=logs/%j.err",
+    ]
+
+    if extra_sbatch:
+        for directive in extra_sbatch:
+            job_lines.append(f"#SBATCH {directive}")
+
+    job_lines.extend([
+        "",
+        "mkdir -p logs",
+        "",
+    ])
+
+    if conda_env:
+        job_lines.extend([
+            "# Activate conda environment",
+            "source $(conda info --base)/etc/profile.d/conda.sh",
+            f"conda activate {conda_env}",
+            "",
+        ])
+
+    job_lines.extend([
+        "# INJECT_* and BASE_OUTPUT_DIR are passed via --export at submission time",
+        'JOB_OUTDIR="${BASE_OUTPUT_DIR}/injection_jobs/${INJECT_DATASET}/m_${INJECT_MASS_TAG}/s_${INJECT_STRENGTH_TAG}"',
+        "mkdir -p \"${JOB_OUTDIR}\"",
+        "",
+        "hps-gpr inject \\",
+        f"    --config {config_path} \\",
+        "    --dataset ${INJECT_DATASET} \\",
+        "    --masses ${INJECT_MASS} \\",
+        "    --strengths ${INJECT_STRENGTH} \\",
+        f"    --n-toys {int(n_toys)} \\",
+        "    --output-dir \"${JOB_OUTDIR}\"",
+    ])
+
+    with open(output_path, "w") as f:
+        f.write("\n".join(job_lines) + "\n")
+    os.chmod(output_path, 0o755)
+    print(f"Wrote injection SLURM job script to {output_path}")
+
+    submit_path = os.path.join(os.path.dirname(os.path.abspath(output_path)), "submit_injection_all.sh")
+    abs_job = os.path.abspath(output_path)
+
+    submit_lines = [
+        "#!/bin/bash",
+        "# Submit one SLURM job per (dataset, mass, strength) injection point",
+        f'JOB_SCRIPT="{abs_job}"',
+        f'BASE_OUTPUT_DIR="{output_root}"',
+        "",
+        "mkdir -p logs",
+        "",
+    ]
+
+    n_jobs = 0
+    for ds in datasets:
+        for mass in masses:
+            mass_str = f"{float(mass):.6f}".rstrip("0").rstrip(".")
+            mass_tag = mass_str.replace("-", "m").replace(".", "p")
+            for strength in strengths:
+                strength_str = f"{float(strength):.6g}"
+                strength_tag = strength_str.replace("-", "m").replace(".", "p")
+                submit_lines.append(
+                    "sbatch --export=ALL,"
+                    f"INJECT_DATASET={ds},"
+                    f"INJECT_MASS={mass_str},"
+                    f"INJECT_MASS_TAG={mass_tag},"
+                    f"INJECT_STRENGTH={strength_str},"
+                    f"INJECT_STRENGTH_TAG={strength_tag},"
+                    "BASE_OUTPUT_DIR=${BASE_OUTPUT_DIR} "
+                    "\"${JOB_SCRIPT}\""
+                )
+                n_jobs += 1
+
+    submit_lines.extend([
+        "",
+        f'echo "Submitted {n_jobs} injection jobs."',
+    ])
+
+    with open(submit_path, "w") as f:
+        f.write("\n".join(submit_lines) + "\n")
+    os.chmod(submit_path, 0o755)
+    print(f"Wrote injection submission loop script to {submit_path}")
+
+    return output_path, submit_path, n_jobs
+
+
 def get_mass_range_for_task(
     datasets: dict,
     mass_step: float,

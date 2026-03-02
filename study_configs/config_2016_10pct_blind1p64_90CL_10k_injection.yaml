@@ -85,7 +85,7 @@ scan_diagnostic_zoom_half_sigma: 0.5
 scan_require_two_sidebands: false
 scan_edge_guard_nsigma: 1.64
 cls_alpha: 0.1
-cls_mode: toys
+cls_mode: asymptotic
 cls_num_toys: 10000
 cls_seed_base: 12345
 make_ul_bands: true
