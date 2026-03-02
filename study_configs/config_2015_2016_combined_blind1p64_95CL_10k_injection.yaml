@@ -38,7 +38,7 @@ frad_coeffs_2016:
 frad_coeffs_2021:
 - 0.05
 enable_2015: true
-enable_2016: false
+enable_2016: true
 enable_2021: false
 kernel_constant_init: 1.0
 kernel_constant_bounds:
@@ -84,13 +84,12 @@ scan_diagnostic_plot_every_n: 5
 scan_diagnostic_zoom_half_sigma: 0.5
 scan_require_two_sidebands: false
 scan_edge_guard_nsigma: 1.64
-cls_alpha: 0.1
-cls_mode: asymptotic
+cls_alpha: 0.05
+cls_mode: toys
 cls_num_toys: 10000
 cls_seed_base: 12345
 make_ul_bands: true
 ul_bands_toys: 10000
-ul_bands_cls_mode: asymptotic
 ul_bands_seed: 12345
 ul_bands_n_workers: 5
 ul_bands_parallel_backend: loky
@@ -138,11 +137,11 @@ inj_sigma_multipliers:
 - 5.0
 mvn_trunc_method: reject_then_clip
 mvn_trunc_max_tries: 80
-do_combined: false
+do_combined: true
 eps2_lrt_scale: 1.0e10
 run_limit_bands_on: '2015'
 make_eps2_bands: true
-output_dir: outputs/study_2015_w1p64_90CL
+output_dir: outputs/study_2015_2016_combined_w1p64_95CL
 debug_print: true
 debug_max_errors: 10
 fail_fast: false

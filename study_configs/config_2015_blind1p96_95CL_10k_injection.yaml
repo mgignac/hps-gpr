@@ -72,8 +72,8 @@ alpha_model: 1/y
 pre_alpha_first_n: 0
 pre_alpha_first_factor: 0.1
 mass_step_gev: 0.001
-blind_nsigma: 1.64
-gp_train_exclude_nsigma: 1.64
+blind_nsigma: 1.96
+gp_train_exclude_nsigma: 1.96
 neighborhood_rebin: 5
 n_restarts: 12
 scan_parallel: true
@@ -83,8 +83,8 @@ scan_threads_per_worker: 2
 scan_diagnostic_plot_every_n: 5
 scan_diagnostic_zoom_half_sigma: 0.5
 scan_require_two_sidebands: false
-scan_edge_guard_nsigma: 1.64
-cls_alpha: 0.1
+scan_edge_guard_nsigma: 1.96
+cls_alpha: 0.05
 cls_mode: asymptotic
 cls_num_toys: 10000
 cls_seed_base: 12345
@@ -98,7 +98,7 @@ ul_bands_threads_per_worker: 1
 ul_bands_refit_gp_on_toy: false
 ul_bands_refit_gp_restarts: 0
 ul_bands_refit_gp_optimize: true
-ul_bands_train_exclude_nsigma: 1.64
+ul_bands_train_exclude_nsigma: 1.96
 do_combined_bands: false
 combined_bands_n_toys: 500
 combined_bands_seed: 24680
@@ -128,7 +128,7 @@ inj_shape_mode: full
 inj_refit_gp_on_toy: false
 inj_refit_gp_restarts: 0
 inj_refit_gp_optimize: true
-inj_train_exclude_nsigma: 1.64
+inj_train_exclude_nsigma: 1.96
 inj_sigma_multipliers:
 - 0.0
 - 1.0
@@ -142,7 +142,7 @@ do_combined: false
 eps2_lrt_scale: 1.0e10
 run_limit_bands_on: '2015'
 make_eps2_bands: true
-output_dir: outputs/study_2015_w1p64_90CL
+output_dir: outputs/study_2015_w1p96_95CL
 debug_print: true
 debug_max_errors: 10
 fail_fast: false
