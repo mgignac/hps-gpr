@@ -98,7 +98,7 @@ ul_bands_refit_gp_on_toy: false
 ul_bands_refit_gp_restarts: 0
 ul_bands_refit_gp_optimize: true
 ul_bands_train_exclude_nsigma: 1.64
-do_combined_bands: false
+do_combined_bands: true
 combined_bands_n_toys: 500
 combined_bands_seed: 24680
 data_visibility:
@@ -108,9 +108,18 @@ data_visibility:
 inject_signal: true
 inj_dataset_key: '2015'
 inj_masses_gev:
+- 0.025
 - 0.03
-- 0.06
-- 0.09
+- 0.04
+- 0.05
+- 0.065
+- 0.08
+- 0.095
+- 0.115
+- 0.135
+- 0.15
+- 0.17
+- 0.2
 inj_strengths:
 - 0
 - 100
@@ -129,17 +138,15 @@ inj_refit_gp_restarts: 0
 inj_refit_gp_optimize: true
 inj_train_exclude_nsigma: 1.64
 inj_sigma_multipliers:
-- 0.0
 - 1.0
 - 2.0
 - 3.0
-- 4.0
 - 5.0
 mvn_trunc_method: reject_then_clip
 mvn_trunc_max_tries: 80
 do_combined: true
 eps2_lrt_scale: 1.0e10
-run_limit_bands_on: '2015'
+run_limit_bands_on: None
 make_eps2_bands: true
 output_dir: outputs/study_2015_2016_combined_w1p64_95CL
 debug_print: true

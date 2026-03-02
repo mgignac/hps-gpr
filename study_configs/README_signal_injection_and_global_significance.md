@@ -54,7 +54,7 @@ hps-gpr slurm-gen --config study_configs/config_2015_blind1p96_95CL_10k_injectio
 
 hps-gpr slurm-gen --config study_configs/config_2016_10pct_blind1p96_95CL_10k_injection.yaml --n-jobs 176 --job-name hps2016_10pct_95CL_w196 --partition milano --account hps:hps-prod --time 24:00:00 --memory 8G --output submit_2016_10pct_95CL_w196.slurm
 
-hps-gpr slurm-gen --config study_configs/config_2015_2016_combined_blind1p96_95CL_10k_injection.yaml --n-jobs 96 --job-name hps2015_2016_comb_95CL_w196 --partition milano --account hps:hps-prod --time 24:00:00 --memory 8G --output submit_2015_2016_combined_95CL_w196.slurm
+hps-gpr slurm-gen --config study_configs/config_2015_2016_combined_blind1p96_95CL_10k_injection.yaml --n-jobs 191 --job-name hps2015_2016_comb_95CL_w196 --partition milano --account hps:hps-prod --time 24:00:00 --memory 8G --output submit_2015_2016_combined_95CL_w196.slurm
 ```
 
 Repeat with `blind1p64` configs for the 1.64-width study.
@@ -91,6 +91,15 @@ For large-scale 10k toys per mass/strength point, use Python batch wrappers call
 
 - 2015: **20–130 MeV** (`range_2015: [0.020, 0.130]`)
 - 2016 (10%): **35–210 MeV** (`range_2016: [0.035, 0.210]`)
-- Combined 2015+2016 overlap: **35–130 MeV**
+- Combined 2015+2016 scan window: **20–210 MeV** (combined-fit rows populated where >=2 datasets overlap)
 
 These ranges are now synchronized across all top-level and study configs (both 90% and 95% CL variants).
+
+
+### Combined injection/extraction matrix (publication workflow)
+
+```bash
+hps-gpr inject --config study_configs/config_2015_2016_combined_blind1p96_95CL_10k_injection.yaml --dataset combined --masses 0.025,0.030,0.040,0.050,0.065,0.080,0.095,0.115,0.135,0.150,0.170,0.200 --strengths 1,2,3,5 --n-toys 10000
+```
+
+Outputs now include per-dataset and combined pull/coverage/heatmap products (`heatmap_pull_mean_<dataset>.png`, `heatmap_pull_width_<dataset>.png`) suitable for publication appendices and closure summaries.

@@ -233,7 +233,7 @@ def bands(config, dataset, n_toys, output_dir):
     "--dataset",
     "-d",
     required=True,
-    help="Dataset key (2015, 2016, or 2021)",
+    help="Dataset key (2015, 2016, 2021, or combined)",
 )
 @click.option(
     "--masses",
@@ -261,9 +261,11 @@ def bands(config, dataset, n_toys, output_dir):
 )
 def inject(config, dataset, masses, strengths, n_toys, output_dir):
     """Run injection/extraction study."""
+    import pandas as pd
+
     from .config import load_config
     from .dataset import make_datasets
-    from .injection import run_injection_extraction_toys, summarize_injection_grid
+    from .injection import run_injection_extraction_toys, summarize_injection_grid, combine_injection_toy_tables
     from .plotting import (
         ensure_dir,
         plot_linearity,
@@ -279,56 +281,106 @@ def inject(config, dataset, masses, strengths, n_toys, output_dir):
         cfg.output_dir = output_dir
 
     cfg.ensure_output_dir()
-
     datasets = make_datasets(cfg)
 
-    if dataset not in datasets:
-        available = list(datasets.keys())
-        print(f"Dataset '{dataset}' not found or not enabled. Available: {available}")
+    available = list(datasets.keys())
+    if dataset != "combined" and dataset not in datasets:
+        print(f"Dataset '{dataset}' not found or not enabled. Available: {available + ['combined']}")
         sys.exit(1)
 
-    ds = datasets[dataset]
-
-    # Parse masses
     mass_list = [float(m.strip()) for m in masses.split(",")]
+    strength_list = [float(s.strip()) for s in strengths.split(",")] if strengths else [float(s) for s in cfg.inj_strengths]
 
-    # Parse strengths
-    if strengths:
-        strength_list = [int(s.strip()) for s in strengths.split(",")]
-    else:
-        strength_list = cfg.inj_strengths
-
-    print(f"Running injection study for {ds.label}")
-    print(f"Masses: {mass_list}")
-    print(f"Strengths: {strength_list}")
-
-    strengths_mode = str(getattr(cfg, "inj_strength_mode", "absolute")).lower().strip()
-    df = run_injection_extraction_toys(
-        ds,
-        cfg,
-        masses=mass_list,
-        strengths=[float(x) for x in strength_list],
-        n_toys=int(n_toys),
-        strengths_mode=strengths_mode,
-    )
-
-    df_sum = summarize_injection_grid(df)
     outdir = os.path.join(cfg.output_dir, "injection_extraction")
     ensure_dir(outdir)
-    out_sum = os.path.join(outdir, f"inj_extract_summary_{ds.key}.csv")
-    df_sum.to_csv(out_sum, index=False)
+    strengths_mode = str(getattr(cfg, "inj_strength_mode", "absolute")).lower().strip()
 
-    xvar = "inj_nsigma" if "inj_nsigma" in df_sum.columns and np.isfinite(df_sum["inj_nsigma"]).any() else "strength"
-    plot_linearity(df_sum, xvar=xvar, title=f"{ds.label}: linearity", outpath=os.path.join(outdir, f"linearity_{ds.key}.png"))
-    plot_bias_vs_injected_strength(df_sum, xvar=xvar, title=f"{ds.label}: bias", outpath=os.path.join(outdir, f"bias_{ds.key}.png"))
-    plot_pull_width(df_sum, xvar=xvar, title=f"{ds.label}: pull width", outpath=os.path.join(outdir, f"pull_width_{ds.key}.png"))
-    plot_coverage(df_sum, xvar=xvar, title=f"{ds.label}: coverage", outpath=os.path.join(outdir, f"coverage_{ds.key}.png"))
-    plot_injection_heatmap(df_sum, value_col="pull_mean", title=f"{ds.label}: mean pull heatmap", outpath=os.path.join(outdir, f"heatmap_pull_mean_{ds.key}.png"))
+    if dataset == "combined":
+        print("Running combined injection study over all enabled datasets")
+        print(f"Masses: {mass_list}")
+        print(f"Strengths: {strength_list}")
 
-    print(f"\nToy-level rows: {len(df)}")
-    print(f"Summary rows: {len(df_sum)}")
-    print(f"Wrote summary table: {out_sum}")
-    print(df_sum.head(20).to_string())
+        df_map = {}
+        for key, ds in datasets.items():
+            print(f"  -> {ds.label}")
+            df_map[key] = run_injection_extraction_toys(
+                ds,
+                cfg,
+                masses=mass_list,
+                strengths=[float(x) for x in strength_list],
+                n_toys=int(n_toys),
+                strengths_mode=strengths_mode,
+            )
+
+        df_comb_toys = combine_injection_toy_tables(df_map)
+        if not df_comb_toys.empty:
+            comb_toys_path = os.path.join(outdir, "inj_extract_toys_combined.csv")
+            df_comb_toys.to_csv(comb_toys_path, index=False)
+            print(f"Wrote {comb_toys_path}")
+
+        summary_frames = []
+        for key, dfi in df_map.items():
+            dsum = summarize_injection_grid(dfi)
+            dsum["dataset"] = str(key)
+            summary_frames.append(dsum)
+            dsum.to_csv(os.path.join(outdir, f"inj_extract_summary_{key}.csv"), index=False)
+
+        if not df_comb_toys.empty:
+            dsum_c = summarize_injection_grid(df_comb_toys)
+            dsum_c["dataset"] = "combined"
+            summary_frames.append(dsum_c)
+            dsum_c.to_csv(os.path.join(outdir, "inj_extract_summary_combined.csv"), index=False)
+
+        df_sum = pd.concat(summary_frames, ignore_index=True) if summary_frames else pd.DataFrame()
+        if not df_sum.empty:
+            df_sum.to_csv(os.path.join(outdir, "inj_extract_summary_all.csv"), index=False)
+
+            xvar = "inj_nsigma" if "inj_nsigma" in df_sum.columns and np.isfinite(df_sum["inj_nsigma"]).any() else "strength"
+            for ds_key in sorted(df_sum["dataset"].astype(str).unique()):
+                sub = df_sum[df_sum["dataset"].astype(str) == ds_key].copy()
+                plot_linearity(sub, xvar=xvar, title=f"{ds_key}: linearity", outpath=os.path.join(outdir, f"linearity_{ds_key}.png"))
+                plot_bias_vs_injected_strength(sub, xvar=xvar, title=f"{ds_key}: bias", outpath=os.path.join(outdir, f"bias_{ds_key}.png"))
+                plot_pull_width(sub, xvar=xvar, title=f"{ds_key}: pull width", outpath=os.path.join(outdir, f"pull_width_{ds_key}.png"))
+                plot_coverage(sub, xvar=xvar, title=f"{ds_key}: coverage", outpath=os.path.join(outdir, f"coverage_{ds_key}.png"))
+                plot_injection_heatmap(sub, value_col="pull_mean", dataset_filter=ds_key, title=f"{ds_key}: mean pull heatmap", outpath=os.path.join(outdir, f"heatmap_pull_mean_{ds_key}.png"))
+                plot_injection_heatmap(sub, value_col="pull_std", dataset_filter=ds_key, title=f"{ds_key}: pull width heatmap", outpath=os.path.join(outdir, f"heatmap_pull_width_{ds_key}.png"))
+
+        print(f"\nSummary rows (all datasets + combined): {len(df_sum)}")
+        if not df_sum.empty:
+            print(df_sum.head(20).to_string())
+
+    else:
+        ds = datasets[dataset]
+        print(f"Running injection study for {ds.label}")
+        print(f"Masses: {mass_list}")
+        print(f"Strengths: {strength_list}")
+
+        df = run_injection_extraction_toys(
+            ds,
+            cfg,
+            masses=mass_list,
+            strengths=[float(x) for x in strength_list],
+            n_toys=int(n_toys),
+            strengths_mode=strengths_mode,
+        )
+
+        df_sum = summarize_injection_grid(df)
+        out_sum = os.path.join(outdir, f"inj_extract_summary_{ds.key}.csv")
+        df_sum.to_csv(out_sum, index=False)
+
+        xvar = "inj_nsigma" if "inj_nsigma" in df_sum.columns and np.isfinite(df_sum["inj_nsigma"]).any() else "strength"
+        plot_linearity(df_sum, xvar=xvar, title=f"{ds.label}: linearity", outpath=os.path.join(outdir, f"linearity_{ds.key}.png"))
+        plot_bias_vs_injected_strength(df_sum, xvar=xvar, title=f"{ds.label}: bias", outpath=os.path.join(outdir, f"bias_{ds.key}.png"))
+        plot_pull_width(df_sum, xvar=xvar, title=f"{ds.label}: pull width", outpath=os.path.join(outdir, f"pull_width_{ds.key}.png"))
+        plot_coverage(df_sum, xvar=xvar, title=f"{ds.label}: coverage", outpath=os.path.join(outdir, f"coverage_{ds.key}.png"))
+        plot_injection_heatmap(df_sum, value_col="pull_mean", title=f"{ds.label}: mean pull heatmap", outpath=os.path.join(outdir, f"heatmap_pull_mean_{ds.key}.png"))
+        plot_injection_heatmap(df_sum, value_col="pull_std", title=f"{ds.label}: pull width heatmap", outpath=os.path.join(outdir, f"heatmap_pull_width_{ds.key}.png"))
+
+        print(f"\nToy-level rows: {len(df)}")
+        print(f"Summary rows: {len(df_sum)}")
+        print(f"Wrote summary table: {out_sum}")
+        print(df_sum.head(20).to_string())
+
 
 
 @main.command()
@@ -505,6 +557,9 @@ def slurm_combine(output_dir, prefix):
         plot_ul_pvalue_components,
         plot_analytic_p0,
         plot_Z_local_global,
+        plot_injection_heatmap,
+        plot_linearity,
+        plot_pull_width,
     )
 
     df_single, df_comb, bands_a, bands_eps2, bands_comb = combine_results(output_dir, prefix)
@@ -618,6 +673,68 @@ def slurm_combine(output_dir, prefix):
                     lee_method="sidak",
                     indep_width_sigma=lee_width,
                 )
+
+            # Add per-dataset UL + local/global suites into combined summary folder
+            for ds_name, ds_path in (bands_a or {}).items():
+                try:
+                    dfa = pd.read_csv(ds_path).sort_values("mass_GeV").reset_index(drop=True)
+                    plot_ul_bands(
+                        dfa,
+                        use_eps2=False,
+                        title=f"{ds_name}: expected/observed {cl_pct}% CL signal-yield UL",
+                        outpath=os.path.join(suite_dir, f"{ds_name}_UL_sig_yield_bands.png"),
+                    )
+                except Exception as e:
+                    print(f"Warning: dataset signal-yield UL plot failed for {ds_name}: {e}")
+            for ds_name, ds_path in (bands_eps2 or {}).items():
+                try:
+                    dfe = pd.read_csv(ds_path).sort_values("mass_GeV").reset_index(drop=True)
+                    plot_ul_bands(
+                        dfe,
+                        use_eps2=True,
+                        title=f"{ds_name}: expected/observed {cl_pct}% CL epsilon^2 UL",
+                        outpath=os.path.join(suite_dir, f"{ds_name}_UL_eps2_yield_bands.png"),
+                    )
+                except Exception as e:
+                    print(f"Warning: dataset eps2 UL plot failed for {ds_name}: {e}")
+
+            if df_single is not None and len(df_single):
+                for ds_name, sub in df_single.groupby("dataset"):
+                    try:
+                        sub = sub.sort_values("mass_GeV").reset_index(drop=True)
+                        if "p0_analytic" in sub.columns:
+                            plot_analytic_p0(
+                                sub,
+                                title=f"{ds_name}: analytic local/global p0",
+                                outpath=os.path.join(suite_dir, f"{ds_name}_p0_local_global.png"),
+                                apply_lee=True,
+                                lee_method="sidak",
+                                indep_width_sigma=lee_width,
+                            )
+                            plot_Z_local_global(
+                                sub,
+                                title=f"{ds_name}: local/global Z",
+                                outpath=os.path.join(suite_dir, f"{ds_name}_Z_local_global.png"),
+                                apply_lee=True,
+                                lee_method="sidak",
+                                indep_width_sigma=lee_width,
+                            )
+                    except Exception as e:
+                        print(f"Warning: dataset local/global summary failed for {ds_name}: {e}")
+
+            inj_all = os.path.join(output_dir, "injection_extraction", "inj_extract_summary_all.csv")
+            if os.path.exists(inj_all):
+                try:
+                    dfi = pd.read_csv(inj_all)
+                    xvar = "inj_nsigma" if "inj_nsigma" in dfi.columns and dfi["inj_nsigma"].notna().any() else "strength"
+                    for ds_key in sorted(dfi["dataset"].astype(str).unique()):
+                        sub = dfi[dfi["dataset"].astype(str) == ds_key].copy()
+                        plot_injection_heatmap(sub, value_col="pull_mean", dataset_filter=ds_key, title=f"{ds_key}: mean pull heatmap", outpath=os.path.join(suite_dir, f"{ds_key}_heatmap_pull_mean.png"))
+                        plot_injection_heatmap(sub, value_col="pull_std", dataset_filter=ds_key, title=f"{ds_key}: pull width heatmap", outpath=os.path.join(suite_dir, f"{ds_key}_heatmap_pull_width.png"))
+                        plot_linearity(sub, xvar=xvar, title=f"{ds_key}: linearity", outpath=os.path.join(suite_dir, f"{ds_key}_linearity.png"))
+                        plot_pull_width(sub, xvar=xvar, title=f"{ds_key}: pull width", outpath=os.path.join(suite_dir, f"{ds_key}_pull_width.png"))
+                except Exception as e:
+                    print(f"Warning: could not generate injection summary products: {e}")
 
             print(f"Wrote summary plot suite: {suite_dir}")
         except Exception as e:

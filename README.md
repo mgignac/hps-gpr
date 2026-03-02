@@ -169,7 +169,11 @@ hps-gpr inject --config study_configs/config_2015_blind1p96_95CL_10k_injection.y
 hps-gpr inject --config study_configs/config_2016_10pct_blind1p96_95CL_10k_injection.yaml --dataset 2016 --masses 0.040,0.060,0.080,0.100,0.140,0.180,0.210
 
 # Combined 2015+2016 production scan + summary suite (95% CL)
-hps-gpr slurm-gen --config study_configs/config_2015_2016_combined_blind1p96_95CL_10k_injection.yaml --n-jobs 96 --job-name hps2015_2016_comb_95CL_w196 --partition milano --account hps:hps-prod --time 24:00:00 --memory 8G --output submit_2015_2016_combined_95CL_w196.slurm
+
+# Combined injection/extraction matrix (per-mass, per-strength)
+# strengths in sigma_A: 1,2,3,5 ; masses in GeV: 0.025,0.030,0.040,0.050,0.065,0.080,0.095,0.115,0.135,0.150,0.170,0.200
+hps-gpr inject --config study_configs/config_2015_2016_combined_blind1p96_95CL_10k_injection.yaml --dataset combined --masses 0.025,0.030,0.040,0.050,0.065,0.080,0.095,0.115,0.135,0.150,0.170,0.200 --strengths 1,2,3,5 --n-toys 10000
+hps-gpr slurm-gen --config study_configs/config_2015_2016_combined_blind1p96_95CL_10k_injection.yaml --n-jobs 191 --job-name hps2015_2016_comb_95CL_w196 --partition milano --account hps:hps-prod --time 24:00:00 --memory 8G --output submit_2015_2016_combined_95CL_w196.slurm
 ./submit_all.sh submit_2015_2016_combined_95CL_w196.slurm
 hps-gpr slurm-combine --output-dir outputs/study_2015_2016_combined_w1p96_95CL
 ```
@@ -177,7 +181,7 @@ hps-gpr slurm-combine --output-dir outputs/study_2015_2016_combined_w1p96_95CL
 Mass-range convention in all production configs:
 - 2015: **20–130 MeV**
 - 2016: **35–210 MeV**
-- Combined overlap: **35–130 MeV**
+- Combined scan window: **20–210 MeV** (combined-fit significance populated in overlap region where multiple datasets are active)
 
 ### SLURM Batch Processing
 
@@ -230,10 +234,10 @@ hps-gpr slurm-gen \
   --memory 8G \
   --output submit_2016_10pct_bands_10k.slurm
 
-# 2015+2016 combined limit bands over overlap (96 mass points => 96 array jobs)
+# 2015+2016 combined scan window (20–210 MeV => 191 array jobs)
 hps-gpr slurm-gen \
   --config config_2015_2016_combined_10k.yaml \
-  --n-jobs 96 \
+  --n-jobs 191 \
   --job-name hps2015_2016_combined_bands_10k \
   --partition milano \
   --account hps:hps-prod \
@@ -395,3 +399,6 @@ where ρ is the integral density (counts per GeV) in the signal region.
 - HPS Collaboration dark photon search publications
 - Gaussian Process Regression: Rasmussen & Williams, "Gaussian Processes for Machine Learning"
 - CLs method: Read, A.L., "Presentation of search results: the CL_s technique"
+
+
+For combined runs, `slurm-combine` also writes per-dataset publication overlays inside the summary suite, e.g. `2015_UL_sig_yield_bands.png`, `2015_UL_eps2_yield_bands.png`, `2016_UL_sig_yield_bands.png`, `2016_UL_eps2_yield_bands.png`, plus dataset-specific `*_p0_local_global.png` and `*_Z_local_global.png`.
