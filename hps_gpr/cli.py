@@ -260,7 +260,12 @@ def bands(config, dataset, n_toys, output_dir):
     type=click.Path(),
     help="Override output directory from config",
 )
-def inject(config, dataset, masses, strengths, n_toys, output_dir):
+@click.option(
+    "--write-toy-csv/--no-write-toy-csv",
+    default=None,
+    help="Write per-toy CSV tables (inj_extract_toys_*.csv). Defaults to config inj_write_toy_csv.",
+)
+def inject(config, dataset, masses, strengths, n_toys, output_dir, write_toy_csv):
     """Run injection/extraction study."""
     import pandas as pd
 
@@ -287,6 +292,8 @@ def inject(config, dataset, masses, strengths, n_toys, output_dir):
 
     if output_dir:
         cfg.output_dir = output_dir
+    if write_toy_csv is not None:
+        cfg.inj_write_toy_csv = bool(write_toy_csv)
 
     cfg.ensure_output_dir()
     datasets = make_datasets(cfg)
@@ -318,6 +325,7 @@ def inject(config, dataset, masses, strengths, n_toys, output_dir):
                 strengths=[float(x) for x in strength_list],
                 n_toys=int(n_toys),
                 strengths_mode=strengths_mode,
+                write_toy_csv=cfg.inj_write_toy_csv,
             )
 
         mass_policy = str(getattr(cfg, "inj_combined_mass_policy", "intersection")).strip().lower()
@@ -334,10 +342,12 @@ def inject(config, dataset, masses, strengths, n_toys, output_dir):
             mass_policy=mass_policy,
             min_n_contrib=min_n_contrib,
         )
-        if not df_comb_toys.empty:
+        if not df_comb_toys.empty and bool(cfg.inj_write_toy_csv):
             comb_toys_path = os.path.join(outdir, "inj_extract_toys_combined.csv")
             df_comb_toys.to_csv(comb_toys_path, index=False)
             print(f"Wrote {comb_toys_path}")
+        elif not df_comb_toys.empty:
+            print("Skipped writing inj_extract_toys_combined.csv (--no-write-toy-csv)")
 
         summary_frames = []
         for key, dfi in df_map.items():
@@ -354,6 +364,9 @@ def inject(config, dataset, masses, strengths, n_toys, output_dir):
 
         df_sum = pd.concat(summary_frames, ignore_index=True) if summary_frames else pd.DataFrame()
         if not df_sum.empty:
+            out_sum_all = os.path.join(outdir, "inj_extract_summary_all.csv")
+            df_sum.to_csv(out_sum_all, index=False)
+            print(f"Wrote {out_sum_all}")
             xvar = "inj_nsigma" if "inj_nsigma" in df_sum.columns and np.isfinite(df_sum["inj_nsigma"]).any() else "strength"
             preferred_order = ["2015", "2016", "combined"]
             present = [str(x) for x in df_sum["dataset"].astype(str).unique()]
@@ -391,11 +404,14 @@ def inject(config, dataset, masses, strengths, n_toys, output_dir):
             strengths=[float(x) for x in strength_list],
             n_toys=int(n_toys),
             strengths_mode=strengths_mode,
+            write_toy_csv=cfg.inj_write_toy_csv,
         )
 
         df_sum = summarize_injection_grid(df)
         out_sum = os.path.join(outdir, f"inj_extract_summary_{ds.key}.csv")
         df_sum.to_csv(out_sum, index=False)
+        out_sum_all = os.path.join(outdir, "inj_extract_summary_all.csv")
+        df_sum.to_csv(out_sum_all, index=False)
 
         xvar = "inj_nsigma" if "inj_nsigma" in df_sum.columns and np.isfinite(df_sum["inj_nsigma"]).any() else "strength"
         plot_linearity(df_sum, xvar=xvar, title=f"{ds.label}: linearity", outpath=os.path.join(outdir, f"linearity_{ds.key}.png"))
@@ -415,6 +431,7 @@ def inject(config, dataset, masses, strengths, n_toys, output_dir):
         print(f"\nToy-level rows: {len(df)}")
         print(f"Summary rows: {len(df_sum)}")
         print(f"Wrote summary table: {out_sum}")
+        print(f"Wrote unified summary table: {out_sum_all}")
         print(df_sum.head(20).to_string())
 
 

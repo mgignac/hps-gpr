@@ -189,6 +189,7 @@ class Config:
     )
     inj_combined_mass_policy: str = "intersection"  # "intersection" | "union_min_n"
     inj_combined_min_n_contrib: int = 2
+    inj_write_toy_csv: bool = True
     # MVN non-negative sampling
     mvn_trunc_method: str = "reject_then_clip"  # "clip" | "reject" | "reject_then_clip"
     mvn_trunc_max_tries: int = 80
