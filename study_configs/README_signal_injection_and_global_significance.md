@@ -86,6 +86,25 @@ hps-gpr inject --config study_configs/config_2016_10pct_blind1p96_95CL_10k_injec
 
 For large-scale 10k toys per mass/strength point, use Python batch wrappers calling `run_injection_extraction_toys(..., n_toys=10000)` in array jobs and aggregate summary tables.
 
+## Injection output policy and file-size scaling
+
+`hps-gpr inject` supports `--write-toy-csv/--no-write-toy-csv` (default controlled by `inj_write_toy_csv` in config).
+
+- With `--write-toy-csv` (default), per-toy tables are written as `inj_extract_toys_<dataset>.csv` (and `inj_extract_toys_combined.csv` for combined mode).
+- With `--no-write-toy-csv`, toy tables are kept in memory for summary statistics and plotting, but toy CSV serialization is skipped.
+- Compact summary tables are always written: `inj_extract_summary_<dataset>.csv` plus unified `inj_extract_summary_all.csv`.
+
+Expected scaling:
+
+- Toy tables scale approximately as
+  N_rows ~= N_masses * N_strengths * N_toys per dataset,
+  so disk size grows linearly with each axis.
+- Summary tables scale as
+  N_rows ~= N_masses * N_strengths per dataset,
+  independent of `n_toys`.
+
+
+For 10k-toy production scans, disabling toy CSV output is recommended unless toy-level reprocessing is explicitly needed.
 
 ## Mass ranges used in all production configs
 

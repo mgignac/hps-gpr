@@ -140,6 +140,7 @@ def run_injection_extraction_toys(
     refit_optimize: Optional[bool] = None,
     inj_shape_mode: Optional[str] = None,
     train_exclude_nsigma: Optional[float] = None,
+    write_toy_csv: Optional[bool] = None,
 ) -> pd.DataFrame:
     """Run injection+extraction closure tests for one dataset.
 
@@ -159,6 +160,9 @@ def run_injection_extraction_toys(
     if outdir is None:
         outdir = os.path.join(config.output_dir, "injection_extraction")
     ensure_dir(outdir)
+
+    if write_toy_csv is None:
+        write_toy_csv = bool(getattr(config, "inj_write_toy_csv", True))
 
     rng = np.random.default_rng(int(seed))
 
@@ -322,9 +326,12 @@ def run_injection_extraction_toys(
         print(f"[inj] {ds.key} m={m:.6g} GeV done ({toy_mode}; {len(strength_tags)} strengths × {n_toys} toys)")
 
     df = pd.DataFrame(rows)
-    out_csv = os.path.join(outdir, f"inj_extract_toys_{ds.key}.csv")
-    df.to_csv(out_csv, index=False)
-    print("[inj] wrote", out_csv)
+    if bool(write_toy_csv):
+        out_csv = os.path.join(outdir, f"inj_extract_toys_{ds.key}.csv")
+        df.to_csv(out_csv, index=False)
+        print("[inj] wrote", out_csv)
+    else:
+        print(f"[inj] skipped writing toy CSV for {ds.key} (write_toy_csv=False)")
     return df
 
 
