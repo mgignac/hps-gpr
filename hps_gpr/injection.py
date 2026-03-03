@@ -412,12 +412,22 @@ def combine_injection_toy_tables(
 ) -> pd.DataFrame:
     """Build toy-level combined injection results from per-dataset toy tables.
 
-    Combines available datasets at each (mass, strength, toy) using inverse-variance
+    Combines available datasets at each toy point using inverse-variance
     weighting of extracted amplitudes:
 
       Ahat_comb = sum_i (Ahat_i / sigma_i^2) / sum_i (1/sigma_i^2)
 
     with sigma_comb = 1 / sqrt(sum_i 1/sigma_i^2).
+
+    Grouping mode is selected from available columns:
+      - absolute mode: (mass_GeV, strength, toy)
+      - sigma-scaled mode (when finite `inj_nsigma` is present and strengths are
+        inconsistent across datasets at fixed (mass, inj_nsigma, toy)):
+        (mass_GeV, inj_nsigma_key, toy), where inj_nsigma_key is rounded to avoid
+        floating-point mismatch across files.
+
+    In sigma-scaled mode, output `strength` is defined as the inverse-variance
+    weighted mean of input injected amplitudes for each combined group.
 
     Combined masses are filtered by `mass_policy`:
       - "intersection" (default): mass must be present in every enabled dataset.
@@ -459,13 +469,32 @@ def combine_injection_toy_tables(
     valid["w"] = 1.0 / np.square(valid["sigma_A"].to_numpy(float))
     valid["wA"] = valid["w"].to_numpy(float) * valid["A_hat"].to_numpy(float)
     valid["dataset"] = valid["dataset"].astype(str)
+    if "strength" in valid.columns:
+        valid["wS"] = valid["w"].to_numpy(float) * pd.to_numeric(valid["strength"], errors="coerce").to_numpy(float)
+    else:
+        valid["wS"] = np.nan
 
-    grp_cols = ["mass_GeV", "strength", "toy"]
+    inj_vals = pd.to_numeric(valid.get("inj_nsigma", np.nan), errors="coerce").to_numpy(float)
+    has_finite_inj_nsigma = bool(np.any(np.isfinite(inj_vals)))
+    sigma_group_col = "inj_nsigma_key"
+    valid[sigma_group_col] = np.round(inj_vals, 8)
+
+    sigma_scaled_mode = False
+    if has_finite_inj_nsigma and "strength" in valid.columns:
+        probe = (
+            valid[np.isfinite(valid[sigma_group_col])]
+            .groupby(["mass_GeV", sigma_group_col, "toy"], dropna=False)["strength"]
+            .nunique(dropna=True)
+        )
+        sigma_scaled_mode = bool((probe > 1).any())
+
+    grp_cols = ["mass_GeV", sigma_group_col, "toy"] if sigma_scaled_mode else ["mass_GeV", "strength", "toy"]
     agg = (
         valid.groupby(grp_cols, dropna=False)
         .agg(
             sum_w=("w", "sum"),
             sum_wA=("wA", "sum"),
+            sum_wS=("wS", "sum"),
             inj_nsigma=("inj_nsigma", "mean"),
             sigmaA_ref=("sigmaA_ref", "mean"),
             success=("success", "all"),
@@ -493,6 +522,9 @@ def combine_injection_toy_tables(
 
     agg["A_hat"] = agg["sum_wA"] / agg["sum_w"]
     agg["sigma_A"] = 1.0 / np.sqrt(agg["sum_w"])
+    agg["strength"] = agg["sum_wS"] / agg["sum_w"]
+    if sigma_scaled_mode:
+        agg["inj_nsigma"] = agg[sigma_group_col]
     agg["pull_param"] = (agg["A_hat"] - agg["strength"]) / agg["sigma_A"]
     agg["Zhat"] = agg["A_hat"] / agg["sigma_A"]
     agg["dataset"] = "combined"
@@ -519,7 +551,8 @@ def combine_injection_toy_tables(
 
     if out.empty:
         return out
-    return out.sort_values(["mass_GeV", "strength", "toy"]).reset_index(drop=True)
+    sort_cols = ["mass_GeV", "inj_nsigma", "toy"] if sigma_scaled_mode else ["mass_GeV", "strength", "toy"]
+    return out.sort_values(sort_cols).reset_index(drop=True)
 
 def summarize_injection_grid(df_toys: pd.DataFrame) -> pd.DataFrame:
     """Summarize injection toys by (dataset, mass, strength)."""

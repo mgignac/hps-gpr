@@ -1784,6 +1784,173 @@ def plot_gp_hyperparameters(df_single: pd.DataFrame, outdir: str) -> None:
             plt.close(fig)
 
 
+
+def _sigma_ref_by_mass(df: pd.DataFrame, dataset_key: str) -> pd.DataFrame:
+    """Return per-mass sigmaA reference summary for one dataset."""
+    sub = (df[df["dataset"].astype(str) == str(dataset_key)].copy() if not df.empty else pd.DataFrame())
+    if sub.empty:
+        return pd.DataFrame(columns=["mass_GeV", "sigmaA_ref"])
+    sub["mass_GeV"] = pd.to_numeric(sub["mass_GeV"], errors="coerce")
+    sub["sigmaA_ref"] = pd.to_numeric(sub.get("sigmaA_ref", np.nan), errors="coerce")
+    sub = sub[np.isfinite(sub["mass_GeV"].to_numpy(float)) & np.isfinite(sub["sigmaA_ref"].to_numpy(float)) & (sub["sigmaA_ref"].to_numpy(float) > 0)]
+    if sub.empty:
+        return pd.DataFrame(columns=["mass_GeV", "sigmaA_ref"])
+    out = sub.groupby("mass_GeV", as_index=False).agg(sigmaA_ref=("sigmaA_ref", "mean"))
+    return out.sort_values("mass_GeV").reset_index(drop=True)
+
+
+def plot_combined_search_power(
+    df_toys: pd.DataFrame,
+    *,
+    outdir: str,
+    masses_focus: Optional[List[float]] = None,
+    z_targets: Optional[List[float]] = None,
+) -> List[str]:
+    r"""Plot scenario-based significance gains for combined searches.
+
+    Produces:
+      1) A mass-scan comparison for user-requested scenarios
+         (1σ in 2015 + 1σ in 2016 vs 1σ in 2021, and
+          1σ in 2015 + 2σ in 2016 vs 3σ in 2021).
+      2) Mass-focused allocation plots (default: 40, 80, 110 MeV) that show
+         inverse-variance weighted per-dataset signal partitioning required to
+         realize target combined significances (default: 1, 3, 5σ).
+
+    Returns:
+        List of saved plot paths.
+    """
+    ensure_dir(outdir)
+    saved: List[str] = []
+
+    if df_toys is None or df_toys.empty:
+        print("[plot_combined_search_power] skipped: empty toy table")
+        return saved
+
+    work = df_toys.copy()
+    needed = {"dataset", "mass_GeV", "sigmaA_ref"}
+    if not needed.issubset(set(work.columns)):
+        print("[plot_combined_search_power] skipped: missing required columns")
+        return saved
+
+    s15 = _sigma_ref_by_mass(work, "2015")
+    s16 = _sigma_ref_by_mass(work, "2016")
+    s21 = _sigma_ref_by_mass(work, "2021")
+    if s15.empty or s16.empty:
+        print("[plot_combined_search_power] skipped: need both 2015 and 2016 toy rows")
+        return saved
+
+    m1516 = s15.merge(s16, on="mass_GeV", suffixes=("_2015", "_2016"))
+    if m1516.empty:
+        print("[plot_combined_search_power] skipped: no common masses between 2015 and 2016")
+        return saved
+
+    w15 = 1.0 / np.square(m1516["sigmaA_ref_2015"].to_numpy(float))
+    w16 = 1.0 / np.square(m1516["sigmaA_ref_2016"].to_numpy(float))
+    sw = w15 + w16
+
+    A15_11 = 1.0 * m1516["sigmaA_ref_2015"].to_numpy(float)
+    A16_11 = 1.0 * m1516["sigmaA_ref_2016"].to_numpy(float)
+    z_comb_11 = (A15_11 * w15 + A16_11 * w16) / np.sqrt(sw)
+
+    A15_12 = 1.0 * m1516["sigmaA_ref_2015"].to_numpy(float)
+    A16_12 = 2.0 * m1516["sigmaA_ref_2016"].to_numpy(float)
+    z_comb_12 = (A15_12 * w15 + A16_12 * w16) / np.sqrt(sw)
+
+    set_injection_plot_style("paper")
+    fig, axs = plt.subplots(1, 2, figsize=(12.6, 4.9), constrained_layout=True)
+    m = m1516["mass_GeV"].to_numpy(float) * 1e3
+
+    axs[0].plot(m, z_comb_11, color="#0072B2", marker="o", label=r"Combined: $Z_{inj}^{2015}=1, Z_{inj}^{2016}=1$")
+    axs[0].set_title("Scenario A: 1σ + 1σ vs 2021 baseline")
+    axs[0].set_ylabel(r"Expected combined significance $\hat{Z}_{comb}$")
+    axs[0].set_xlabel("Mass hypothesis [MeV]")
+    axs[0].axhline(1.0, color="#D55E00", ls="--", lw=1.2, label=r"2021-only reference: $Z_{inj}^{2021}=1$")
+    _grid(axs[0])
+
+    axs[1].plot(m, z_comb_12, color="#009E73", marker="s", label=r"Combined: $Z_{inj}^{2015}=1, Z_{inj}^{2016}=2$")
+    axs[1].set_title("Scenario B: 1σ + 2σ vs 2021 baseline")
+    axs[1].set_ylabel(r"Expected combined significance $\hat{Z}_{comb}$")
+    axs[1].set_xlabel("Mass hypothesis [MeV]")
+    axs[1].axhline(3.0, color="#CC79A7", ls="--", lw=1.2, label=r"2021-only reference: $Z_{inj}^{2021}=3$")
+    _grid(axs[1])
+
+    if not s21.empty:
+        cmp = m1516.merge(s21, on="mass_GeV", how="inner")
+        if not cmp.empty:
+            axs[0].plot(cmp["mass_GeV"].to_numpy(float) * 1e3, np.full(len(cmp), 1.0), alpha=0.0)
+
+    for ax in axs:
+        ax.legend(loc="best", frameon=True)
+    _set_title_above(axs[0], axs[0].get_title())
+    _set_title_above(axs[1], axs[1].get_title())
+    out = os.path.join(outdir, "combined_search_power_scenarios.png")
+    _save_plot_outputs(fig, out)
+    saved.append(out)
+
+    focus_vals = [0.040, 0.080, 0.110] if masses_focus is None else [float(x) for x in masses_focus]
+    zvals = [1.0, 3.0, 5.0] if z_targets is None else [float(z) for z in z_targets]
+
+    for m0 in focus_vals:
+        idx = int(np.argmin(np.abs(m1516["mass_GeV"].to_numpy(float) - m0)))
+        mass_sel = float(m1516.iloc[idx]["mass_GeV"])
+        sig15 = float(m1516.iloc[idx]["sigmaA_ref_2015"])
+        sig16 = float(m1516.iloc[idx]["sigmaA_ref_2016"])
+        w15m = 1.0 / (sig15 * sig15)
+        w16m = 1.0 / (sig16 * sig16)
+        swm = w15m + w16m
+
+        # Inverse-variance significance partition: z_i^2 fractions follow w_i/sum(w)
+        frac15 = w15m / swm
+        frac16 = w16m / swm
+
+        rows = []
+        for zt in zvals:
+            z15 = float(zt) * np.sqrt(frac15)
+            z16 = float(zt) * np.sqrt(frac16)
+            rows.append({
+                "mass_GeV": mass_sel,
+                "z_target_comb": float(zt),
+                "sigmaA_ref_2015": sig15,
+                "sigmaA_ref_2016": sig16,
+                "z_inj_2015": z15,
+                "z_inj_2016": z16,
+                "A_inj_2015": z15 * sig15,
+                "A_inj_2016": z16 * sig16,
+                "info_frac_2015": frac15,
+                "info_frac_2016": frac16,
+            })
+        alloc = pd.DataFrame(rows)
+        alloc_csv = os.path.join(outdir, f"combined_signal_allocation_m{int(round(mass_sel*1e3)):03d}MeV.csv")
+        alloc.to_csv(alloc_csv, index=False)
+
+        fig, ax = plt.subplots(figsize=(9.2, 5.0), constrained_layout=True)
+        xx = np.arange(len(zvals))
+        bw = 0.34
+        ax.bar(xx - bw/2, alloc["A_inj_2015"].to_numpy(float), width=bw, color="#0072B2", label="2015 injected A")
+        ax.bar(xx + bw/2, alloc["A_inj_2016"].to_numpy(float), width=bw, color="#E69F00", label="2016 injected A")
+        for i, (_, r) in enumerate(alloc.iterrows()):
+            ax.text(i - bw/2, r["A_inj_2015"] * 1.02, f"z={r['z_inj_2015']:.2f}", ha="center", va="bottom", fontsize=9)
+            ax.text(i + bw/2, r["A_inj_2016"] * 1.02, f"z={r['z_inj_2016']:.2f}", ha="center", va="bottom", fontsize=9)
+        ax.set_xticks(xx)
+        ax.set_xticklabels([f"Z_comb={z:.0f}" for z in zvals])
+        ax.set_ylabel(r"Injected amplitude $A_{inj}$ [events]")
+        ax.set_xlabel("Target combined significance")
+        ax.set_title(f"2015+2016 signal-allocation model at m={mass_sel*1e3:.0f} MeV")
+        note = (
+            f"Information fractions: 2015={frac15:.2f}, 2016={frac16:.2f}. "
+            "Partition assumes inverse-variance weighting (Cowan et al., EPJC 71 (2011) 1554)."
+        )
+        ax.text(0.01, 0.99, note, transform=ax.transAxes, ha="left", va="top", fontsize=8,
+                bbox=dict(boxstyle="round,pad=0.25", fc="white", ec="0.7", alpha=0.9))
+        _grid(ax)
+        ax.legend(loc="upper left", frameon=True)
+        out = os.path.join(outdir, f"combined_signal_allocation_m{int(round(mass_sel*1e3)):03d}MeV.png")
+        _save_plot_outputs(fig, out)
+        saved.append(out)
+
+    print(f"[plot_combined_search_power] wrote {len(saved)} plot(s)")
+    return saved
+
 def plot_bands(
     df_bands: pd.DataFrame,
     outpath: str,

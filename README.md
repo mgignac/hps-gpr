@@ -360,7 +360,9 @@ outputs/
 │   ├── pull_width_<dataset>.png
 │   ├── coverage_<dataset>.png
 │   ├── heatmap_pull_mean_<dataset>.png
-│   └── heatmap_pull_width_<dataset>.png
+│   ├── heatmap_pull_width_<dataset>.png
+│   ├── combined_search_power_scenarios.png
+│   └── combined_signal_allocation_mXXXMeV.png/.csv
 └── mXXXMeV/                        # Optional per-mass folders (if save_per_mass_folders=true)
     ├── <dataset>/
     │   ├── fit_full.png            # Full-range fit diagnostic
@@ -384,6 +386,29 @@ Injection/extraction plotting suite (`inject-plot`) covers the v15_8 closure che
 - pull-width stability: `std((Â−A_inj)/σ_A)` with unit-width reference
 - coverage: fractions within `|pull|<1` and `|pull|<2` with Gaussian expectations (68.3%, 95.4%)
 - mass/strength heatmaps for pull mean and pull width, per dataset and for combined extraction
+
+
+
+### Combined-search power study outputs
+
+`hps-gpr inject-plot` now also produces a focused combined-sensitivity study for 2015+2016 (and compares against 2021 when present):
+
+- **Scenario plot**: `combined_search_power_scenarios.png`
+  - compares `1σ(2015)+1σ(2016)` vs `1σ(2021)`
+  - compares `1σ(2015)+2σ(2016)` vs `3σ(2021)`
+  - uses inverse-variance weighting based on `sigmaA_ref(m)` from toys.
+- **Allocation plots (publication-ready)** for representative masses (default 40, 80, 110 MeV):
+  - `combined_signal_allocation_m040MeV.png`
+  - `combined_signal_allocation_m080MeV.png`
+  - `combined_signal_allocation_m110MeV.png`
+  - plus matching `.csv` tables with per-dataset injected amplitudes for target combined `Z=1,3,5`.
+
+These plots are designed to show *why* combined searches improve sensitivity:
+- statistically optimal weighting emphasizes the dataset with smaller `sigmaA_ref` (higher information content);
+- combined significance scales with the quadrature of independent information channels, making modest per-dataset excesses more impactful when combined;
+- explicit allocation tables improve reproducibility for internal notes/publication follow-up and allow direct cross-checks against UL-derived sensitivity expectations.
+
+Methodology follows standard profile-likelihood asymptotics and inverse-variance combination conventions used broadly in HEP analyses (e.g. Cowan et al., EPJC 71 (2011) 1554).
 
 ### Injection plotting style profile
 
@@ -468,6 +493,7 @@ where ρ is the integral density (counts per GeV) in the signal region.
 ## References
 
 - HPS Collaboration dark photon search publications
+- G. Cowan, K. Cranmer, E. Gross, O. Vitells, *Asymptotic formulae for likelihood-based tests of new physics*, EPJC 71 (2011) 1554.
 - Gaussian Process Regression: Rasmussen & Williams, "Gaussian Processes for Machine Learning"
 - CLs method: Read, A.L., "Presentation of search results: the CL_s technique"
 - Asymptotic profile-likelihood tests: Cowan, Cranmer, Gross, Vitells, EPJC 71 (2011) 1554

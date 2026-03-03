@@ -723,6 +723,7 @@ def inject_plot(input_dir, output_dir, dataset, write_merged_toys):
         plot_z_calibration_residual,
         plot_pull_histogram_by_mass,
         plot_pull_vs_mass,
+        plot_combined_search_power,
     )
 
     ds_filter = {str(d).strip() for d in (dataset or []) if str(d).strip()}
@@ -813,6 +814,8 @@ def inject_plot(input_dir, output_dir, dataset, write_merged_toys):
             dsum_c.to_csv(sum_out_c, index=False)
             all_summaries = [s for s in all_summaries if not ("dataset" in s.columns and (s["dataset"].astype(str) == "combined").all())]
             all_summaries.append(dsum_c)
+            toy_merged["combined"] = df_comb.copy()
+            all_toys.append(df_comb.copy())
             print(f"Wrote {sum_out_c}")
 
     df_sum = pd.concat(all_summaries, ignore_index=True) if all_summaries else pd.DataFrame()
@@ -854,6 +857,11 @@ def inject_plot(input_dir, output_dir, dataset, write_merged_toys):
             acceptance_bands=[0.5, 1.0],
             band_semantic="toy spread",
         )
+
+        try:
+            plot_combined_search_power(toys_all, outdir=outdir)
+        except Exception as e:
+            print(f"Warning: combined-search power plots failed: {e}")
         if not dft.empty:
             plot_pull_vs_mass(dft, dataset_key=ds_key, title=f"{ds_key}: pull mean/width vs mass", outpath=os.path.join(outdir, f"pull_vs_mass_{ds_key}.png"))
             hist_dir = os.path.join(outdir, f"pull_hist_{ds_key}")
