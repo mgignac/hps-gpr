@@ -336,7 +336,11 @@ def inject(config, dataset, masses, strengths, n_toys, output_dir):
             df_sum.to_csv(os.path.join(outdir, "inj_extract_summary_all.csv"), index=False)
 
             xvar = "inj_nsigma" if "inj_nsigma" in df_sum.columns and np.isfinite(df_sum["inj_nsigma"]).any() else "strength"
-            for ds_key in sorted(df_sum["dataset"].astype(str).unique()):
+            preferred_order = ["2015", "2016", "combined"]
+            present = [str(x) for x in df_sum["dataset"].astype(str).unique()]
+            ds_order = [d for d in preferred_order if d in present] + sorted(d for d in present if d not in preferred_order)
+
+            for ds_key in ds_order:
                 sub = df_sum[df_sum["dataset"].astype(str) == ds_key].copy()
                 plot_linearity(sub, xvar=xvar, title=f"{ds_key}: linearity", outpath=os.path.join(outdir, f"linearity_{ds_key}.png"))
                 plot_bias_vs_injected_strength(sub, xvar=xvar, title=f"{ds_key}: bias", outpath=os.path.join(outdir, f"bias_{ds_key}.png"))
@@ -665,7 +669,13 @@ def slurm_gen_inject(config, datasets, masses, strengths, n_toys, output, job_na
     multiple=True,
     help="Optional dataset filter (repeatable: 2015, 2016, combined)",
 )
-def inject_plot(input_dir, output_dir, dataset):
+@click.option(
+    "--write-merged-toys/--no-write-merged-toys",
+    default=False,
+    show_default=True,
+    help="Write merged toy-level CSVs (can be very large)",
+)
+def inject_plot(input_dir, output_dir, dataset, write_merged_toys):
     """Merge distributed injection CSVs and produce publication-ready summary plots."""
     import glob
     import pandas as pd
@@ -723,15 +733,16 @@ def inject_plot(input_dir, output_dir, dataset):
         if dedup_cols:
             dft = dft.drop_duplicates(subset=dedup_cols, keep="last")
 
-        toys_out = os.path.join(outdir, f"inj_extract_toys_{ds}.csv")
-        dft.to_csv(toys_out, index=False)
+        if write_merged_toys:
+            toys_out = os.path.join(outdir, f"inj_extract_toys_{ds}.csv")
+            dft.to_csv(toys_out, index=False)
+            print(f"Wrote {toys_out}")
 
         dsum = summarize_injection_grid(dft)
         dsum["dataset"] = str(ds)
         sum_out = os.path.join(outdir, f"inj_extract_summary_{ds}.csv")
         dsum.to_csv(sum_out, index=False)
         all_summaries.append(dsum)
-        print(f"Wrote {toys_out}")
         print(f"Wrote {sum_out}")
 
     df_sum = pd.concat(all_summaries, ignore_index=True) if all_summaries else pd.DataFrame()
@@ -751,7 +762,11 @@ def inject_plot(input_dir, output_dir, dataset):
     plot_pull_width(df_sum, xvar=xvar, title="Pull width (all datasets)", outpath=os.path.join(outdir, "pull_width_all.png"))
     plot_coverage(df_sum, xvar=xvar, title="Coverage (all datasets)", outpath=os.path.join(outdir, "coverage_all.png"))
 
-    for ds_key in sorted(df_sum["dataset"].astype(str).unique()):
+    preferred_order = ["2015", "2016", "combined"]
+    present = [str(x) for x in df_sum["dataset"].astype(str).unique()]
+    ds_order = [d for d in preferred_order if d in present] + sorted(d for d in present if d not in preferred_order)
+
+    for ds_key in ds_order:
         sub = df_sum[df_sum["dataset"].astype(str) == ds_key].copy()
         plot_linearity(sub, xvar=xvar, title=f"{ds_key}: linearity", outpath=os.path.join(outdir, f"linearity_{ds_key}.png"))
         plot_bias_vs_injected_strength(sub, xvar=xvar, title=f"{ds_key}: bias", outpath=os.path.join(outdir, f"bias_{ds_key}.png"))

@@ -406,6 +406,12 @@ def summarize_injection_grid(df_toys: pd.DataFrame) -> pd.DataFrame:
         v = np.asarray(x, float)
         return float(np.nanquantile(v, p)) if np.any(np.isfinite(v)) else float("nan")
 
+    def _mean_col(sub: pd.DataFrame, name: str) -> float:
+        if name not in sub.columns:
+            return float("nan")
+        arr = sub[name].to_numpy(float)
+        return float(np.nanmean(arr)) if np.any(np.isfinite(arr)) else float("nan")
+
     rows = []
     for (ds, m, A), sub in df_toys.groupby(["dataset", "mass_GeV", "strength"], dropna=False):
         Ahat = sub["A_hat"].to_numpy(float)
@@ -423,9 +429,9 @@ def summarize_injection_grid(df_toys: pd.DataFrame) -> pd.DataFrame:
             n_toys=n_toys,
             inj_nsigma=float(np.nanmean(inj_nsigma_vals)),
             inj_nsigma_xerr=float(inj_nsigma_std),
-            sigmaA_ref=float(np.nanmean(sub["sigmaA_ref"].to_numpy(float))),
-            f_win=float(np.nanmean(sub["f_win"].to_numpy(float))),
-            f_train_frac=float(np.nanmean(sub["f_train_frac"].to_numpy(float))) if "f_train_frac" in sub.columns else float("nan"),
+            sigmaA_ref=_mean_col(sub, "sigmaA_ref"),
+            f_win=_mean_col(sub, "f_win"),
+            f_train_frac=_mean_col(sub, "f_train_frac"),
             A_hat_mean=float(np.nanmean(Ahat)),
             A_hat_std=float(np.nanstd(Ahat, ddof=1)),
             sigma_A_mean=float(np.nanmean(sigA)),
@@ -438,7 +444,7 @@ def summarize_injection_grid(df_toys: pd.DataFrame) -> pd.DataFrame:
             cov_2sigma=float(np.nanmean(np.abs(pull) < 2.0)),
             Zhat_mean=float(np.nanmean(Zhat)),
             Zhat_q16=q(Zhat, 0.16), Zhat_q84=q(Zhat, 0.84),
-            success_rate=float(np.nanmean(sub["success"].to_numpy(float))),
+            success_rate=_mean_col(sub, "success"),
         ))
 
     return pd.DataFrame(rows).sort_values(["dataset", "mass_GeV", "strength"]).reset_index(drop=True)
