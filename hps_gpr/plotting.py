@@ -1,7 +1,7 @@
 """Plotting functions for HPS GPR analysis."""
 
 import os
-from typing import List, Optional, Tuple, TYPE_CHECKING
+from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -1038,6 +1038,157 @@ def plot_injection_heatmap(
             plt.close(fig)
         else:
             plt.show()
+
+
+def plot_z_calibration_residual(
+    df_toys: pd.DataFrame,
+    *,
+    outdir: str,
+    acceptance_bands: Optional[List[float]] = None,
+    dataset_order: Optional[List[str]] = None,
+    band_semantic: str = "toy spread",
+    panel_ncols: int = 2,
+) -> None:
+    r"""Plot calibration residuals in significance space from toy studies.
+
+    Computes :math:`\Delta Z = \hat{Z} - Z_{inj}` on the toy level and summarizes
+    by (dataset, mass, injection level) using median and 16/84 quantiles.
+
+    Notes:
+        * The shaded interval represents the central toy spread (q16--q84), not
+          uncertainty on the median/mean unless explicitly requested upstream.
+        * Optional horizontal acceptance bands can be drawn at ±value.
+    """
+    ensure_dir(outdir)
+    needed = {"dataset", "mass_GeV", "inj_nsigma", "Zhat"}
+    if df_toys is None or df_toys.empty or not needed.issubset(set(df_toys.columns)):
+        print("[plot_z_calibration_residual] skipped: missing required toy-level columns")
+        return
+
+    work = df_toys.copy()
+    work["dataset"] = work["dataset"].astype(str)
+    work["delta_z"] = work["Zhat"].to_numpy(float) - work["inj_nsigma"].to_numpy(float)
+    finite = np.isfinite(work["delta_z"].to_numpy(float)) & np.isfinite(work["mass_GeV"].to_numpy(float))
+    work = work.loc[finite].copy()
+    if work.empty:
+        print("[plot_z_calibration_residual] skipped: no finite ΔZ values")
+        return
+
+    def q(v: np.ndarray, p: float) -> float:
+        arr = np.asarray(v, float)
+        return float(np.nanquantile(arr, p)) if np.any(np.isfinite(arr)) else float("nan")
+
+    rows: List[Dict[str, float]] = []
+    gcols = ["dataset", "mass_GeV", "inj_nsigma"]
+    for (ds, m, z_inj), sub in work.groupby(gcols, dropna=False):
+        dz = sub["delta_z"].to_numpy(float)
+        rows.append(dict(
+            dataset=str(ds), mass_GeV=float(m), inj_nsigma=float(z_inj),
+            n_toys=int(len(sub)),
+            dz_med=q(dz, 0.50), dz_q16=q(dz, 0.16), dz_q84=q(dz, 0.84),
+        ))
+    df_sum = pd.DataFrame(rows)
+    df_sum = df_sum.sort_values(["dataset", "inj_nsigma", "mass_GeV"]).reset_index(drop=True)
+
+    datasets_present = [str(x) for x in df_sum["dataset"].unique()]
+    if dataset_order:
+        ds_order = [d for d in dataset_order if d in datasets_present] + [d for d in datasets_present if d not in dataset_order]
+    else:
+        preferred = ["2015", "2016", "combined"]
+        ds_order = [d for d in preferred if d in datasets_present] + sorted(d for d in datasets_present if d not in preferred)
+
+    acc = sorted([abs(float(a)) for a in (acceptance_bands or []) if np.isfinite(a) and float(a) > 0])
+    inj_levels = sorted(df_sum["inj_nsigma"].dropna().astype(float).unique().tolist())
+    cmap = plt.get_cmap("viridis", max(3, len(inj_levels)))
+    color_map = {z: cmap(i) for i, z in enumerate(inj_levels)}
+
+    legend_handles = None
+    for ds in ds_order:
+        sub_ds = df_sum[df_sum["dataset"] == ds].copy()
+        if sub_ds.empty:
+            continue
+        fig, ax = plt.subplots(figsize=(9.2, 5.0))
+        handles, labels = [], []
+        for z in inj_levels:
+            sub = sub_ds[sub_ds["inj_nsigma"] == z].sort_values("mass_GeV")
+            if sub.empty:
+                continue
+            x = sub["mass_GeV"].to_numpy(float)
+            y = sub["dz_med"].to_numpy(float)
+            lo = sub["dz_q16"].to_numpy(float)
+            hi = sub["dz_q84"].to_numpy(float)
+            c = color_map[z]
+            ax.fill_between(x, lo, hi, color=c, alpha=0.18, linewidth=0.0)
+            h, = ax.plot(x, y, "-o", color=c, ms=3.8, label=fr"$Z_{{inj}}={z:.2g}$")
+            handles.append(h)
+            labels.append(fr"$Z_{{inj}}={z:.2g}$")
+
+        for a in acc:
+            ax.axhspan(-a, a, color="0.85", alpha=0.12, zorder=0)
+            ax.axhline(+a, color="0.45", lw=0.9, ls=":", zorder=1)
+            ax.axhline(-a, color="0.45", lw=0.9, ls=":", zorder=1)
+        ax.axhline(0.0, color="k", lw=1.0, zorder=2)
+        ax.set_xlabel("Mass hypothesis [GeV]")
+        ax.set_ylabel(r"$\Delta Z = \hat{Z} - Z_{inj}$")
+        _set_title_above(ax, f"{ds}: Z calibration residual vs mass")
+        _grid(ax)
+        if handles:
+            ax.legend(handles, labels, title="Injection level", loc="best", ncol=2)
+            legend_handles = (handles, labels)
+        note = f"Band semantics: {band_semantic}; shaded = toy q16--q84."
+        ax.text(0.01, 0.01, note, transform=ax.transAxes, va="bottom", ha="left", fontsize=8,
+                bbox=dict(boxstyle="round,pad=0.25", fc="white", ec="0.7", alpha=0.9))
+        plt.tight_layout()
+        out = os.path.join(outdir, f"z_calibration_residual_{ds}.png")
+        plt.savefig(out, dpi=220)
+        plt.close(fig)
+
+    if not ds_order:
+        return
+
+    ncols = int(max(1, panel_ncols))
+    nrows = int(np.ceil(len(ds_order) / ncols))
+    fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(5.8 * ncols, 3.8 * nrows), sharex=True, sharey=True)
+    axes_arr = np.atleast_1d(axes).ravel()
+
+    for i, ds in enumerate(ds_order):
+        ax = axes_arr[i]
+        sub_ds = df_sum[df_sum["dataset"] == ds].copy()
+        for z in inj_levels:
+            sub = sub_ds[sub_ds["inj_nsigma"] == z].sort_values("mass_GeV")
+            if sub.empty:
+                continue
+            x = sub["mass_GeV"].to_numpy(float)
+            y = sub["dz_med"].to_numpy(float)
+            lo = sub["dz_q16"].to_numpy(float)
+            hi = sub["dz_q84"].to_numpy(float)
+            c = color_map[z]
+            ax.fill_between(x, lo, hi, color=c, alpha=0.16, linewidth=0.0)
+            ax.plot(x, y, "-o", color=c, ms=3.4)
+        for a in acc:
+            ax.axhspan(-a, a, color="0.85", alpha=0.10, zorder=0)
+            ax.axhline(+a, color="0.45", lw=0.8, ls=":", zorder=1)
+            ax.axhline(-a, color="0.45", lw=0.8, ls=":", zorder=1)
+        ax.axhline(0.0, color="k", lw=0.9, zorder=2)
+        _set_title_above(ax, str(ds), pad=8.0)
+        _grid(ax)
+        if i // ncols == (nrows - 1):
+            ax.set_xlabel("Mass hypothesis [GeV]")
+        if i % ncols == 0:
+            ax.set_ylabel(r"$\Delta Z$")
+
+    for j in range(len(ds_order), len(axes_arr)):
+        axes_arr[j].axis("off")
+
+    if legend_handles is not None:
+        handles, labels = legend_handles
+        fig.legend(handles, labels, loc="upper center", ncol=min(5, max(1, len(labels))), frameon=True, title="Injection level")
+    fig.suptitle("Z calibration residual comparison (median with toy q16--q84)", y=1.02)
+    fig.text(0.01, 0.01, f"Band semantics: {band_semantic}; shaded intervals are toy spread, not uncertainty-on-mean.", fontsize=9)
+    plt.tight_layout()
+    plt.savefig(os.path.join(outdir, "z_calibration_residual_comparison.png"), dpi=220)
+    plt.close(fig)
+    print(f"[plot_z_calibration_residual] Band semantics: {band_semantic}; shaded intervals represent toy spread (q16--q84).")
 
 # ---------------------------------------------------------------------------
 # Summary plots (UL curves)
