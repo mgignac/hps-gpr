@@ -442,46 +442,70 @@ def combine_injection_toy_tables(
     )
     accepted_masses = support["accepted_masses"]
 
-    rows = []
+    print("[inj] combine_injection_toy_tables: begin aggregation")
+    t0 = pd.Timestamp.now()
+
+    valid = all_df[
+        all_df["mass_GeV"].isin(accepted_masses)
+        & np.isfinite(pd.to_numeric(all_df["sigma_A"], errors="coerce").to_numpy(float))
+        & (pd.to_numeric(all_df["sigma_A"], errors="coerce").to_numpy(float) > 0)
+    ].copy()
+    if valid.empty:
+        print("[inj] combine_injection_toy_tables: no valid rows after mass/sigma filtering")
+        return pd.DataFrame()
+
+    valid["w"] = 1.0 / np.square(valid["sigma_A"].to_numpy(float))
+    valid["wA"] = valid["w"].to_numpy(float) * valid["A_hat"].to_numpy(float)
+    valid["dataset"] = valid["dataset"].astype(str)
+
     grp_cols = ["mass_GeV", "strength", "toy"]
-    for (m, s, toy), sub in all_df.groupby(grp_cols, dropna=False):
-        m = float(m)
-        if m not in accepted_masses:
-            continue
+    agg = (
+        valid.groupby(grp_cols, dropna=False)
+        .agg(
+            sum_w=("w", "sum"),
+            sum_wA=("wA", "sum"),
+            inj_nsigma=("inj_nsigma", "mean"),
+            sigmaA_ref=("sigmaA_ref", "mean"),
+            success=("success", "all"),
+            n_contrib=("dataset", "nunique"),
+            contrib_datasets=("dataset", lambda s: "+".join(sorted(set(s)))),
+        )
+        .reset_index()
+    )
 
-        valid = sub[np.isfinite(sub["sigma_A"].to_numpy(float)) & (sub["sigma_A"].to_numpy(float) > 0)]
-        if valid.empty:
-            continue
+    if support["mass_policy"] == "union_min_n":
+        agg = agg[agg["n_contrib"] >= int(min_n_contrib)]
 
-        contrib_datasets = sorted(set(valid["dataset"].astype(str).tolist()))
-        n_contrib = int(len(contrib_datasets))
-        if support["mass_policy"] == "union_min_n" and n_contrib < int(min_n_contrib):
-            continue
+    if agg.empty:
+        print("[inj] combine_injection_toy_tables: no groups after contribution filtering")
+        return pd.DataFrame()
 
-        A_inj = float(np.nanmean(valid["strength"].to_numpy(float)))
-        sig = valid["sigma_A"].to_numpy(float)
-        w = 1.0 / np.square(sig)
-        Ahat = valid["A_hat"].to_numpy(float)
-        Ahat_c = float(np.sum(w * Ahat) / np.sum(w))
-        sigma_c = float(1.0 / np.sqrt(np.sum(w)))
-        pull_c = float((Ahat_c - A_inj) / sigma_c) if sigma_c > 0 else float("nan")
-        rows.append(dict(
-            dataset="combined",
-            mass_GeV=m,
-            toy=int(toy),
-            strength=float(s),
-            inj_nsigma=float(np.nanmean(valid["inj_nsigma"].to_numpy(float))),
-            sigmaA_ref=float(np.nanmean(valid["sigmaA_ref"].to_numpy(float))),
-            A_hat=float(Ahat_c),
-            sigma_A=float(sigma_c),
-            pull_param=float(pull_c),
-            Zhat=float(Ahat_c / sigma_c) if sigma_c > 0 else float("nan"),
-            n_contrib=n_contrib,
-            contrib_datasets="+".join(contrib_datasets),
-            success=bool(np.all(valid["success"].astype(bool).to_numpy())),
-        ))
+    agg["A_hat"] = agg["sum_wA"] / agg["sum_w"]
+    agg["sigma_A"] = 1.0 / np.sqrt(agg["sum_w"])
+    agg["pull_param"] = (agg["A_hat"] - agg["strength"]) / agg["sigma_A"]
+    agg["Zhat"] = agg["A_hat"] / agg["sigma_A"]
+    agg["dataset"] = "combined"
+    agg["toy"] = agg["toy"].astype(int)
+    out = agg[
+        [
+            "dataset",
+            "mass_GeV",
+            "toy",
+            "strength",
+            "inj_nsigma",
+            "sigmaA_ref",
+            "A_hat",
+            "sigma_A",
+            "pull_param",
+            "Zhat",
+            "n_contrib",
+            "contrib_datasets",
+            "success",
+        ]
+    ]
+    dt_s = (pd.Timestamp.now() - t0).total_seconds()
+    print(f"[inj] combine_injection_toy_tables: completed aggregation in {dt_s:.3f} s for {len(out)} groups")
 
-    out = pd.DataFrame(rows)
     if out.empty:
         return out
     return out.sort_values(["mass_GeV", "strength", "toy"]).reset_index(drop=True)

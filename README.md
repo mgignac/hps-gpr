@@ -351,7 +351,6 @@ outputs/
 ├── injection_summary/              # Created by `hps-gpr inject-plot`
 │   ├── inj_extract_toys_<dataset>.csv
 │   ├── inj_extract_summary_<dataset>.csv
-│   ├── inj_extract_summary_all.csv
 │   ├── linearity_all.png
 │   ├── bias_all.png
 │   ├── pull_width_all.png

@@ -1,5 +1,6 @@
 """Command-line interface for HPS GPR analysis."""
 
+import glob
 import os
 import sys
 
@@ -353,8 +354,6 @@ def inject(config, dataset, masses, strengths, n_toys, output_dir):
 
         df_sum = pd.concat(summary_frames, ignore_index=True) if summary_frames else pd.DataFrame()
         if not df_sum.empty:
-            df_sum.to_csv(os.path.join(outdir, "inj_extract_summary_all.csv"), index=False)
-
             xvar = "inj_nsigma" if "inj_nsigma" in df_sum.columns and np.isfinite(df_sum["inj_nsigma"]).any() else "strength"
             preferred_order = ["2015", "2016", "combined"]
             present = [str(x) for x in df_sum["dataset"].astype(str).unique()]
@@ -821,10 +820,6 @@ def inject_plot(input_dir, output_dir, dataset, write_merged_toys):
         print("No summary rows produced.")
         sys.exit(1)
 
-    all_out = os.path.join(outdir, "inj_extract_summary_all.csv")
-    df_sum.to_csv(all_out, index=False)
-    print(f"Wrote {all_out}")
-
     xvar = "inj_nsigma" if "inj_nsigma" in df_sum.columns and np.isfinite(df_sum["inj_nsigma"]).any() else "strength"
 
     # Cross-dataset overlays
@@ -1060,10 +1055,19 @@ def slurm_combine(output_dir, prefix):
                     except Exception as e:
                         print(f"Warning: dataset local/global summary failed for {ds_name}: {e}")
 
-            inj_all = os.path.join(output_dir, "injection_extraction", "inj_extract_summary_all.csv")
+            inj_dir = os.path.join(output_dir, "injection_extraction")
+            inj_all = os.path.join(inj_dir, "inj_extract_summary_all.csv")
+            inj_summary_paths = []
             if os.path.exists(inj_all):
+                inj_summary_paths = [inj_all]
+            else:
+                inj_summary_paths = sorted(glob.glob(os.path.join(inj_dir, "inj_extract_summary_*.csv")))
+                inj_summary_paths = [p for p in inj_summary_paths if not p.endswith("inj_extract_summary_all.csv")]
+
+            if inj_summary_paths:
                 try:
-                    dfi = pd.read_csv(inj_all)
+                    frames = [pd.read_csv(p) for p in inj_summary_paths]
+                    dfi = pd.concat(frames, ignore_index=True)
                     xvar = "inj_nsigma" if "inj_nsigma" in dfi.columns and dfi["inj_nsigma"].notna().any() else "strength"
                     for ds_key in sorted(dfi["dataset"].astype(str).unique()):
                         sub = dfi[dfi["dataset"].astype(str) == ds_key].copy()
