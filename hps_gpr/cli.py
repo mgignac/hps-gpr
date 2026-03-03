@@ -707,6 +707,8 @@ def inject_plot(input_dir, output_dir, dataset, write_merged_toys):
         plot_pull_width,
         plot_coverage,
         plot_injection_heatmap,
+        plot_pull_histogram_by_mass,
+        plot_pull_vs_mass,
     )
 
     ds_filter = {str(d).strip() for d in (dataset or []) if str(d).strip()}
@@ -744,6 +746,7 @@ def inject_plot(input_dir, output_dir, dataset, write_merged_toys):
         sys.exit(1)
 
     all_summaries = []
+    toy_merged = {}
     mass_policy = "intersection"
     min_n_contrib = 2
 
@@ -754,6 +757,8 @@ def inject_plot(input_dir, output_dir, dataset, write_merged_toys):
         dedup_cols = [c for c in ["dataset", "mass_GeV", "strength", "toy"] if c in dft.columns]
         if dedup_cols:
             dft = dft.drop_duplicates(subset=dedup_cols, keep="last")
+
+        toy_merged[str(ds)] = dft.copy()
 
         if write_merged_toys:
             toys_out = os.path.join(outdir, f"inj_extract_toys_{ds}.csv")
@@ -815,14 +820,26 @@ def inject_plot(input_dir, output_dir, dataset, write_merged_toys):
     present = [str(x) for x in df_sum["dataset"].astype(str).unique()]
     ds_order = [d for d in preferred_order if d in present] + sorted(d for d in present if d not in preferred_order)
 
+    for required_ds in preferred_order:
+        if required_ds not in present:
+            print(f"Warning: no summary rows found for required dataset '{required_ds}'")
+
     for ds_key in ds_order:
         sub = df_sum[df_sum["dataset"].astype(str) == ds_key].copy()
+        dft = toy_merged.get(ds_key, pd.DataFrame())
         plot_linearity(sub, xvar=xvar, title=f"{ds_key}: linearity", outpath=os.path.join(outdir, f"linearity_{ds_key}.png"))
         plot_bias_vs_injected_strength(sub, xvar=xvar, title=f"{ds_key}: bias", outpath=os.path.join(outdir, f"bias_{ds_key}.png"))
         plot_pull_width(sub, xvar=xvar, title=f"{ds_key}: pull width", outpath=os.path.join(outdir, f"pull_width_{ds_key}.png"))
         plot_coverage(sub, xvar=xvar, title=f"{ds_key}: coverage", outpath=os.path.join(outdir, f"coverage_{ds_key}.png"))
         plot_injection_heatmap(sub, value_col="pull_mean", dataset_filter=ds_key, title=f"{ds_key}: mean pull heatmap", outpath=os.path.join(outdir, f"heatmap_pull_mean_{ds_key}.png"))
         plot_injection_heatmap(sub, value_col="pull_std", dataset_filter=ds_key, title=f"{ds_key}: pull width heatmap", outpath=os.path.join(outdir, f"heatmap_pull_width_{ds_key}.png"))
+
+        if not dft.empty:
+            plot_pull_vs_mass(dft, dataset_key=ds_key, title=f"{ds_key}: pull mean/width vs mass", outpath=os.path.join(outdir, f"pull_vs_mass_{ds_key}.png"))
+            hist_dir = os.path.join(outdir, f"pull_hist_{ds_key}")
+            ensure_dir(hist_dir)
+            paths = plot_pull_histogram_by_mass(dft, dataset_key=ds_key, group_by_strength=True, pvalue_method="ks", outdir=hist_dir)
+            print(f"Wrote {len(paths)} pull-histogram plots for {ds_key} to {hist_dir}")
 
     print(f"\nSummary rows: {len(df_sum)}")
     print(df_sum.head(20).to_string())

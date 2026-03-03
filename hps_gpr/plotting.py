@@ -11,6 +11,7 @@ import matplotlib as mpl
 mpl.use("Agg", force=True)
 
 import matplotlib.pyplot as plt
+from scipy import stats
 
 from .template import build_template
 from .statistics import (
@@ -1109,6 +1110,179 @@ def plot_injection_heatmap(
             plt.close(fig)
         else:
             plt.show()
+
+
+def _normality_pvalue(
+    pull_vals: np.ndarray,
+    *,
+    method: str = "ks",
+) -> float:
+    """Compute a p-value for consistency with N(0,1)."""
+    vals = np.asarray(pull_vals, float)
+    vals = vals[np.isfinite(vals)]
+    if vals.size < 3:
+        return float("nan")
+    m = str(method).lower().strip()
+    try:
+        if m == "ad":
+            res = stats.anderson(vals, dist="norm")
+            z = np.asarray(res.significance_level, float)
+            crit = np.asarray(res.critical_values, float)
+            order = np.argsort(crit)
+            z = z[order]
+            crit = crit[order]
+            p = np.interp(float(res.statistic), crit, z / 100.0, left=0.25, right=0.001)
+            return float(np.clip(p, 0.0, 1.0))
+        # KS test against standard normal
+        return float(stats.kstest(vals, "norm", args=(0.0, 1.0)).pvalue)
+    except Exception:
+        return float("nan")
+
+
+def plot_pull_histogram_by_mass(
+    df_toys: pd.DataFrame,
+    *,
+    dataset_key: Optional[str] = None,
+    group_by_strength: bool = True,
+    bins: int = 30,
+    pvalue_method: Optional[str] = "ks",
+    title_prefix: str = "",
+    outdir: Optional[str] = None,
+) -> List[str]:
+    """Plot toy pull histograms per mass (and optional strength), with N(0,1) reference."""
+    if df_toys.empty or "pull_param" not in df_toys.columns or "mass_GeV" not in df_toys.columns:
+        return []
+
+    dft = df_toys.copy()
+    if dataset_key is not None and "dataset" in dft.columns:
+        dft = dft[dft["dataset"].astype(str) == str(dataset_key)].copy()
+    if dft.empty:
+        return []
+
+    ensure_dir(outdir or ".")
+    paths: List[str] = []
+    grp_cols = ["mass_GeV"] + (["strength"] if group_by_strength and "strength" in dft.columns else [])
+    base = str(dataset_key) if dataset_key is not None else "all"
+
+    for keys, sub in dft.groupby(grp_cols, dropna=False):
+        if not isinstance(keys, tuple):
+            keys = (keys,)
+        mass = float(keys[0])
+        strength = float(keys[1]) if len(keys) > 1 else None
+        pull = sub["pull_param"].to_numpy(float)
+        pull = pull[np.isfinite(pull)]
+        if pull.size == 0:
+            continue
+
+        fig, ax = plt.subplots(figsize=(8.2, 4.8))
+        n, edges, _ = ax.hist(pull, bins=int(bins), density=True, alpha=0.65, color="C0", label="toys")
+        xlo = float(min(np.nanmin(pull), -4.0))
+        xhi = float(max(np.nanmax(pull), 4.0))
+        xg = np.linspace(xlo, xhi, 500)
+        ax.plot(xg, stats.norm.pdf(xg, loc=0.0, scale=1.0), "k--", lw=1.3, label=r"$\mathcal{N}(0,1)$")
+
+        m = float(np.nanmean(pull))
+        w = float(np.nanstd(pull, ddof=1)) if pull.size > 1 else float("nan")
+        ptxt = ""
+        if pvalue_method:
+            pval = _normality_pvalue(pull, method=str(pvalue_method))
+            if np.isfinite(pval):
+                ptxt = f"\n{str(pvalue_method).upper()} p={pval:.3g}"
+        ax.text(
+            0.98,
+            0.97,
+            f"N={pull.size}\nmean={m:.3f}\nwidth={w:.3f}{ptxt}",
+            transform=ax.transAxes,
+            ha="right",
+            va="top",
+            fontsize=9,
+            bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="0.5", alpha=0.9),
+        )
+        ax.set_xlabel(r"pull = $(\hat{A}-A_{inj})/\sigma_A$")
+        ax.set_ylabel("density")
+        t_bits = [f"m={mass*1e3:.1f} MeV"]
+        if strength is not None:
+            t_bits.append(f"A_inj={strength:.3g}")
+        _set_title_above(ax, f"{title_prefix}{base}: pull histogram ({', '.join(t_bits)})".strip())
+        ax.legend(loc="best", frameon=True)
+        _grid(ax)
+        plt.tight_layout()
+
+        mtag = mass_tag(mass)
+        stag = f"_A{strength:.3g}".replace("+", "").replace("-", "m").replace(".", "p") if strength is not None else ""
+        outpath = os.path.join(outdir or ".", f"pull_hist_{base}_{mtag}{stag}.png")
+        plt.savefig(outpath, dpi=220)
+        plt.close(fig)
+        paths.append(outpath)
+    return paths
+
+
+def plot_pull_vs_mass(
+    df_toys: pd.DataFrame,
+    *,
+    dataset_key: Optional[str] = None,
+    title: str = "",
+    outpath: Optional[str] = None,
+) -> None:
+    """Plot pull mean and width versus mass for each injected strength."""
+    if df_toys.empty or "pull_param" not in df_toys.columns:
+        return
+    req = {"mass_GeV", "strength", "pull_param"}
+    if not req.issubset(df_toys.columns):
+        return
+
+    dft = df_toys.copy()
+    if dataset_key is not None and "dataset" in dft.columns:
+        dft = dft[dft["dataset"].astype(str) == str(dataset_key)].copy()
+    if dft.empty:
+        return
+
+    rows = []
+    for (m, s), sub in dft.groupby(["mass_GeV", "strength"], dropna=False):
+        pull = sub["pull_param"].to_numpy(float)
+        pull = pull[np.isfinite(pull)]
+        if pull.size == 0:
+            continue
+        mu = float(np.mean(pull))
+        sd = float(np.std(pull, ddof=1)) if pull.size > 1 else float("nan")
+        sem = float(sd / np.sqrt(pull.size)) if pull.size > 1 else float("nan")
+        sd_err = float(sd / np.sqrt(2 * (pull.size - 1))) if pull.size > 2 and np.isfinite(sd) else float("nan")
+        rows.append(dict(mass_GeV=float(m), strength=float(s), pull_mean=mu, pull_sem=sem, pull_std=sd, pull_std_err=sd_err))
+
+    if not rows:
+        return
+    dsum = pd.DataFrame(rows).sort_values(["strength", "mass_GeV"]).reset_index(drop=True)
+
+    fig, (ax0, ax1) = plt.subplots(2, 1, figsize=(9.0, 7.2), sharex=True, gridspec_kw={"hspace": 0.08})
+    for strength, sub in dsum.groupby("strength"):
+        x = sub["mass_GeV"].to_numpy(float) * 1e3
+        y = sub["pull_mean"].to_numpy(float)
+        yerr = sub["pull_sem"].to_numpy(float)
+        ax0.plot(x, y, "o-", label=rf"$A_{{inj}}={float(strength):.3g}$")
+        if np.any(np.isfinite(yerr)):
+            ax0.fill_between(x, y - yerr, y + yerr, alpha=0.20)
+
+        w = sub["pull_std"].to_numpy(float)
+        werr = sub["pull_std_err"].to_numpy(float)
+        ax1.plot(x, w, "o-")
+        if np.any(np.isfinite(werr)):
+            ax1.fill_between(x, w - werr, w + werr, alpha=0.20)
+
+    ax0.axhline(0.0, color="k", lw=0.8, ls="--")
+    ax1.axhline(1.0, color="k", lw=0.8, ls="--")
+    ax0.set_ylabel("pull mean")
+    ax1.set_ylabel("pull width")
+    ax1.set_xlabel("mass hypothesis [MeV]")
+    _set_title_above(ax0, title or f"{dataset_key or 'all'}: pull moments vs mass")
+    ax0.legend(loc="best", ncol=2)
+    _grid(ax0)
+    _grid(ax1)
+    plt.tight_layout()
+    if outpath:
+        plt.savefig(outpath, dpi=220)
+        plt.close(fig)
+    else:
+        plt.show()
 
 # ---------------------------------------------------------------------------
 # Summary plots (UL curves)
