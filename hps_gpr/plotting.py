@@ -125,7 +125,7 @@ def set_injection_plot_style(mode: str = "paper") -> None:
     else:
         base_font, line_w, marker_size, legend_cols = 11, 1.5, 4.2, 1
 
-    mpl.rcParams.update({
+    rc_updates = {
         "figure.figsize": (9.6, 5.2),
         "figure.dpi": 120,
         "savefig.dpi": 320,
@@ -137,7 +137,6 @@ def set_injection_plot_style(mode: str = "paper") -> None:
         "axes.titlesize": base_font + 1,
         "legend.fontsize": base_font - 1,
         "legend.frameon": True,
-        "legend.ncols": legend_cols,
         "legend.borderaxespad": 0.5,
         "xtick.labelsize": base_font - 1,
         "ytick.labelsize": base_font - 1,
@@ -148,7 +147,15 @@ def set_injection_plot_style(mode: str = "paper") -> None:
         "lines.linewidth": line_w,
         "lines.markersize": marker_size,
         "axes.formatter.use_mathtext": True,
-    })
+    }
+    # Matplotlib version compatibility: newer versions use legend.ncols,
+    # while older releases may only expose legend.ncol.
+    if "legend.ncols" in mpl.rcParams:
+        rc_updates["legend.ncols"] = legend_cols
+    elif "legend.ncol" in mpl.rcParams:
+        rc_updates["legend.ncol"] = legend_cols
+
+    mpl.rcParams.update(rc_updates)
 
 
 _INJ_COLORBLIND_PALETTE = [
