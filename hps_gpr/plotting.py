@@ -47,6 +47,37 @@ def ensure_dir(p: str) -> None:
     os.makedirs(p, exist_ok=True)
 
 
+def _savefig_png_pdf(fig: plt.Figure, outpath: str, *, dpi: int = 180) -> None:
+    """Save a figure as both PNG and PDF using outpath stem."""
+    root, ext = os.path.splitext(outpath)
+    if ext.lower() in {".png", ".pdf"}:
+        base = root
+    else:
+        base = outpath
+    fig.savefig(f"{base}.png", dpi=dpi)
+    fig.savefig(f"{base}.pdf", dpi=dpi)
+
+
+def _mass_style_map(masses: np.ndarray) -> Tuple[dict, dict]:
+    """Build stable color/marker maps for a sorted mass list."""
+    mvals = np.sort(np.unique(np.asarray(masses, float)))
+    cmap = plt.get_cmap("viridis")
+    markers = ["o", "s", "^", "D", "v", "P", "X", "<", ">", "*"]
+    n = max(1, len(mvals) - 1)
+    c_map = {m: cmap(i / n) for i, m in enumerate(mvals)}
+    m_map = {m: markers[i % len(markers)] for i, m in enumerate(mvals)}
+    return c_map, m_map
+
+
+def _dataset_axes(df_sum: pd.DataFrame, *, figsize_per_row: float = 3.4) -> Tuple[plt.Figure, np.ndarray, List[str]]:
+    """Create one axis per dataset (faceted overlay)."""
+    datasets = sorted(df_sum["dataset"].astype(str).unique())
+    nrows = max(1, len(datasets))
+    fig, axs = plt.subplots(nrows, 1, figsize=(8.8, figsize_per_row * nrows), sharex=True)
+    axs = np.atleast_1d(axs)
+    return fig, axs, datasets
+
+
 def set_plot_style(style: str = "paper") -> None:
     """Set matplotlib rcParams for consistent publication-quality plots.
 
@@ -861,25 +892,34 @@ def plot_linearity(
         title: Plot title
         outpath: Save path (if None, displays interactively)
     """
-    fig, ax = plt.subplots(figsize=(8, 4))
-    for ds, sub in df_sum.groupby("dataset"):
-        x = sub[xvar].to_numpy(float)
-        y = sub["A_hat_mean"].to_numpy(float)
-        xerr = sub["inj_nsigma_xerr"].to_numpy(float) if (xvar == "inj_nsigma" and "inj_nsigma_xerr" in sub.columns) else None
-        yerr = sub["sigma_A_mean"].to_numpy(float) / np.sqrt(np.clip(sub.get("n_toys", pd.Series(np.ones(len(sub)))).to_numpy(float), 1.0, None)) if "sigma_A_mean" in sub.columns else None
-        ax.errorbar(x, y, xerr=xerr, yerr=yerr, fmt="o-", capsize=2, label=str(ds))
-    # Identity reference
-    xlim = ax.get_xlim()
-    ax.plot(xlim, xlim, "k--", lw=0.8, label="ideal")
-    ax.set_xlim(xlim)
-    ax.set_xlabel(xvar)
-    ax.set_ylabel(r"$\langle\hat{A}\rangle$")
-    _set_title_above(ax, title or "Linearity: mean extracted vs injected")
-    ax.legend(loc="best")
-    _grid(ax)
+    fig, axs, datasets = _dataset_axes(df_sum)
+    c_map, m_map = _mass_style_map(df_sum["mass_GeV"].to_numpy(float))
+    for i, ds in enumerate(datasets):
+        ax = axs[i]
+        sub_ds = df_sum[df_sum["dataset"].astype(str) == ds].copy()
+        for mass, sub_m in sub_ds.groupby("mass_GeV"):
+            sub_m = sub_m.sort_values(xvar)
+            x = sub_m[xvar].to_numpy(float)
+            y = sub_m["A_hat_mean"].to_numpy(float)
+            xerr = sub_m["inj_nsigma_xerr"].to_numpy(float) if (xvar == "inj_nsigma" and "inj_nsigma_xerr" in sub_m.columns) else None
+            yerr = sub_m["sigma_A_mean"].to_numpy(float) / np.sqrt(np.clip(sub_m.get("n_toys", pd.Series(np.ones(len(sub_m)))).to_numpy(float), 1.0, None)) if "sigma_A_mean" in sub_m.columns else None
+            ax.errorbar(
+                x, y, xerr=xerr, yerr=yerr,
+                fmt=f"{m_map[mass]}-", color=c_map[mass], lw=1.6, ms=5.0, capsize=2,
+                label=f"m={mass * 1e3:.0f} MeV",
+            )
+        xlim = ax.get_xlim()
+        ax.plot(xlim, xlim, "k--", lw=1.2, label="ideal")
+        ax.set_xlim(xlim)
+        ax.set_ylabel(r"$\langle\hat{A}\rangle$")
+        _set_title_above(ax, f"{ds}")
+        ax.legend(loc="upper left", bbox_to_anchor=(1.01, 1.0), borderaxespad=0.0)
+        _grid(ax)
+    axs[-1].set_xlabel(xvar)
+    fig.suptitle(title or "Linearity: mean extracted vs injected", y=1.01)
     plt.tight_layout()
     if outpath:
-        plt.savefig(outpath, dpi=180)
+        _savefig_png_pdf(fig, outpath, dpi=180)
         plt.close(fig)
     else:
         plt.show()
@@ -900,22 +940,32 @@ def plot_bias_vs_injected_strength(
         title: Plot title
         outpath: Save path (if None, displays interactively)
     """
-    fig, ax = plt.subplots(figsize=(8, 4))
-    for ds, sub in df_sum.groupby("dataset"):
-        x = sub[xvar].to_numpy(float)
-        bias = sub["A_hat_mean"].to_numpy(float) - sub["strength"].to_numpy(float)
-        xerr = sub["inj_nsigma_xerr"].to_numpy(float) if (xvar == "inj_nsigma" and "inj_nsigma_xerr" in sub.columns) else None
-        yerr = sub["sigma_A_mean"].to_numpy(float) / np.sqrt(np.clip(sub.get("n_toys", pd.Series(np.ones(len(sub)))).to_numpy(float), 1.0, None)) if "sigma_A_mean" in sub.columns else None
-        ax.errorbar(x, bias, xerr=xerr, yerr=yerr, fmt="o-", capsize=2, label=str(ds))
-    ax.axhline(0, color="k", lw=0.8)
-    ax.set_xlabel(xvar)
-    ax.set_ylabel(r"$\langle\hat{A}\rangle - A_{\rm inj}$")
-    _set_title_above(ax, title or "Extraction bias vs injected strength")
-    ax.legend(loc="best")
-    _grid(ax)
+    fig, axs, datasets = _dataset_axes(df_sum)
+    c_map, m_map = _mass_style_map(df_sum["mass_GeV"].to_numpy(float))
+    for i, ds in enumerate(datasets):
+        ax = axs[i]
+        sub_ds = df_sum[df_sum["dataset"].astype(str) == ds].copy()
+        for mass, sub_m in sub_ds.groupby("mass_GeV"):
+            sub_m = sub_m.sort_values(xvar)
+            x = sub_m[xvar].to_numpy(float)
+            bias = sub_m["A_hat_mean"].to_numpy(float) - sub_m["strength"].to_numpy(float)
+            xerr = sub_m["inj_nsigma_xerr"].to_numpy(float) if (xvar == "inj_nsigma" and "inj_nsigma_xerr" in sub_m.columns) else None
+            yerr = sub_m["sigma_A_mean"].to_numpy(float) / np.sqrt(np.clip(sub_m.get("n_toys", pd.Series(np.ones(len(sub_m)))).to_numpy(float), 1.0, None)) if "sigma_A_mean" in sub_m.columns else None
+            ax.errorbar(
+                x, bias, xerr=xerr, yerr=yerr,
+                fmt=f"{m_map[mass]}-", color=c_map[mass], lw=1.6, ms=5.0, capsize=2,
+                label=f"m={mass * 1e3:.0f} MeV",
+            )
+        ax.axhline(0, color="k", lw=1.0)
+        ax.set_ylabel(r"$\langle\hat{A}\rangle - A_{\rm inj}$")
+        _set_title_above(ax, f"{ds}")
+        ax.legend(loc="upper left", bbox_to_anchor=(1.01, 1.0), borderaxespad=0.0)
+        _grid(ax)
+    axs[-1].set_xlabel(xvar)
+    fig.suptitle(title or "Extraction bias vs injected strength", y=1.01)
     plt.tight_layout()
     if outpath:
-        plt.savefig(outpath, dpi=180)
+        _savefig_png_pdf(fig, outpath, dpi=180)
         plt.close(fig)
     else:
         plt.show()
@@ -936,20 +986,29 @@ def plot_pull_width(
         title: Plot title
         outpath: Save path (if None, displays interactively)
     """
-    fig, ax = plt.subplots(figsize=(8, 4))
-    for ds, sub in df_sum.groupby("dataset"):
-        x = sub[xvar].to_numpy(float)
-        y = sub["pull_std"].to_numpy(float)
-        ax.plot(x, y, "o-", label=str(ds))
-    ax.axhline(1.0, color="k", ls="--", lw=0.8, label="ideal (σ=1)")
-    ax.set_xlabel(xvar)
-    ax.set_ylabel(r"std$((\hat{A}-A_{\rm inj})/\sigma_A)$")
-    _set_title_above(ax, title or "Pull width vs injected strength")
-    ax.legend(loc="best")
-    _grid(ax)
+    fig, axs, datasets = _dataset_axes(df_sum)
+    c_map, m_map = _mass_style_map(df_sum["mass_GeV"].to_numpy(float))
+    for i, ds in enumerate(datasets):
+        ax = axs[i]
+        sub_ds = df_sum[df_sum["dataset"].astype(str) == ds].copy()
+        for mass, sub_m in sub_ds.groupby("mass_GeV"):
+            sub_m = sub_m.sort_values(xvar)
+            x = sub_m[xvar].to_numpy(float)
+            y = sub_m["pull_std"].to_numpy(float)
+            ax.plot(
+                x, y, f"{m_map[mass]}-", color=c_map[mass], lw=1.6, ms=5.0,
+                label=f"m={mass * 1e3:.0f} MeV",
+            )
+        ax.axhline(1.0, color="k", ls="--", lw=1.0, label="ideal (σ=1)")
+        ax.set_ylabel(r"std$((\hat{A}-A_{\rm inj})/\sigma_A)$")
+        _set_title_above(ax, f"{ds}")
+        ax.legend(loc="upper left", bbox_to_anchor=(1.01, 1.0), borderaxespad=0.0)
+        _grid(ax)
+    axs[-1].set_xlabel(xvar)
+    fig.suptitle(title or "Pull width vs injected strength", y=1.01)
     plt.tight_layout()
     if outpath:
-        plt.savefig(outpath, dpi=180)
+        _savefig_png_pdf(fig, outpath, dpi=180)
         plt.close(fig)
     else:
         plt.show()
@@ -970,22 +1029,34 @@ def plot_coverage(
         title: Plot title
         outpath: Save path (if None, displays interactively)
     """
-    fig, ax = plt.subplots(figsize=(8, 4))
-    for ds, sub in df_sum.groupby("dataset"):
-        x = sub[xvar].to_numpy(float)
-        ax.plot(x, sub["cov_1sigma"].to_numpy(float), "o-", label=f"{ds} 1σ")
-        ax.plot(x, sub["cov_2sigma"].to_numpy(float), "s--", label=f"{ds} 2σ")
-    ax.axhline(0.683, color="k", ls=":", lw=0.8, label="68.3%")
-    ax.axhline(0.954, color="gray", ls=":", lw=0.8, label="95.4%")
-    ax.set_ylim(0, 1.05)
-    ax.set_xlabel(xvar)
-    ax.set_ylabel("Coverage fraction")
-    _set_title_above(ax, title or "Extraction coverage vs injected strength")
-    ax.legend(loc="best", fontsize=8)
-    _grid(ax)
+    fig, axs, datasets = _dataset_axes(df_sum)
+    c_map, m_map = _mass_style_map(df_sum["mass_GeV"].to_numpy(float))
+    for i, ds in enumerate(datasets):
+        ax = axs[i]
+        sub_ds = df_sum[df_sum["dataset"].astype(str) == ds].copy()
+        for mass, sub_m in sub_ds.groupby("mass_GeV"):
+            sub_m = sub_m.sort_values(xvar)
+            x = sub_m[xvar].to_numpy(float)
+            ax.plot(
+                x, sub_m["cov_1sigma"].to_numpy(float), f"{m_map[mass]}-", color=c_map[mass],
+                lw=1.6, ms=5.0, label=f"m={mass * 1e3:.0f} MeV (1σ)",
+            )
+            ax.plot(
+                x, sub_m["cov_2sigma"].to_numpy(float), f"{m_map[mass]}--", color=c_map[mass],
+                lw=1.4, ms=5.0, alpha=0.9, label=f"m={mass * 1e3:.0f} MeV (2σ)",
+            )
+        ax.axhline(0.683, color="k", ls=":", lw=1.0, label="68.3%")
+        ax.axhline(0.954, color="gray", ls=":", lw=1.0, label="95.4%")
+        ax.set_ylim(0, 1.05)
+        ax.set_ylabel("Coverage fraction")
+        _set_title_above(ax, f"{ds}")
+        ax.legend(loc="upper left", bbox_to_anchor=(1.01, 1.0), borderaxespad=0.0, fontsize=8)
+        _grid(ax)
+    axs[-1].set_xlabel(xvar)
+    fig.suptitle(title or "Extraction coverage vs injected strength", y=1.01)
     plt.tight_layout()
     if outpath:
-        plt.savefig(outpath, dpi=180)
+        _savefig_png_pdf(fig, outpath, dpi=180)
         plt.close(fig)
     else:
         plt.show()

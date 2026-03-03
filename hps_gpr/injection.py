@@ -1,7 +1,7 @@
 """Signal injection and extraction closure tests."""
 
 import os
-from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -345,7 +345,71 @@ def run_injection_extraction(
 
 
 
-def combine_injection_toy_tables(df_toys_by_dataset: Dict[str, pd.DataFrame]) -> pd.DataFrame:
+
+
+def _combined_mass_support_summary(df_toys_by_dataset: Dict[str, pd.DataFrame], *, mass_policy: str = "intersection", min_n_contrib: int = 2) -> Dict[str, Any]:
+    """Compute accepted/rejected combined mass support under the configured policy."""
+    dataset_mass_sets: Dict[str, set] = {}
+    for key, df in (df_toys_by_dataset or {}).items():
+        if df is None or df.empty or "mass_GeV" not in df.columns:
+            continue
+        masses = pd.to_numeric(df["mass_GeV"], errors="coerce").to_numpy(float)
+        mass_set = {float(m) for m in masses[np.isfinite(masses)]}
+        if mass_set:
+            dataset_mass_sets[str(key)] = mass_set
+
+    if not dataset_mass_sets:
+        return {
+            "mass_policy": str(mass_policy),
+            "min_n_contrib": int(min_n_contrib),
+            "dataset_mass_sets": {},
+            "all_masses": set(),
+            "accepted_masses": set(),
+            "rejected_masses": set(),
+            "n_contrib_by_mass": {},
+            "accepted_count": 0,
+            "rejected_count": 0,
+        }
+
+    all_masses = set().union(*dataset_mass_sets.values())
+    n_contrib_by_mass = {m: sum(m in mset for mset in dataset_mass_sets.values()) for m in all_masses}
+
+    pol = str(mass_policy or "intersection").strip().lower()
+    if pol == "union_min_n":
+        accepted_masses = {m for m, n in n_contrib_by_mass.items() if int(n) >= int(min_n_contrib)}
+    else:
+        accepted_masses = set.intersection(*dataset_mass_sets.values())
+
+    rejected_masses = all_masses - accepted_masses
+    return {
+        "mass_policy": pol,
+        "min_n_contrib": int(min_n_contrib),
+        "dataset_mass_sets": dataset_mass_sets,
+        "all_masses": all_masses,
+        "accepted_masses": accepted_masses,
+        "rejected_masses": rejected_masses,
+        "n_contrib_by_mass": n_contrib_by_mass,
+        "accepted_count": len(accepted_masses),
+        "rejected_count": len(rejected_masses),
+    }
+
+
+def format_combined_mass_support_summary(summary: Dict[str, Any]) -> str:
+    """Format one-line summary for combined mass-support acceptance."""
+    pol = str(summary.get("mass_policy", "intersection"))
+    min_n = int(summary.get("min_n_contrib", 2))
+    acc = int(summary.get("accepted_count", 0))
+    rej = int(summary.get("rejected_count", 0))
+    if pol == "union_min_n":
+        return f"[inj] combined mass support: accepted={acc} rejected={rej} policy=union_min_n(min_n_contrib>={min_n})"
+    return f"[inj] combined mass support: accepted={acc} rejected={rej} policy=intersection"
+
+def combine_injection_toy_tables(
+    df_toys_by_dataset: Dict[str, pd.DataFrame],
+    *,
+    mass_policy: str = "intersection",
+    min_n_contrib: int = 2,
+) -> pd.DataFrame:
     """Build toy-level combined injection results from per-dataset toy tables.
 
     Combines available datasets at each (mass, strength, toy) using inverse-variance
@@ -354,6 +418,11 @@ def combine_injection_toy_tables(df_toys_by_dataset: Dict[str, pd.DataFrame]) ->
       Ahat_comb = sum_i (Ahat_i / sigma_i^2) / sum_i (1/sigma_i^2)
 
     with sigma_comb = 1 / sqrt(sum_i 1/sigma_i^2).
+
+    Combined masses are filtered by `mass_policy`:
+      - "intersection" (default): mass must be present in every enabled dataset.
+      - "union_min_n": mass may be present in any dataset but must have at least
+        `min_n_contrib` contributing datasets.
     """
     frames = []
     for key, df in (df_toys_by_dataset or {}).items():
@@ -366,12 +435,29 @@ def combine_injection_toy_tables(df_toys_by_dataset: Dict[str, pd.DataFrame]) ->
         return pd.DataFrame()
 
     all_df = pd.concat(frames, ignore_index=True)
+    support = _combined_mass_support_summary(
+        df_toys_by_dataset,
+        mass_policy=mass_policy,
+        min_n_contrib=min_n_contrib,
+    )
+    accepted_masses = support["accepted_masses"]
+
     rows = []
     grp_cols = ["mass_GeV", "strength", "toy"]
     for (m, s, toy), sub in all_df.groupby(grp_cols, dropna=False):
+        m = float(m)
+        if m not in accepted_masses:
+            continue
+
         valid = sub[np.isfinite(sub["sigma_A"].to_numpy(float)) & (sub["sigma_A"].to_numpy(float) > 0)]
         if valid.empty:
             continue
+
+        contrib_datasets = sorted(set(valid["dataset"].astype(str).tolist()))
+        n_contrib = int(len(contrib_datasets))
+        if support["mass_policy"] == "union_min_n" and n_contrib < int(min_n_contrib):
+            continue
+
         A_inj = float(np.nanmean(valid["strength"].to_numpy(float)))
         sig = valid["sigma_A"].to_numpy(float)
         w = 1.0 / np.square(sig)
@@ -381,7 +467,7 @@ def combine_injection_toy_tables(df_toys_by_dataset: Dict[str, pd.DataFrame]) ->
         pull_c = float((Ahat_c - A_inj) / sigma_c) if sigma_c > 0 else float("nan")
         rows.append(dict(
             dataset="combined",
-            mass_GeV=float(m),
+            mass_GeV=m,
             toy=int(toy),
             strength=float(s),
             inj_nsigma=float(np.nanmean(valid["inj_nsigma"].to_numpy(float))),
@@ -390,12 +476,15 @@ def combine_injection_toy_tables(df_toys_by_dataset: Dict[str, pd.DataFrame]) ->
             sigma_A=float(sigma_c),
             pull_param=float(pull_c),
             Zhat=float(Ahat_c / sigma_c) if sigma_c > 0 else float("nan"),
-            n_contrib=int(len(valid)),
-            contrib_datasets="+".join(sorted(set(valid["dataset"].astype(str).tolist()))),
+            n_contrib=n_contrib,
+            contrib_datasets="+".join(contrib_datasets),
             success=bool(np.all(valid["success"].astype(bool).to_numpy())),
         ))
 
-    return pd.DataFrame(rows).sort_values(["mass_GeV", "strength", "toy"]).reset_index(drop=True)
+    out = pd.DataFrame(rows)
+    if out.empty:
+        return out
+    return out.sort_values(["mass_GeV", "strength", "toy"]).reset_index(drop=True)
 
 def summarize_injection_grid(df_toys: pd.DataFrame) -> pd.DataFrame:
     """Summarize injection toys by (dataset, mass, strength)."""

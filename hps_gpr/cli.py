@@ -265,7 +265,13 @@ def inject(config, dataset, masses, strengths, n_toys, output_dir):
 
     from .config import load_config
     from .dataset import make_datasets
-    from .injection import run_injection_extraction_toys, summarize_injection_grid, combine_injection_toy_tables
+    from .injection import (
+        run_injection_extraction_toys,
+        summarize_injection_grid,
+        combine_injection_toy_tables,
+        _combined_mass_support_summary,
+        format_combined_mass_support_summary,
+    )
     from .plotting import (
         ensure_dir,
         plot_linearity,
@@ -312,7 +318,20 @@ def inject(config, dataset, masses, strengths, n_toys, output_dir):
                 strengths_mode=strengths_mode,
             )
 
-        df_comb_toys = combine_injection_toy_tables(df_map)
+        mass_policy = str(getattr(cfg, "inj_combined_mass_policy", "intersection")).strip().lower()
+        min_n_contrib = int(getattr(cfg, "inj_combined_min_n_contrib", 2))
+        support = _combined_mass_support_summary(
+            df_map,
+            mass_policy=mass_policy,
+            min_n_contrib=min_n_contrib,
+        )
+        print(format_combined_mass_support_summary(support))
+
+        df_comb_toys = combine_injection_toy_tables(
+            df_map,
+            mass_policy=mass_policy,
+            min_n_contrib=min_n_contrib,
+        )
         if not df_comb_toys.empty:
             comb_toys_path = os.path.join(outdir, "inj_extract_toys_combined.csv")
             df_comb_toys.to_csv(comb_toys_path, index=False)
@@ -680,7 +699,7 @@ def inject_plot(input_dir, output_dir, dataset, write_merged_toys):
     import glob
     import pandas as pd
 
-    from .injection import summarize_injection_grid
+    from .injection import summarize_injection_grid, combine_injection_toy_tables, _combined_mass_support_summary, format_combined_mass_support_summary
     from .plotting import (
         ensure_dir,
         plot_linearity,
@@ -728,6 +747,9 @@ def inject_plot(input_dir, output_dir, dataset, write_merged_toys):
 
     all_summaries = []
     toy_merged = {}
+    mass_policy = "intersection"
+    min_n_contrib = 2
+
     for ds, frames in sorted(by_dataset.items()):
         dft = pd.concat(frames, ignore_index=True)
         dft = dft.sort_values([c for c in ["mass_GeV", "strength", "toy"] if c in dft.columns]).reset_index(drop=True)
@@ -749,6 +771,33 @@ def inject_plot(input_dir, output_dir, dataset, write_merged_toys):
         dsum.to_csv(sum_out, index=False)
         all_summaries.append(dsum)
         print(f"Wrote {sum_out}")
+
+    non_combined = {k: pd.concat(v, ignore_index=True) for k, v in by_dataset.items() if k != "combined"}
+    if len(non_combined) >= 2:
+        support = _combined_mass_support_summary(
+            non_combined,
+            mass_policy=mass_policy,
+            min_n_contrib=min_n_contrib,
+        )
+        print(format_combined_mass_support_summary(support))
+
+        df_comb = combine_injection_toy_tables(
+            non_combined,
+            mass_policy=mass_policy,
+            min_n_contrib=min_n_contrib,
+        )
+        if not df_comb.empty:
+            if write_merged_toys:
+                toys_out = os.path.join(outdir, "inj_extract_toys_combined.csv")
+                df_comb.to_csv(toys_out, index=False)
+                print(f"Wrote {toys_out}")
+            dsum_c = summarize_injection_grid(df_comb)
+            dsum_c["dataset"] = "combined"
+            sum_out_c = os.path.join(outdir, "inj_extract_summary_combined.csv")
+            dsum_c.to_csv(sum_out_c, index=False)
+            all_summaries = [s for s in all_summaries if not ("dataset" in s.columns and (s["dataset"].astype(str) == "combined").all())]
+            all_summaries.append(dsum_c)
+            print(f"Wrote {sum_out_c}")
 
     df_sum = pd.concat(all_summaries, ignore_index=True) if all_summaries else pd.DataFrame()
     if df_sum.empty:

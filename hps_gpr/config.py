@@ -187,6 +187,8 @@ class Config:
     inj_sigma_multipliers: List[float] = field(
         default_factory=lambda: [0.0, 1.0, 2.0, 3.0, 5.0]
     )
+    inj_combined_mass_policy: str = "intersection"  # "intersection" | "union_min_n"
+    inj_combined_min_n_contrib: int = 2
     # MVN non-negative sampling
     mvn_trunc_method: str = "reject_then_clip"  # "clip" | "reject" | "reject_then_clip"
     mvn_trunc_max_tries: int = 80
