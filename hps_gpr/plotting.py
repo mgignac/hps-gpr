@@ -861,8 +861,7 @@ def plot_linearity(
         outpath: Save path (if None, displays interactively)
     """
     fig, ax = plt.subplots(figsize=(8, 4))
-    groups = [(str(dataset_filter), df_sum[df_sum["dataset"].astype(str) == str(dataset_filter)].copy())] if dataset_filter else list(df_sum.groupby("dataset"))
-    for ds, sub in groups:
+    for ds, sub in df_sum.groupby("dataset"):
         x = sub[xvar].to_numpy(float)
         y = sub["A_hat_mean"].to_numpy(float)
         xerr = sub["inj_nsigma_xerr"].to_numpy(float) if (xvar == "inj_nsigma" and "inj_nsigma_xerr" in sub.columns) else None
@@ -1005,7 +1004,10 @@ def plot_injection_heatmap(
         return
     xcol = "mass_GeV" if "mass_GeV" in df_sum.columns else "mass"
     ycol = "inj_nsigma" if "inj_nsigma" in df_sum.columns else "strength"
-    for ds, sub in df_sum.groupby("dataset"):
+    groups = df_sum.groupby("dataset")
+    for ds, sub in groups:
+        if dataset_filter is not None and str(ds) != str(dataset_filter):
+            continue
         piv = sub.pivot_table(index=ycol, columns=xcol, values=value_col, aggfunc="mean")
         if piv.empty:
             continue
@@ -1024,8 +1026,11 @@ def plot_injection_heatmap(
         cbar.set_label(value_col)
         plt.tight_layout()
         if outpath:
-            root, ext = os.path.splitext(outpath)
-            pth = f"{root}_{ds}{ext or '.png'}"
+            if dataset_filter is not None:
+                pth = outpath
+            else:
+                root, ext = os.path.splitext(outpath)
+                pth = f"{root}_{ds}{ext or '.png'}"
             plt.savefig(pth, dpi=200)
             plt.close(fig)
         else:

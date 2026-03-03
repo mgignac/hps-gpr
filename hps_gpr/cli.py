@@ -636,6 +636,122 @@ def slurm_gen_inject(config, datasets, masses, strengths, n_toys, output, job_na
     print("To submit all jobs, run:")
     print(f"  bash {submit_script}")
 
+
+
+@main.command("inject-plot")
+@click.option(
+    "--input-dir",
+    "-i",
+    required=True,
+    type=click.Path(exists=True),
+    help="Root directory containing injection job outputs",
+)
+@click.option(
+    "--output-dir",
+    "-o",
+    type=click.Path(),
+    help="Directory to write merged injection tables and summary plots",
+)
+@click.option(
+    "--dataset",
+    "-d",
+    multiple=True,
+    help="Optional dataset filter (repeatable: 2015, 2016, combined)",
+)
+def inject_plot(input_dir, output_dir, dataset):
+    """Merge distributed injection CSVs and produce publication-ready summary plots."""
+    import glob
+    import pandas as pd
+
+    from .injection import summarize_injection_grid
+    from .plotting import (
+        ensure_dir,
+        plot_linearity,
+        plot_bias_vs_injected_strength,
+        plot_pull_width,
+        plot_coverage,
+        plot_injection_heatmap,
+    )
+
+    ds_filter = {str(d).strip() for d in (dataset or []) if str(d).strip()}
+    outdir = output_dir or os.path.join(input_dir, "injection_summary")
+    ensure_dir(outdir)
+
+    toy_paths = sorted(glob.glob(os.path.join(input_dir, "**", "injection_extraction", "inj_extract_toys_*.csv"), recursive=True))
+    if not toy_paths:
+        print(f"No toy-level injection CSVs found under {input_dir}")
+        sys.exit(1)
+
+    by_dataset = {}
+    for fp in toy_paths:
+        base = os.path.basename(fp)
+        ds = base.replace("inj_extract_toys_", "").replace(".csv", "").strip()
+        if ds_filter and ds not in ds_filter:
+            continue
+        try:
+            dfi = pd.read_csv(fp)
+        except Exception as e:
+            print(f"Warning: could not read {fp}: {e}")
+            continue
+        if dfi.empty:
+            continue
+        if "dataset" not in dfi.columns:
+            dfi["dataset"] = ds
+        by_dataset.setdefault(ds, []).append(dfi)
+
+    if not by_dataset:
+        print("No valid injection toy tables loaded after filtering.")
+        sys.exit(1)
+
+    all_summaries = []
+    for ds, frames in sorted(by_dataset.items()):
+        dft = pd.concat(frames, ignore_index=True)
+        dft = dft.sort_values([c for c in ["mass_GeV", "strength", "toy"] if c in dft.columns]).reset_index(drop=True)
+
+        dedup_cols = [c for c in ["dataset", "mass_GeV", "strength", "toy"] if c in dft.columns]
+        if dedup_cols:
+            dft = dft.drop_duplicates(subset=dedup_cols, keep="last")
+
+        toys_out = os.path.join(outdir, f"inj_extract_toys_{ds}.csv")
+        dft.to_csv(toys_out, index=False)
+
+        dsum = summarize_injection_grid(dft)
+        dsum["dataset"] = str(ds)
+        sum_out = os.path.join(outdir, f"inj_extract_summary_{ds}.csv")
+        dsum.to_csv(sum_out, index=False)
+        all_summaries.append(dsum)
+        print(f"Wrote {toys_out}")
+        print(f"Wrote {sum_out}")
+
+    df_sum = pd.concat(all_summaries, ignore_index=True) if all_summaries else pd.DataFrame()
+    if df_sum.empty:
+        print("No summary rows produced.")
+        sys.exit(1)
+
+    all_out = os.path.join(outdir, "inj_extract_summary_all.csv")
+    df_sum.to_csv(all_out, index=False)
+    print(f"Wrote {all_out}")
+
+    xvar = "inj_nsigma" if "inj_nsigma" in df_sum.columns and np.isfinite(df_sum["inj_nsigma"]).any() else "strength"
+
+    # Cross-dataset overlays
+    plot_linearity(df_sum, xvar=xvar, title="Injection linearity (all datasets)", outpath=os.path.join(outdir, "linearity_all.png"))
+    plot_bias_vs_injected_strength(df_sum, xvar=xvar, title="Injection bias (all datasets)", outpath=os.path.join(outdir, "bias_all.png"))
+    plot_pull_width(df_sum, xvar=xvar, title="Pull width (all datasets)", outpath=os.path.join(outdir, "pull_width_all.png"))
+    plot_coverage(df_sum, xvar=xvar, title="Coverage (all datasets)", outpath=os.path.join(outdir, "coverage_all.png"))
+
+    for ds_key in sorted(df_sum["dataset"].astype(str).unique()):
+        sub = df_sum[df_sum["dataset"].astype(str) == ds_key].copy()
+        plot_linearity(sub, xvar=xvar, title=f"{ds_key}: linearity", outpath=os.path.join(outdir, f"linearity_{ds_key}.png"))
+        plot_bias_vs_injected_strength(sub, xvar=xvar, title=f"{ds_key}: bias", outpath=os.path.join(outdir, f"bias_{ds_key}.png"))
+        plot_pull_width(sub, xvar=xvar, title=f"{ds_key}: pull width", outpath=os.path.join(outdir, f"pull_width_{ds_key}.png"))
+        plot_coverage(sub, xvar=xvar, title=f"{ds_key}: coverage", outpath=os.path.join(outdir, f"coverage_{ds_key}.png"))
+        plot_injection_heatmap(sub, value_col="pull_mean", dataset_filter=ds_key, title=f"{ds_key}: mean pull heatmap", outpath=os.path.join(outdir, f"heatmap_pull_mean_{ds_key}.png"))
+        plot_injection_heatmap(sub, value_col="pull_std", dataset_filter=ds_key, title=f"{ds_key}: pull width heatmap", outpath=os.path.join(outdir, f"heatmap_pull_width_{ds_key}.png"))
+
+    print(f"\nSummary rows: {len(df_sum)}")
+    print(df_sum.head(20).to_string())
+
 @main.command("slurm-combine")
 @click.option(
     "--output-dir",

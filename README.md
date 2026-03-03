@@ -178,6 +178,9 @@ hps-gpr inject --config study_configs/config_2015_2016_combined_blind1p64_95CL_1
 # datasets include individual and combined extraction to compare behavior directly
 hps-gpr slurm-gen-inject --config study_configs/config_2015_2016_combined_blind1p64_95CL_10k_injection.yaml --datasets 2015,2016,combined --masses 0.025,0.030,0.040,0.050,0.065,0.080,0.095,0.115,0.135,0.150,0.170,0.200 --strengths 1,2,3,5 --n-toys 10000 --job-name hps2015_2016_inj_95CL_w164 --partition milano --account hps:hps-prod --time 24:00:00 --memory 8G --output submit_2015_2016_injection_95CL_w164.slurm
 bash submit_injection_all.sh
+
+# After jobs finish, merge all injection CSVs and build publication-style summaries
+hps-gpr inject-plot --input-dir outputs/study_2015_2016_combined_w1p64_95CL/injection_jobs --output-dir outputs/study_2015_2016_combined_w1p64_95CL/injection_summary
 ```
 
 Mass-range convention in all production configs:
@@ -312,6 +315,20 @@ outputs/
 │   ├── ul_pvalues_components_local_global_refs.png
 │   ├── p0_analytic_local_global.png
 │   └── Z_local_global.png
+├── injection_summary/              # Created by `hps-gpr inject-plot`
+│   ├── inj_extract_toys_<dataset>.csv
+│   ├── inj_extract_summary_<dataset>.csv
+│   ├── inj_extract_summary_all.csv
+│   ├── linearity_all.png
+│   ├── bias_all.png
+│   ├── pull_width_all.png
+│   ├── coverage_all.png
+│   ├── linearity_<dataset>.png
+│   ├── bias_<dataset>.png
+│   ├── pull_width_<dataset>.png
+│   ├── coverage_<dataset>.png
+│   ├── heatmap_pull_mean_<dataset>.png
+│   └── heatmap_pull_width_<dataset>.png
 └── mXXXMeV/                        # Optional per-mass folders (if save_per_mass_folders=true)
     ├── <dataset>/
     │   ├── fit_full.png            # Full-range fit diagnostic
@@ -325,6 +342,14 @@ outputs/
 ```
 
 
+
+
+Injection/extraction plotting suite (`inject-plot`) covers the v15_8 closure checks used for robustness studies:
+- linearity: `⟨Â⟩` vs injected strength (or injected `n_σ`), with ideal reference line
+- bias: `⟨Â⟩ − A_inj` vs injected strength
+- pull-width stability: `std((Â−A_inj)/σ_A)` with unit-width reference
+- coverage: fractions within `|pull|<1` and `|pull|<2` with Gaussian expectations (68.3%, 95.4%)
+- mass/strength heatmaps for pull mean and pull width, per dataset and for combined extraction
 ## Package Structure
 
 | Module | Description |
