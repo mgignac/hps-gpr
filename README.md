@@ -72,6 +72,10 @@ cp config_example.yaml my_config.yaml
 | `cls_*` | CLs calculation settings (alpha, mode, toys) |
 | `output_dir` | Output directory for results |
 
+For ROOT file paths/histogram names used in the legacy validation notebook workflow,
+use [`v15_8_HPS_simultaneous_GP_notebook_quality.ipynb`](v15_8_HPS_simultaneous_GP_notebook_quality.ipynb)
+as the reference map (especially for local path conventions and histogram-key checks).
+
 ### Example Configuration
 
 ```yaml
@@ -176,13 +180,19 @@ hps-gpr inject --config study_configs/config_2015_2016_combined_blind1p64_95CL_1
 
 # Batch production: one job per (dataset, mass, strength)
 # datasets include individual and combined extraction to compare behavior directly
-hps-gpr slurm-gen-inject --config study_configs/config_2015_2016_combined_blind1p64_95CL_10k_injection.yaml --datasets 2015,2016,combined --masses 0.025,0.030,0.040,0.050,0.065,0.080,0.095,0.115,0.135,0.150,0.170,0.200 --strengths 1,2,3,5 --n-toys 10000 --job-name hps2015_2016_inj_95CL_w164 --partition milano --account hps:hps-prod --time 24:00:00 --memory 8G --output submit_2015_2016_injection_95CL_w164.slurm
+hps-gpr slurm-gen-inject --config study_configs/config_2015_2016_combined_blind1p64_95CL_10k_injection.yaml --datasets 2015,2016,combined --masses 0.025,0.030,0.040,0.050,0.065,0.080,0.095,0.115,0.135,0.150,0.170,0.200 --strengths s1,s2,s3,s5 --n-toys 10000 --no-write-toy-csv --job-name hps2015_2016_inj_95CL_w164 --partition milano --account hps:hps-prod --time 24:00:00 --memory 8G --output submit_2015_2016_injection_95CL_w164.slurm
 # note: submission script auto-skips out-of-range masses (2015: 20-130 MeV, 2016: 34-210 MeV)
 bash submit_injection_all.sh
 
 # After jobs finish, merge flat CSV outputs and build publication-style summaries
 hps-gpr inject-plot --input-dir outputs/study_2015_2016_combined_w1p64_95CL/injection_flat --output-dir outputs/study_2015_2016_combined_w1p64_95CL/injection_summary
 ```
+
+Notes:
+- In `inj_strength_mode: sigmaA`, `--strengths` accepts both `1,2,3,5` and `s1,s2,s3,s5`.
+- SLURM injection jobs now run only the explicitly requested strength per job point (no implicit rerun of all configured strengths).
+- Use `--no-write-toy-csv` (or `inj_write_toy_csv: false`) for large productions when toy-level tables are not needed; this avoids multi-million-row `inj_extract_toys_*` files in `injection_flat`.
+- `inject-plot` supports summary-only inputs (from `inj_extract_summary_*.csv`) and still builds linearity/bias/pull-width/coverage/heatmap/pull-vs-mass summaries; toy-only products (pull histograms and Z-residual panels) require toy CSVs.
 
 
 ### GP-mean/global-fit pseudoexperiment mode (v15_8-style full procedural toys)
@@ -208,7 +218,7 @@ hps-gpr inject --config study_configs/config_2015_blind1p64_95CL_10k_injection_g
 hps-gpr inject --config study_configs/config_2016_10pct_blind1p64_95CL_10k_injection_gpmean_pseudoexp.yaml --dataset 2016 --masses 0.040,0.050,0.065,0.080,0.095,0.115,0.135,0.150,0.170,0.200 --strengths 1,2,3,5 --n-toys 10000
 
 # Combined (plus per-dataset in batch) full procedural pseudoexperiments
-hps-gpr slurm-gen-inject --config study_configs/config_2015_2016_combined_blind1p64_95CL_10k_injection_gpmean_pseudoexp.yaml --datasets 2015,2016,combined --masses 0.025,0.030,0.040,0.050,0.065,0.080,0.095,0.115,0.135,0.150,0.170,0.200 --strengths 1,2,3,5 --n-toys 10000 --job-name hps2015_2016_inj_gpmean --partition milano --account hps:hps-prod --time 24:00:00 --memory 8G --output submit_2015_2016_injection_gpmean.slurm
+hps-gpr slurm-gen-inject --config study_configs/config_2015_2016_combined_blind1p64_95CL_10k_injection_gpmean_pseudoexp.yaml --datasets 2015,2016,combined --masses 0.025,0.030,0.040,0.050,0.065,0.080,0.095,0.115,0.135,0.150,0.170,0.200 --strengths s1,s2,s3,s5 --n-toys 10000 --no-write-toy-csv --job-name hps2015_2016_inj_gpmean --partition milano --account hps:hps-prod --time 24:00:00 --memory 8G --output submit_2015_2016_injection_gpmean.slurm
 bash submit_injection_all.sh
 hps-gpr inject-plot --input-dir outputs/study_2015_2016_combined_w1p64_95CL_gpmean_pseudoexp/injection_flat --output-dir outputs/study_2015_2016_combined_w1p64_95CL_gpmean_pseudoexp/injection_summary
 ```
@@ -346,7 +356,7 @@ outputs/
 │   ├── p0_analytic_local_global.png
 │   └── Z_local_global.png
 ├── injection_flat/                 # Created by `submit_injection_all.sh` jobs (single folder, uniquely named CSVs)
-│   ├── inj_extract_toys_<dataset>__jobds_<jobds>__m_<mass>__s_<strength>.csv
+│   ├── inj_extract_toys_<dataset>__jobds_<jobds>__m_<mass>__s_<strength>.csv   # optional (`--write-toy-csv`)
 │   └── inj_extract_summary_<dataset>__jobds_<jobds>__m_<mass>__s_<strength>.csv
 ├── injection_summary/              # Created by `hps-gpr inject-plot`
 │   ├── inj_extract_toys_<dataset>.csv
@@ -384,8 +394,9 @@ Injection/extraction plotting suite (`inject-plot`) covers the v15_8 closure che
 - linearity: `⟨Â⟩` vs injected strength (or injected `n_σ`), with ideal reference line
 - bias: `⟨Â⟩ − A_inj` vs injected strength
 - pull-width stability: `std((Â−A_inj)/σ_A)` with unit-width reference
-- coverage: fractions within `|pull|<1` and `|pull|<2` with Gaussian expectations (68.3%, 95.4%)
+- coverage: fractions within `|pull|<1` and `|pull|<2` with Gaussian expectations (68.3%, 95.4%); dataset panels now split by injection level when mass overlays would otherwise overdraw
 - mass/strength heatmaps for pull mean and pull width, per dataset and for combined extraction
+- pull-vs-mass panels with connected lines and sigma-level legend labels (`1σ`, `2σ`, `3σ`, `5σ`) when `inj_nsigma` is available
 
 
 
@@ -397,6 +408,9 @@ Injection/extraction plotting suite (`inject-plot`) covers the v15_8 closure che
   - compares `1σ(2015)+1σ(2016)` vs `1σ(2021)`
   - compares `1σ(2015)+2σ(2016)` vs `3σ(2021)`
   - uses inverse-variance weighting based on `sigmaA_ref(m)` from toys.
+- **Constituent p-value requirement plot**: `combined_search_power_constituent_pvalues_5sigma.png`
+  - shows per-dataset local `Z` and one-sided `p0` required to realize a combined `5σ` excess.
+  - writes a reproducible table: `combined_constituent_pvalues_target5sigma.csv`.
 - **Allocation plots (publication-ready)** for representative masses (default 40, 80, 110 MeV):
   - `combined_signal_allocation_m040MeV.png`
   - `combined_signal_allocation_m080MeV.png`
@@ -409,6 +423,16 @@ These plots are designed to show *why* combined searches improve sensitivity:
 - explicit allocation tables improve reproducibility for internal notes/publication follow-up and allow direct cross-checks against UL-derived sensitivity expectations.
 
 Methodology follows standard profile-likelihood asymptotics and inverse-variance combination conventions used broadly in HEP analyses (e.g. Cowan et al., EPJC 71 (2011) 1554).
+
+### Statistical validation checklist (publication gate)
+
+Use this checklist before freezing plots for notes/papers:
+- Pull calibration: `pull_mean ~ 0` and `pull_width ~ 1` across masses and injection levels.
+- Coverage calibration: `cov_1sigma ~ 0.683` and `cov_2sigma ~ 0.954` without systematic mass trends.
+- Z-calibration residual: `Delta Z = Zhat - Zinj` centered near zero with stable q16/q84 bands.
+- Strength-mode consistency: in `sigmaA` mode, each SLURM `(dataset, mass, strength)` job contributes only its requested strength point.
+- Combined-power consistency: constituent `Z_i`/`p0_i` values for a fixed combined target (e.g. 5sigma) should follow inverse-variance information fractions (`1/sigmaA_ref^2`).
+- Global-significance reporting: local/global `p0` and `Z` must include the configured LEE treatment (`N_eff`, Sidak correction) in summary suites.
 
 ### Injection plotting style profile
 
@@ -502,4 +526,3 @@ where ρ is the integral density (counts per GeV) in the signal region.
 
 
 For combined runs, `slurm-combine` also writes per-dataset publication overlays inside the summary suite, e.g. `2015_UL_sig_yield_bands.png`, `2015_UL_eps2_yield_bands.png`, `2016_UL_sig_yield_bands.png`, `2016_UL_eps2_yield_bands.png`, plus dataset-specific `*_p0_local_global.png` and `*_Z_local_global.png`.
-

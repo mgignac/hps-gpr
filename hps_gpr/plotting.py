@@ -175,6 +175,17 @@ def _inj_xlabel(xvar: str) -> str:
     return r"Injected strength $A_{\mathrm{inj}}$" if xvar == "strength" else r"Injected strength $A_{\mathrm{inj}}/\sigma_A$"
 
 
+def _sigma_level_label(z: float) -> str:
+    """Format an injected sigma-level for legends/titles."""
+    zf = float(z)
+    if not np.isfinite(zf):
+        return "inj. level"
+    zr = int(np.round(zf))
+    if np.isclose(zf, float(zr), rtol=0.0, atol=1e-8):
+        return rf"${zr}\sigma$"
+    return rf"${zf:.2g}\sigma$"
+
+
 def _save_plot_outputs(fig: plt.Figure, outpath: Optional[str], *, png_dpi: int = 320) -> None:
     """Save both PNG and PDF outputs from a canonical outpath stem."""
     if outpath is None:
@@ -1208,8 +1219,104 @@ def plot_coverage(
 ) -> None:
     """Coverage plot: fraction |pull| < 1σ and |pull| < 2σ vs injected strength."""
     set_injection_plot_style("paper")
+    if df_sum is None or df_sum.empty:
+        return
+    need_cols = {xvar, "cov_1sigma", "cov_2sigma"}
+    if not need_cols.issubset(set(df_sum.columns)):
+        return
+
+    work = df_sum.copy()
+    if "dataset" not in work.columns:
+        work["dataset"] = "all"
+
+    work[xvar] = pd.to_numeric(work[xvar], errors="coerce")
+    work["cov_1sigma"] = pd.to_numeric(work["cov_1sigma"], errors="coerce")
+    work["cov_2sigma"] = pd.to_numeric(work["cov_2sigma"], errors="coerce")
+    finite = (
+        np.isfinite(work[xvar].to_numpy(float))
+        & np.isfinite(work["cov_1sigma"].to_numpy(float))
+        & np.isfinite(work["cov_2sigma"].to_numpy(float))
+    )
+    work = work.loc[finite].copy()
+    if work.empty:
+        return
+
+    has_mass = "mass_GeV" in work.columns
+    if has_mass:
+        work["mass_GeV"] = pd.to_numeric(work["mass_GeV"], errors="coerce")
+        work = work[np.isfinite(work["mass_GeV"].to_numpy(float))].copy()
+        has_mass = not work.empty
+    if work.empty:
+        return
+
+    ds_count = int(work["dataset"].astype(str).nunique())
+    repeated_x = bool((work.groupby(["dataset", xvar], dropna=False).size() > 1).any())
+
+    # For a single dataset with multiple masses per injection level, show
+    # mass-trends in separate strength panels to avoid overdrawn thick lines.
+    if ds_count == 1 and has_mass and repeated_x:
+        sub_ds = work.copy()
+        levels = sorted(sub_ds[xvar].dropna().astype(float).unique().tolist())
+        if not levels:
+            return
+        ncols = min(3, len(levels))
+        nrows = int(np.ceil(len(levels) / ncols))
+        fig, axes = plt.subplots(
+            nrows=nrows,
+            ncols=ncols,
+            figsize=(4.7 * ncols, 3.2 * nrows),
+            sharex=True,
+            sharey=True,
+            constrained_layout=True,
+        )
+        axes_arr = np.atleast_1d(axes).ravel()
+        for i, level in enumerate(levels):
+            ax = axes_arr[i]
+            lev_sub = sub_ds[np.isclose(sub_ds[xvar].to_numpy(float), float(level), rtol=0.0, atol=1e-8)].copy()
+            lev_sub = lev_sub.sort_values("mass_GeV")
+            x = lev_sub["mass_GeV"].to_numpy(float) * 1e3
+            ax.plot(x, lev_sub["cov_1sigma"].to_numpy(float), "o-", label=r"$|pull|<1$")
+            ax.plot(x, lev_sub["cov_2sigma"].to_numpy(float), "s--", label=r"$|pull|<2$")
+            ax.axhline(0.683, color="k", ls=":", lw=0.9)
+            ax.axhline(0.954, color="gray", ls=":", lw=0.9)
+            ax.set_ylim(0, 1.05)
+            if xvar == "inj_nsigma":
+                lvl_txt = _sigma_level_label(float(level))
+            else:
+                lvl_txt = rf"$A_{{inj}}={float(level):.3g}$"
+            _set_title_above(ax, f"{lvl_txt} injection")
+            _grid(ax)
+            if i // ncols == (nrows - 1):
+                ax.set_xlabel("Mass hypothesis [MeV]")
+            if i % ncols == 0:
+                ax.set_ylabel(r"Coverage probability $P(|pull|<n)$")
+
+        for j in range(len(levels), len(axes_arr)):
+            axes_arr[j].axis("off")
+
+        handles, labels = axes_arr[0].get_legend_handles_labels()
+        if handles:
+            fig.legend(handles, labels, loc="upper center", ncol=2, bbox_to_anchor=(0.5, 1.02), frameon=True)
+        ds_name = str(sub_ds["dataset"].astype(str).iloc[0])
+        fig.suptitle(title or f"{ds_name}: coverage vs mass by injection level", y=1.05)
+        _save_plot_outputs(fig, outpath)
+        return
+
+    # If x has repeated values (e.g. multiple masses), aggregate over mass first
+    # to prevent unreadable overdrawn traces in overlay mode.
+    if repeated_x:
+        work = (
+            work.groupby(["dataset", xvar], as_index=False)
+            .agg(
+                cov_1sigma=("cov_1sigma", "mean"),
+                cov_2sigma=("cov_2sigma", "mean"),
+            )
+            .sort_values(["dataset", xvar])
+            .reset_index(drop=True)
+        )
+
     fig, ax = plt.subplots(figsize=(8.8, 4.8), constrained_layout=True)
-    for ds, sub in df_sum.groupby("dataset"):
+    for ds, sub in work.groupby("dataset"):
         sub = sub.sort_values(xvar)
         x = sub[xvar].to_numpy(float)
         ax.plot(x, sub["cov_1sigma"].to_numpy(float), "o-", label=f"{ds} |pull|<1")
@@ -1634,9 +1741,10 @@ def plot_pull_vs_mass(
     outpath: Optional[str] = None,
 ) -> None:
     """Plot pull mean and width versus mass for each injected strength."""
-    if df_toys.empty or "pull_param" not in df_toys.columns:
+    if df_toys.empty:
         return
-    req = {"mass_GeV", "strength", "pull_param"}
+    has_toy_pull = "pull_param" in df_toys.columns
+    req = {"mass_GeV", "strength", "pull_param"} if has_toy_pull else {"mass_GeV", "strength", "pull_mean", "pull_std"}
     if not req.issubset(df_toys.columns):
         return
 
@@ -1646,36 +1754,105 @@ def plot_pull_vs_mass(
     if dft.empty:
         return
 
-    rows = []
-    for (m, s), sub in dft.groupby(["mass_GeV", "strength"], dropna=False):
-        pull = sub["pull_param"].to_numpy(float)
-        pull = pull[np.isfinite(pull)]
-        if pull.size == 0:
-            continue
-        mu = float(np.mean(pull))
-        sd = float(np.std(pull, ddof=1)) if pull.size > 1 else float("nan")
-        sem = float(sd / np.sqrt(pull.size)) if pull.size > 1 else float("nan")
-        sd_err = float(sd / np.sqrt(2 * (pull.size - 1))) if pull.size > 2 and np.isfinite(sd) else float("nan")
-        rows.append(dict(mass_GeV=float(m), strength=float(s), pull_mean=mu, pull_sem=sem, pull_std=sd, pull_std_err=sd_err))
-
-    if not rows:
+    dft["mass_GeV"] = pd.to_numeric(dft["mass_GeV"], errors="coerce")
+    dft["strength"] = pd.to_numeric(dft["strength"], errors="coerce")
+    dft["inj_nsigma"] = pd.to_numeric(dft.get("inj_nsigma", np.nan), errors="coerce")
+    dft = dft[np.isfinite(dft["mass_GeV"].to_numpy(float))].copy()
+    if dft.empty:
         return
-    dsum = pd.DataFrame(rows).sort_values(["strength", "mass_GeV"]).reset_index(drop=True)
 
-    fig, (ax0, ax1) = plt.subplots(2, 1, figsize=(9.0, 7.2), sharex=True, gridspec_kw={"hspace": 0.08})
-    for strength, sub in dsum.groupby("strength"):
+    use_sigma_labels = bool(np.isfinite(dft["inj_nsigma"].to_numpy(float)).any())
+    if use_sigma_labels:
+        dft["_inj_level"] = np.round(dft["inj_nsigma"].to_numpy(float), 8)
+        legend_title = r"Injected level ($A_{\mathrm{inj}}/\sigma_A$)"
+    else:
+        dft["_inj_level"] = dft["strength"].to_numpy(float)
+        legend_title = r"Injected $A_{\mathrm{inj}}$"
+
+    if has_toy_pull:
+        rows = []
+        for (m, level), sub in dft.groupby(["mass_GeV", "_inj_level"], dropna=False):
+            pull = sub["pull_param"].to_numpy(float)
+            pull = pull[np.isfinite(pull)]
+            if pull.size == 0:
+                continue
+            mu = float(np.mean(pull))
+            sd = float(np.std(pull, ddof=1)) if pull.size > 1 else float("nan")
+            sem = float(sd / np.sqrt(pull.size)) if pull.size > 1 else float("nan")
+            sd_err = float(sd / np.sqrt(2 * (pull.size - 1))) if pull.size > 2 and np.isfinite(sd) else float("nan")
+            rows.append(
+                dict(
+                    mass_GeV=float(m),
+                    inj_level=float(level),
+                    pull_mean=mu,
+                    pull_sem=sem,
+                    pull_std=sd,
+                    pull_std_err=sd_err,
+                )
+            )
+        if not rows:
+            return
+        dsum = pd.DataFrame(rows).sort_values(["inj_level", "mass_GeV"]).reset_index(drop=True)
+    else:
+        dsum = dft.copy()
+        dsum["inj_level"] = dsum["_inj_level"].to_numpy(float)
+        dsum["pull_mean"] = pd.to_numeric(dsum["pull_mean"], errors="coerce")
+        dsum["pull_std"] = pd.to_numeric(dsum["pull_std"], errors="coerce")
+        if "pull_sem" in dsum.columns:
+            dsum["pull_sem"] = pd.to_numeric(dsum["pull_sem"], errors="coerce")
+        elif "n_toys" in dsum.columns:
+            n = np.clip(pd.to_numeric(dsum["n_toys"], errors="coerce").to_numpy(float), 1.0, None)
+            dsum["pull_sem"] = dsum["pull_std"].to_numpy(float) / np.sqrt(n)
+        else:
+            dsum["pull_sem"] = np.nan
+        if "pull_std_err" in dsum.columns:
+            dsum["pull_std_err"] = pd.to_numeric(dsum["pull_std_err"], errors="coerce")
+        elif "n_toys" in dsum.columns:
+            n = np.clip(pd.to_numeric(dsum["n_toys"], errors="coerce").to_numpy(float), 2.0, None)
+            dsum["pull_std_err"] = dsum["pull_std"].to_numpy(float) / np.sqrt(2.0 * (n - 1.0))
+        else:
+            dsum["pull_std_err"] = np.nan
+        dsum = dsum[np.isfinite(dsum["pull_mean"].to_numpy(float)) & np.isfinite(dsum["pull_std"].to_numpy(float))].copy()
+        dsum = (
+            dsum.groupby(["mass_GeV", "inj_level"], as_index=False)
+            .agg(
+                pull_mean=("pull_mean", "mean"),
+                pull_sem=("pull_sem", "mean"),
+                pull_std=("pull_std", "mean"),
+                pull_std_err=("pull_std_err", "mean"),
+            )
+            .sort_values(["inj_level", "mass_GeV"])
+            .reset_index(drop=True)
+        )
+        if dsum.empty:
+            return
+
+    fig, (ax0, ax1) = plt.subplots(
+        2,
+        1,
+        figsize=(9.6, 7.4),
+        sharex=True,
+        gridspec_kw={"hspace": 0.08},
+        constrained_layout=True,
+    )
+    for i, (level, sub) in enumerate(dsum.groupby("inj_level")):
         x = sub["mass_GeV"].to_numpy(float) * 1e3
         y = sub["pull_mean"].to_numpy(float)
         yerr = sub["pull_sem"].to_numpy(float)
-        ax0.plot(x, y, "o-", label=rf"$A_{{inj}}={float(strength):.3g}$")
+        color = _INJ_COLORBLIND_PALETTE[i % len(_INJ_COLORBLIND_PALETTE)]
+        if use_sigma_labels:
+            lbl = _sigma_level_label(float(level))
+        else:
+            lbl = rf"$A_{{inj}}={float(level):.3g}$"
+        ax0.plot(x, y, "o-", color=color, label=lbl)
         if np.any(np.isfinite(yerr)):
-            ax0.fill_between(x, y - yerr, y + yerr, alpha=0.20)
+            ax0.fill_between(x, y - yerr, y + yerr, color=color, alpha=0.16)
 
         w = sub["pull_std"].to_numpy(float)
         werr = sub["pull_std_err"].to_numpy(float)
-        ax1.plot(x, w, "o-")
+        ax1.plot(x, w, "o-", color=color)
         if np.any(np.isfinite(werr)):
-            ax1.fill_between(x, w - werr, w + werr, alpha=0.20)
+            ax1.fill_between(x, w - werr, w + werr, color=color, alpha=0.16)
 
     ax0.axhline(0.0, color="k", lw=0.8, ls="--")
     ax1.axhline(1.0, color="k", lw=0.8, ls="--")
@@ -1683,15 +1860,16 @@ def plot_pull_vs_mass(
     ax1.set_ylabel("pull width")
     ax1.set_xlabel("mass hypothesis [MeV]")
     _set_title_above(ax0, title or f"{dataset_key or 'all'}: pull moments vs mass")
-    ax0.legend(loc="best", ncol=2)
+    ax0.legend(
+        loc="upper left",
+        bbox_to_anchor=(1.01, 1.00),
+        frameon=True,
+        title=legend_title,
+        ncol=1,
+    )
     _grid(ax0)
     _grid(ax1)
-    plt.tight_layout()
-    if outpath:
-        plt.savefig(outpath, dpi=220)
-        plt.close(fig)
-    else:
-        plt.show()
+    _save_plot_outputs(fig, outpath)
 
 # ---------------------------------------------------------------------------
 # Summary plots (UL curves)
@@ -1981,6 +2159,64 @@ def plot_combined_search_power(
     _set_title_above(axs[0], axs[0].get_title())
     _set_title_above(axs[1], axs[1].get_title())
     out = os.path.join(outdir, "combined_search_power_scenarios.png")
+    _save_plot_outputs(fig, out)
+    saved.append(out)
+
+    # Constituents required to realize a 5σ combined excess under
+    # inverse-variance combination at shared signal-strength scaling.
+    z_target_const = 5.0
+    z15_req = z_target_const * np.sqrt(w15 / sw)
+    z16_req = z_target_const * np.sqrt(w16 / sw)
+    p15_req = np.array([_p_from_z_one_sided(float(z)) for z in z15_req], float)
+    p16_req = np.array([_p_from_z_one_sided(float(z)) for z in z16_req], float)
+    p_comb_req = np.array([_p_from_z_one_sided(float(z_target_const))] * len(z15_req), float)
+
+    req = pd.DataFrame(
+        {
+            "mass_GeV": m1516["mass_GeV"].to_numpy(float),
+            "sigmaA_ref_2015": m1516["sigmaA_ref_2015"].to_numpy(float),
+            "sigmaA_ref_2016": m1516["sigmaA_ref_2016"].to_numpy(float),
+            "z_target_combined": np.full(len(m1516), float(z_target_const), float),
+            "z_required_2015": z15_req,
+            "z_required_2016": z16_req,
+            "p0_required_2015": p15_req,
+            "p0_required_2016": p16_req,
+            "p0_target_combined": p_comb_req,
+            "info_frac_2015": w15 / sw,
+            "info_frac_2016": w16 / sw,
+        }
+    )
+    req_csv = os.path.join(outdir, "combined_constituent_pvalues_target5sigma.csv")
+    req.to_csv(req_csv, index=False)
+
+    fig, (axz, axp) = plt.subplots(1, 2, figsize=(12.6, 4.9), constrained_layout=True)
+    axz.plot(m, z15_req, color="#0072B2", marker="o", label=r"2015 constituent $Z$")
+    axz.plot(m, z16_req, color="#E69F00", marker="s", label=r"2016 constituent $Z$")
+    axz.axhline(z_target_const, color="k", ls="--", lw=1.0, label=r"Combined target $Z=5$")
+    axz.set_xlabel("Mass hypothesis [MeV]")
+    axz.set_ylabel(r"Required constituent significance $Z_i$")
+    _set_title_above(axz, r"Constituent $Z_i$ for $Z_{comb}=5$")
+    _grid(axz)
+
+    axp.plot(m, p15_req, color="#0072B2", marker="o", label=r"2015 constituent $p_0$")
+    axp.plot(m, p16_req, color="#E69F00", marker="s", label=r"2016 constituent $p_0$")
+    axp.plot(m, p_comb_req, color="k", ls="--", lw=1.0, label=r"Combined target $p_0$ (5$\sigma$)")
+    axp.set_yscale("log")
+    axp.set_xlabel("Mass hypothesis [MeV]")
+    axp.set_ylabel(r"One-sided $p_0$")
+    _set_title_above(axp, r"Constituent $p_0$ thresholds for $Z_{comb}=5$")
+    _grid(axp)
+
+    for ax in (axz, axp):
+        ax.legend(loc="best", frameon=True)
+    fig.text(
+        0.01,
+        0.01,
+        "Constituent expectations use inverse-variance weighting from toy-derived sigmaA_ref(m); "
+        "the higher-information dataset carries a larger share of the required local significance.",
+        fontsize=8,
+    )
+    out = os.path.join(outdir, "combined_search_power_constituent_pvalues_5sigma.png")
     _save_plot_outputs(fig, out)
     saved.append(out)
 

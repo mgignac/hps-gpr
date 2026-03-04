@@ -83,3 +83,25 @@ def test_run_injection_extraction_toys_writes_toy_csv_when_enabled(tmp_path, mon
 
     assert len(df) == 1
     assert (tmp_path / "injection_extraction" / "inj_extract_toys_2015.csv").exists()
+
+
+def test_sigma_mode_uses_explicit_strength_overrides(tmp_path, monkeypatch):
+    _install_fast_injection_mocks(monkeypatch)
+    cfg = Config(
+        output_dir=str(tmp_path),
+        inj_write_toy_csv=False,
+        inj_strength_mode="sigmaA",
+        inj_sigma_multipliers=[1.0, 2.0, 3.0, 5.0],
+    )
+
+    df = run_injection_extraction_toys(
+        _make_dataset(),
+        cfg,
+        masses=[0.05],
+        strengths=[1.0],
+        n_toys=2,
+        strengths_mode="sigmaA",
+    )
+
+    assert len(df) == 2
+    assert sorted(df["inj_nsigma"].unique().tolist()) == [1.0]

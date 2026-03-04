@@ -15,6 +15,21 @@ def main():
     pass
 
 
+def _parse_strength_tokens(raw: str) -> list:
+    """Parse comma-separated strength tokens (supports `1` and `s1` forms)."""
+    if raw is None:
+        return []
+    out = []
+    for tok in str(raw).split(","):
+        t = tok.strip()
+        if not t:
+            continue
+        if len(t) > 1 and t[0].lower() == "s":
+            t = t[1:]
+        out.append(float(t))
+    return out
+
+
 @main.command()
 @click.option(
     "--config",
@@ -245,7 +260,7 @@ def bands(config, dataset, n_toys, output_dir):
 @click.option(
     "--strengths",
     "-s",
-    help="Comma-separated list of injection strengths (overrides config)",
+    help="Comma-separated list of injection strengths (e.g. 1,2,3,5 or s1,s2,s3,s5; overrides config)",
 )
 @click.option(
     "--n-toys",
@@ -305,7 +320,13 @@ def inject(config, dataset, masses, strengths, n_toys, output_dir, write_toy_csv
         sys.exit(1)
 
     mass_list = [float(m.strip()) for m in masses.split(",")]
-    strength_list = [float(s.strip()) for s in strengths.split(",")] if strengths else [float(s) for s in cfg.inj_strengths]
+    try:
+        strength_list = _parse_strength_tokens(strengths) if strengths else [float(s) for s in cfg.inj_strengths]
+    except ValueError as exc:
+        raise click.BadParameter(
+            "Could not parse --strengths. Use comma-separated values like 1,2,3,5 or s1,s2,s3,s5.",
+            param_hint="--strengths",
+        ) from exc
 
     outdir = os.path.join(cfg.output_dir, "injection_extraction")
     ensure_dir(outdir)
@@ -616,7 +637,7 @@ def slurm_gen(config, n_jobs, output, job_name, partition, time, memory, conda_e
 @click.option(
     "--strengths",
     required=True,
-    help="Comma-separated injection strengths",
+    help="Comma-separated injection strengths (e.g. 1,2,3,5 or s1,s2,s3,s5)",
 )
 @click.option(
     "--n-toys",
@@ -659,7 +680,12 @@ def slurm_gen(config, n_jobs, output, job_name, partition, time, memory, conda_e
     "--account",
     help="SLURM account/project to charge",
 )
-def slurm_gen_inject(config, datasets, masses, strengths, n_toys, output, job_name, partition, time, memory, conda_env, account):
+@click.option(
+    "--write-toy-csv/--no-write-toy-csv",
+    default=None,
+    help="Force per-toy CSV writing policy in generated inject jobs (default: use config setting).",
+)
+def slurm_gen_inject(config, datasets, masses, strengths, n_toys, output, job_name, partition, time, memory, conda_env, account, write_toy_csv):
     """Generate SLURM scripts for per-(dataset,mass,strength) injection jobs."""
     from .config import load_config
     from .slurm import generate_injection_slurm_scripts
@@ -668,7 +694,13 @@ def slurm_gen_inject(config, datasets, masses, strengths, n_toys, output, job_na
 
     dataset_list = [d.strip() for d in str(datasets).split(",") if d.strip()]
     mass_list = [float(m.strip()) for m in str(masses).split(",") if m.strip()]
-    strength_list = [float(s.strip()) for s in str(strengths).split(",") if s.strip()]
+    try:
+        strength_list = _parse_strength_tokens(str(strengths))
+    except ValueError as exc:
+        raise click.BadParameter(
+            "Could not parse --strengths. Use comma-separated values like 1,2,3,5 or s1,s2,s3,s5.",
+            param_hint="--strengths",
+        ) from exc
 
     if not dataset_list:
         raise click.BadParameter("No datasets provided", param_hint="--datasets")
@@ -700,6 +732,7 @@ def slurm_gen_inject(config, datasets, masses, strengths, n_toys, output, job_na
         conda_env=conda_env,
         extra_sbatch=extra,
         mass_ranges_by_dataset=ds_ranges,
+        write_toy_csv=write_toy_csv,
     )
     print(f"\nPrepared {n_jobs} injection jobs.")
     print("To submit all jobs, run:")
@@ -757,15 +790,24 @@ def inject_plot(input_dir, output_dir, dataset, write_merged_toys):
     outdir = output_dir or os.path.join(input_dir, "injection_summary")
     ensure_dir(outdir)
 
-    toy_paths = sorted(set(
-        glob.glob(os.path.join(input_dir, "**", "injection_extraction", "inj_extract_toys_*.csv"), recursive=True)
-        + glob.glob(os.path.join(input_dir, "**", "inj_extract_toys_*.csv"), recursive=True)
-    ))
-    if not toy_paths:
-        print(f"No toy-level injection CSVs found under {input_dir}")
+    toy_paths = sorted(
+        set(
+            glob.glob(os.path.join(input_dir, "**", "injection_extraction", "inj_extract_toys_*.csv"), recursive=True)
+            + glob.glob(os.path.join(input_dir, "**", "inj_extract_toys_*.csv"), recursive=True)
+        )
+    )
+    summary_paths = sorted(
+        set(
+            glob.glob(os.path.join(input_dir, "**", "injection_extraction", "inj_extract_summary_*.csv"), recursive=True)
+            + glob.glob(os.path.join(input_dir, "**", "inj_extract_summary_*.csv"), recursive=True)
+        )
+    )
+    if not toy_paths and not summary_paths:
+        print(f"No injection toy/summary CSVs found under {input_dir}")
         sys.exit(1)
 
     by_dataset = {}
+    by_dataset_summary = {}
     for fp in toy_paths:
         base = os.path.basename(fp)
         ds_token = base.replace("inj_extract_toys_", "").replace(".csv", "").strip()
@@ -783,8 +825,25 @@ def inject_plot(input_dir, output_dir, dataset, write_merged_toys):
             dfi["dataset"] = ds
         by_dataset.setdefault(ds, []).append(dfi)
 
-    if not by_dataset:
-        print("No valid injection toy tables loaded after filtering.")
+    for fp in summary_paths:
+        base = os.path.basename(fp)
+        ds_token = base.replace("inj_extract_summary_", "").replace(".csv", "").strip()
+        ds = ds_token.split("__", 1)[0]
+        if ds_filter and ds not in ds_filter:
+            continue
+        try:
+            dfi = pd.read_csv(fp)
+        except Exception as e:
+            print(f"Warning: could not read {fp}: {e}")
+            continue
+        if dfi.empty:
+            continue
+        if "dataset" not in dfi.columns:
+            dfi["dataset"] = ds
+        by_dataset_summary.setdefault(ds, []).append(dfi)
+
+    if not by_dataset and not by_dataset_summary:
+        print("No valid injection toy/summary tables loaded after filtering.")
         sys.exit(1)
 
     all_summaries = []
@@ -793,57 +852,73 @@ def inject_plot(input_dir, output_dir, dataset, write_merged_toys):
     mass_policy = "intersection"
     min_n_contrib = 2
 
-    for ds, frames in sorted(by_dataset.items()):
-        dft = pd.concat(frames, ignore_index=True)
-        dft = dft.sort_values([c for c in ["mass_GeV", "strength", "toy"] if c in dft.columns]).reset_index(drop=True)
+    if by_dataset:
+        for ds, frames in sorted(by_dataset.items()):
+            dft = pd.concat(frames, ignore_index=True)
+            dft = dft.sort_values([c for c in ["mass_GeV", "strength", "toy"] if c in dft.columns]).reset_index(drop=True)
 
-        dedup_cols = [c for c in ["dataset", "mass_GeV", "strength", "toy"] if c in dft.columns]
-        if dedup_cols:
-            dft = dft.drop_duplicates(subset=dedup_cols, keep="last")
+            dedup_cols = [c for c in ["dataset", "mass_GeV", "strength", "toy"] if c in dft.columns]
+            if dedup_cols:
+                dft = dft.drop_duplicates(subset=dedup_cols, keep="last")
 
-        toy_merged[str(ds)] = dft.copy()
+            toy_merged[str(ds)] = dft.copy()
 
-        if write_merged_toys:
-            toys_out = os.path.join(outdir, f"inj_extract_toys_{ds}.csv")
-            dft.to_csv(toys_out, index=False)
-            print(f"Wrote {toys_out}")
-
-        all_toys.append(dft.copy())
-        dsum = summarize_injection_grid(dft)
-        dsum["dataset"] = str(ds)
-        sum_out = os.path.join(outdir, f"inj_extract_summary_{ds}.csv")
-        dsum.to_csv(sum_out, index=False)
-        all_summaries.append(dsum)
-        print(f"Wrote {sum_out}")
-
-    non_combined = {k: pd.concat(v, ignore_index=True) for k, v in by_dataset.items() if k != "combined"}
-    if len(non_combined) >= 2:
-        support = _combined_mass_support_summary(
-            non_combined,
-            mass_policy=mass_policy,
-            min_n_contrib=min_n_contrib,
-        )
-        print(format_combined_mass_support_summary(support))
-
-        df_comb = combine_injection_toy_tables(
-            non_combined,
-            mass_policy=mass_policy,
-            min_n_contrib=min_n_contrib,
-        )
-        if not df_comb.empty:
             if write_merged_toys:
-                toys_out = os.path.join(outdir, "inj_extract_toys_combined.csv")
-                df_comb.to_csv(toys_out, index=False)
+                toys_out = os.path.join(outdir, f"inj_extract_toys_{ds}.csv")
+                dft.to_csv(toys_out, index=False)
                 print(f"Wrote {toys_out}")
-            dsum_c = summarize_injection_grid(df_comb)
-            dsum_c["dataset"] = "combined"
-            sum_out_c = os.path.join(outdir, "inj_extract_summary_combined.csv")
-            dsum_c.to_csv(sum_out_c, index=False)
-            all_summaries = [s for s in all_summaries if not ("dataset" in s.columns and (s["dataset"].astype(str) == "combined").all())]
-            all_summaries.append(dsum_c)
-            toy_merged["combined"] = df_comb.copy()
-            all_toys.append(df_comb.copy())
-            print(f"Wrote {sum_out_c}")
+
+            all_toys.append(dft.copy())
+            dsum = summarize_injection_grid(dft)
+            dsum["dataset"] = str(ds)
+            sum_out = os.path.join(outdir, f"inj_extract_summary_{ds}.csv")
+            dsum.to_csv(sum_out, index=False)
+            all_summaries.append(dsum)
+            print(f"Wrote {sum_out}")
+
+        non_combined = {k: pd.concat(v, ignore_index=True) for k, v in by_dataset.items() if k != "combined"}
+        if len(non_combined) >= 2:
+            support = _combined_mass_support_summary(
+                non_combined,
+                mass_policy=mass_policy,
+                min_n_contrib=min_n_contrib,
+            )
+            print(format_combined_mass_support_summary(support))
+
+            df_comb = combine_injection_toy_tables(
+                non_combined,
+                mass_policy=mass_policy,
+                min_n_contrib=min_n_contrib,
+            )
+            if not df_comb.empty:
+                if write_merged_toys:
+                    toys_out = os.path.join(outdir, "inj_extract_toys_combined.csv")
+                    df_comb.to_csv(toys_out, index=False)
+                    print(f"Wrote {toys_out}")
+                dsum_c = summarize_injection_grid(df_comb)
+                dsum_c["dataset"] = "combined"
+                sum_out_c = os.path.join(outdir, "inj_extract_summary_combined.csv")
+                dsum_c.to_csv(sum_out_c, index=False)
+                all_summaries = [s for s in all_summaries if not ("dataset" in s.columns and (s["dataset"].astype(str) == "combined").all())]
+                all_summaries.append(dsum_c)
+                toy_merged["combined"] = df_comb.copy()
+                all_toys.append(df_comb.copy())
+                print(f"Wrote {sum_out_c}")
+    else:
+        print("No toy-level CSVs found; building summary plots from summary tables only.")
+        for ds, frames in sorted(by_dataset_summary.items()):
+            dsum = pd.concat(frames, ignore_index=True)
+            dsum = dsum.sort_values([c for c in ["mass_GeV", "strength", "inj_nsigma"] if c in dsum.columns]).reset_index(drop=True)
+            dedup_cols = [c for c in ["dataset", "mass_GeV", "strength"] if c in dsum.columns]
+            if dedup_cols:
+                dsum = dsum.drop_duplicates(subset=dedup_cols, keep="last")
+            if "dataset" not in dsum.columns:
+                dsum["dataset"] = str(ds)
+            dsum["dataset"] = dsum["dataset"].astype(str)
+            sum_out = os.path.join(outdir, f"inj_extract_summary_{ds}.csv")
+            dsum.to_csv(sum_out, index=False)
+            all_summaries.append(dsum)
+            print(f"Wrote {sum_out}")
 
     df_sum = pd.concat(all_summaries, ignore_index=True) if all_summaries else pd.DataFrame()
     if df_sum.empty:
@@ -875,6 +950,24 @@ def inject_plot(input_dir, output_dir, dataset, write_merged_toys):
         plot_coverage(sub, xvar=xvar, title=f"{ds_key}: coverage", outpath=os.path.join(outdir, f"coverage_{ds_key}.png"))
         plot_injection_heatmap(sub, value_col="pull_mean", dataset_filter=ds_key, title=f"{ds_key}: mean pull heatmap", outpath=os.path.join(outdir, f"heatmap_pull_mean_{ds_key}.png"))
         plot_injection_heatmap(sub, value_col="pull_std", dataset_filter=ds_key, title=f"{ds_key}: pull width heatmap", outpath=os.path.join(outdir, f"heatmap_pull_width_{ds_key}.png"))
+        src_pull_vs_mass = dft if not dft.empty else sub
+        plot_pull_vs_mass(
+            src_pull_vs_mass,
+            dataset_key=ds_key,
+            title=f"{ds_key}: pull mean/width vs mass",
+            outpath=os.path.join(outdir, f"pull_vs_mass_{ds_key}.png"),
+        )
+        if not dft.empty:
+            hist_dir = os.path.join(outdir, f"pull_hist_{ds_key}")
+            ensure_dir(hist_dir)
+            paths = plot_pull_histogram_by_mass(
+                dft,
+                dataset_key=ds_key,
+                group_by_strength=True,
+                pvalue_method="ks",
+                outdir=hist_dir,
+            )
+            print(f"Wrote {len(paths)} pull-histogram plots for {ds_key} to {hist_dir}")
 
     if all_toys:
         toys_all = pd.concat(all_toys, ignore_index=True)
@@ -893,12 +986,11 @@ def inject_plot(input_dir, output_dir, dataset, write_merged_toys):
             plot_combined_search_power(toys_all, outdir=outdir)
         except Exception as e:
             print(f"Warning: combined-search power plots failed: {e}")
-        if not dft.empty:
-            plot_pull_vs_mass(dft, dataset_key=ds_key, title=f"{ds_key}: pull mean/width vs mass", outpath=os.path.join(outdir, f"pull_vs_mass_{ds_key}.png"))
-            hist_dir = os.path.join(outdir, f"pull_hist_{ds_key}")
-            ensure_dir(hist_dir)
-            paths = plot_pull_histogram_by_mass(dft, dataset_key=ds_key, group_by_strength=True, pvalue_method="ks", outdir=hist_dir)
-            print(f"Wrote {len(paths)} pull-histogram plots for {ds_key} to {hist_dir}")
+    elif {"dataset", "mass_GeV", "sigmaA_ref"}.issubset(set(df_sum.columns)):
+        try:
+            plot_combined_search_power(df_sum, outdir=outdir)
+        except Exception as e:
+            print(f"Warning: combined-search power plots failed in summary-only mode: {e}")
 
     print(f"\nSummary rows: {len(df_sum)}")
     print(df_sum.head(20).to_string())

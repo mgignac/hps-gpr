@@ -130,6 +130,7 @@ def generate_injection_slurm_scripts(
     conda_env: Optional[str] = None,
     extra_sbatch: Optional[List[str]] = None,
     mass_ranges_by_dataset: Optional[dict] = None,
+    write_toy_csv: Optional[bool] = None,
 ) -> tuple:
     """Generate SLURM scripts for one injection job per (dataset, mass, strength)."""
     job_lines = [
@@ -160,6 +161,12 @@ def generate_injection_slurm_scripts(
             "",
         ])
 
+    csv_flag_line = None
+    if write_toy_csv is True:
+        csv_flag_line = "    --write-toy-csv \\"
+    elif write_toy_csv is False:
+        csv_flag_line = "    --no-write-toy-csv \\"
+
     job_lines.extend([
         "# INJECT_* and BASE_OUTPUT_DIR are passed via --export at submission time",
         'JOB_OUTDIR="${BASE_OUTPUT_DIR}/injection_jobs/${INJECT_DATASET}/m_${INJECT_MASS_TAG}/s_${INJECT_STRENGTH_TAG}"',
@@ -173,6 +180,10 @@ def generate_injection_slurm_scripts(
         "    --masses ${INJECT_MASS} \\",
         "    --strengths ${INJECT_STRENGTH} \\",
         f"    --n-toys {int(n_toys)} \\",
+    ])
+    if csv_flag_line is not None:
+        job_lines.append(csv_flag_line)
+    job_lines.extend([
         "    --output-dir \"${JOB_OUTDIR}\"",
         "",
         "if [ \"${INJECT_DATASET}\" = \"combined\" ]; then",

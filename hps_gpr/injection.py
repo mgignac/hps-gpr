@@ -188,7 +188,14 @@ def run_injection_extraction_toys(
 
     # Strength grid
     if strengths_mode == "sigmaa":
-        mults = sigma_multipliers or getattr(config, "inj_sigma_multipliers", [0.0, 1.0, 2.0, 3.0])
+        # In sigmaA mode, explicit `strengths` (e.g. from CLI/SLURM job point)
+        # override config defaults so one job maps to one requested sigma level.
+        if strengths is not None:
+            mults = strengths
+        elif sigma_multipliers is not None:
+            mults = sigma_multipliers
+        else:
+            mults = getattr(config, "inj_sigma_multipliers", [0.0, 1.0, 2.0, 3.0])
         strength_tags = [float(x) for x in mults]
     else:
         strength_tags = [float(x) for x in (strengths or config.inj_strengths)]

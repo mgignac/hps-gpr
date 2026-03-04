@@ -47,6 +47,9 @@ htmlcov/
 outputs/
 results/
 logs/
+injection_summary_5/
+injection_summary_6/
+injection_summary_7/
 
 # Claude Code
 .claude/

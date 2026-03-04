@@ -22,8 +22,10 @@ def test_plot_combined_search_power_writes_expected_outputs(tmp_path):
 
     saved = plot_combined_search_power(df, outdir=str(tmp_path))
 
-    assert len(saved) == 4
+    assert len(saved) == 5
     assert (tmp_path / "combined_search_power_scenarios.png").exists()
+    assert (tmp_path / "combined_search_power_constituent_pvalues_5sigma.png").exists()
+    assert (tmp_path / "combined_constituent_pvalues_target5sigma.csv").exists()
     assert (tmp_path / "combined_signal_allocation_m040MeV.png").exists()
     assert (tmp_path / "combined_signal_allocation_m080MeV.png").exists()
     assert (tmp_path / "combined_signal_allocation_m110MeV.png").exists()
