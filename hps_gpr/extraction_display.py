@@ -464,7 +464,8 @@ def plot_single_extraction_display(
     ax_full.set_ylabel("Counts / bin")
     _set_title_above(
         ax_full,
-        f"{display.ctx.ds.label} Pseudoexperiment",
+        rf"{display.ctx.ds.label} Pseudoexperiment -- Injected {display.inj_nsigma:.0f} $\sigma$ "
+        rf"[{display.Nsig_realized_total} realized events] at {display.ctx.mass * 1e3:.0f} MeV",
     )
     ax_full.legend(loc="upper left", frameon=True, fontsize=9)
     _grid(ax_full)
@@ -642,7 +643,8 @@ def plot_combined_extraction_display(
     )
 
     fig.suptitle(
-        f"Injected {display.inj_nsigma_combined:.0f} sigma combined signal [{sum(d.Nsig_realized_total for d in display.displays)} realized events] at {display.mass * 1e3:.0f} MeV",
+        rf"HPS Combined Pseudoexperiment -- Injected {display.inj_nsigma_combined:.0f} $\sigma$ "
+        rf"[{sum(d.Nsig_realized_total for d in display.displays)} realized events] at {display.mass * 1e3:.0f} MeV",
         y=0.985,
     )
     fig.subplots_adjust(top=0.94, bottom=0.07, left=0.06, right=0.97)
