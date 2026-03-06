@@ -1108,6 +1108,47 @@ def inject_plot(input_dir, output_dir, dataset, write_merged_toys):
     print(f"\nSummary rows: {len(df_sum)}")
     print(df_sum.head(20).to_string())
 
+
+@main.command("extract-display")
+@click.option(
+    "--config",
+    "-c",
+    required=True,
+    type=click.Path(exists=True),
+    help="Path to configuration YAML file",
+)
+@click.option(
+    "--dataset",
+    "-d",
+    type=click.Choice(["2015", "2016", "2021", "combined"], case_sensitive=False),
+    help="Dataset key to render. Defaults to extraction_display_dataset_key from config.",
+)
+@click.option(
+    "--output-dir",
+    "-o",
+    type=click.Path(),
+    help="Override extraction-display output directory",
+)
+def extract_display(config, dataset, output_dir):
+    """Generate reviewer-facing extraction displays from one pseudoexperiment per point."""
+    from .config import load_config
+    from .extraction_display import run_extraction_display_suite
+
+    cfg = load_config(config)
+    if output_dir:
+        cfg.output_dir = output_dir
+    cfg.ensure_output_dir()
+
+    written = run_extraction_display_suite(
+        cfg,
+        dataset_key=(dataset.lower() if dataset else None),
+        output_dir=(os.path.join(cfg.output_dir, "extraction_display", dataset.lower()) if dataset and output_dir else None),
+    )
+    print(f"Wrote {len(written)} extraction display plot(s)")
+    for path in written:
+        print(path)
+
+
 @main.command("slurm-combine")
 @click.option(
     "--output-dir",

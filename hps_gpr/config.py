@@ -196,6 +196,21 @@ class Config:
     inj_n_workers: int = 5
     inj_parallel_backend: str = "loky"
     inj_threads_per_worker: int = 1
+    # Reviewer-facing extraction display plots (single representative pseudoexperiments)
+    extraction_display_dataset_key: str = ""
+    extraction_display_dataset_keys: List[str] = field(default_factory=lambda: ["2015", "2016"])
+    extraction_display_masses_gev: List[float] = field(default_factory=list)
+    extraction_display_sigma_multipliers: List[float] = field(default_factory=lambda: [3.0, 5.0, 7.0])
+    extraction_display_seed: int = 271828
+    extraction_display_inj_mode: str = "multinomial"
+    extraction_display_sigma_source: str = "asimov"
+    extraction_display_refit_gp_on_toy: bool = True
+    extraction_display_gp_restarts: int = 0
+    extraction_display_gp_optimize: bool = True
+    extraction_display_train_exclude_nsigma: Optional[float] = None
+    extraction_display_zoom_half_sigma: float = 0.5
+    extraction_display_blind_shade_alpha: float = 0.18
+    extraction_display_blind_shade_color: str = "0.88"
     # MVN non-negative sampling
     mvn_trunc_method: str = "reject_then_clip"  # "clip" | "reject" | "reject_then_clip"
     mvn_trunc_max_tries: int = 80

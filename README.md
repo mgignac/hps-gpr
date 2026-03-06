@@ -229,6 +229,45 @@ Mass-range convention in all production configs:
 - 2016: **35–210 MeV**
 - Combined scan window: **20–210 MeV** (combined-fit significance populated in overlap region where multiple datasets are active)
 
+#### Generating example extraction displays from pseudoexperiments
+
+For reviewer-facing figures it is often more useful to show one carefully constructed pseudoexperiment than a large toy ensemble summary. The `extract-display` workflow generates those representative plots directly from YAML config, using the same v15_8-style GP-mean/global-fit pseudoexperiment logic:
+- one pseudoexperiment per requested `(mass, injected significance)` point
+- a full-range context panel
+- a blind-window fit panel zoomed to `blind window ± 0.5 sigma`
+- an extracted-signal panel with the injected/extracted Gaussian extending outside the blind window
+- a right-side boxed summary with the injected level, realized event count, extracted yield, and epsilon-squared numbers
+
+Three ready-made configs are included:
+- `study_configs/config_2015_extraction_display_v15p8.yaml`
+- `study_configs/config_2016_extraction_display_v15p8.yaml`
+- `study_configs/config_2015_2016_combined_extraction_display_v15p8.yaml`
+
+Copy/paste:
+
+```bash
+# 2015 representative extraction displays
+hps-gpr extract-display --config study_configs/config_2015_extraction_display_v15p8.yaml
+
+# 2016 representative extraction displays
+hps-gpr extract-display --config study_configs/config_2016_extraction_display_v15p8.yaml
+
+# Combined 2015+2016 representative extraction displays
+hps-gpr extract-display --config study_configs/config_2015_2016_combined_extraction_display_v15p8.yaml
+```
+
+What these plots mean:
+- They are not coverage plots or ensemble summaries; they are single representative pseudoexperiments meant to expose the mechanics of the search and extraction.
+- For single-dataset displays, the injected strength is specified in units of the local reference `sigma_A` and then converted into a full-range injected signal whose expected yield inside the blind window matches the fitted `A` convention.
+- For the combined 2015+2016 display, the injected signal is built from a common `epsilon^2` model, not by forcing the same per-dataset event yield in both years. The target combined significance is translated into one shared `epsilon^2`, then mapped to dataset-specific injected amplitudes using each dataset's `A(epsilon^2)` response and extraction resolution.
+- The lower panel is therefore directly interpretable as "what signal was truly injected" versus "what the blind-window fit extracted" for that pseudoexperiment, while the side box shows the observed UL scale for context.
+
+To customize later:
+- edit `extraction_display_masses_gev` in the YAML to add or remove mass points
+- edit `extraction_display_sigma_multipliers` to change the injected `n sigma` values
+- for the combined config, edit `extraction_display_dataset_keys` if you want to extend the common-signal display to a different enabled dataset set
+- outputs are written under `output_dir/extraction_display/<dataset-or-combined>/` as both PNG and PDF, with a JSON sidecar for the numerical values shown in the figure
+
 ### SLURM Batch Processing
 
 Generate a SLURM array job script for parallel processing:

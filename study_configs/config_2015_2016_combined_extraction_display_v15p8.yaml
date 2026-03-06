@@ -1,0 +1,49 @@
+path_2015: /sdf/home/e/epeets/move/2015_IMD.root
+path_2016: /sdf/home/e/epeets/move/EventSelection_Data_10Percent.root
+hist_2015: invariant_mass
+hist_2016: h_Minv_General_Final_1
+range_2015: [0.02, 0.13]
+range_2016: [0.035, 0.21]
+sigma_coeffs_2015:
+  - -9.22283032152e-05
+  - 0.0532190838657
+sigma_coeffs_2016:
+  - 0.00038
+  - 0.041
+  - -0.27
+  - 3.49
+  - -11.11
+sigma_tail_m0_2016: 0.18
+sigma_tail_slope_floor_2016: 0.0
+sigma_tail_slope_override_2016: 0.0239
+frad_coeffs_2015: [0.085]
+frad_coeffs_2016: [0.05]
+
+enable_2015: true
+enable_2016: true
+enable_2021: false
+
+blind_nsigma: 1.64
+gp_train_exclude_nsigma: 1.64
+neighborhood_rebin: 5
+n_restarts: 12
+
+cls_mode: asymptotic
+cls_alpha: 0.05
+extract_allow_negative: true
+output_dir: outputs/extraction_display_2015_2016_combined_v15p8
+
+extraction_display_dataset_key: "combined"
+extraction_display_dataset_keys: ["2015", "2016"]
+extraction_display_masses_gev: [0.040, 0.120]
+extraction_display_sigma_multipliers: [3.0, 5.0, 7.0]
+extraction_display_seed: 271828
+extraction_display_inj_mode: multinomial
+extraction_display_sigma_source: asimov
+extraction_display_refit_gp_on_toy: true
+extraction_display_gp_restarts: 2
+extraction_display_gp_optimize: true
+extraction_display_train_exclude_nsigma: 1.64
+extraction_display_zoom_half_sigma: 0.5
+extraction_display_blind_shade_alpha: 0.18
+extraction_display_blind_shade_color: "0.88"

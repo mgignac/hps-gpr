@@ -1,0 +1,36 @@
+path_2015: /sdf/home/e/epeets/move/2015_IMD.root
+hist_2015: invariant_mass
+range_2015: [0.02, 0.13]
+sigma_coeffs_2015:
+  - -9.22283032152e-05
+  - 0.0532190838657
+frad_coeffs_2015: [0.085]
+
+enable_2015: true
+enable_2016: false
+enable_2021: false
+
+blind_nsigma: 1.64
+gp_train_exclude_nsigma: 1.64
+neighborhood_rebin: 5
+n_restarts: 12
+
+cls_mode: asymptotic
+cls_alpha: 0.05
+
+extract_allow_negative: true
+output_dir: outputs/extraction_display_2015_v15p8
+
+extraction_display_dataset_key: "2015"
+extraction_display_masses_gev: [0.025, 0.033, 0.040, 0.070, 0.120]
+extraction_display_sigma_multipliers: [3.0, 5.0, 7.0]
+extraction_display_seed: 271828
+extraction_display_inj_mode: multinomial
+extraction_display_sigma_source: asimov
+extraction_display_refit_gp_on_toy: true
+extraction_display_gp_restarts: 2
+extraction_display_gp_optimize: true
+extraction_display_train_exclude_nsigma: 1.64
+extraction_display_zoom_half_sigma: 0.5
+extraction_display_blind_shade_alpha: 0.18
+extraction_display_blind_shade_color: "0.88"

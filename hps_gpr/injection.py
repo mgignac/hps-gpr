@@ -22,6 +22,7 @@ except ImportError:
 
 from .io import estimate_background_for_dataset
 from .template import build_template
+from .conversion import A_from_epsilon2
 from .statistics import (
     fit_A_profiled_gaussian,
     fit_A_profiled_gaussian_details,
@@ -330,6 +331,8 @@ def run_injection_extraction_toys(
                     dataset=ds.key, mass_GeV=m, toy=int(i),
                     strength=float(A_inj), inj_nsigma=float(inj_nsigma),
                     sigmaA_ref=float(sigmaA_ref), sigma_val=float(pred.sigma_val),
+                    integral_density=float(pred.integral_density),
+                    A_per_eps2_unit=float(A_from_epsilon2(ds, float(m), 1.0, pred.integral_density)),
                     sigma_x=float(getattr(pred, "sigma_x", float("nan"))),
                     f_win=float(f_win), f_full=float(f_full),
                     f_train=float(f_train), f_train_frac=float(f_train_frac),
@@ -373,6 +376,8 @@ class _InjectionMassContext:
     sigmaA_ref: float
     sigma_val: float
     sigma_x: float
+    integral_density: float
+    A_per_eps2_unit: float
     f_win: float
     f_full: float
     f_train: float
@@ -397,6 +402,8 @@ class _ToyPointAccumulator:
     mass_GeV: float
     strength: float
     sigmaA_ref: float
+    integral_density: float
+    A_per_eps2_unit: float
     f_win: float
     f_train_frac: float
     pull_vals: List[float] = field(default_factory=list)
@@ -444,6 +451,8 @@ class _ToyPointAccumulator:
             inj_nsigma=float(np.nanmean(inj)) if n_toys else float("nan"),
             inj_nsigma_xerr=float(inj_std),
             sigmaA_ref=float(self.sigmaA_ref),
+            integral_density=float(self.integral_density),
+            A_per_eps2_unit=float(self.A_per_eps2_unit),
             f_win=float(self.f_win),
             f_train_frac=float(self.f_train_frac),
             A_hat_mean=float(np.nanmean(ahat)) if n_toys else float("nan"),
@@ -602,6 +611,8 @@ def _simulate_toy_rows_chunk(
                     strength=float(A_inj),
                     inj_nsigma=float(inj_nsigma),
                     sigmaA_ref=float(ctx.sigmaA_ref),
+                    integral_density=float(ctx.integral_density),
+                    A_per_eps2_unit=float(ctx.A_per_eps2_unit),
                     sigma_val=float(ctx.sigma_val),
                     sigma_x=float(ctx.sigma_x),
                     f_win=float(ctx.f_win),
@@ -725,6 +736,8 @@ def _build_injection_mass_context(
     sigma_seed = _stable_point_seed(int(seed), str(ds.key), float(mass), -1.0)
     sigma_rng = np.random.default_rng(int(sigma_seed))
     sigmaA_ref = _sigmaA_reference(pred, float(mass), source=str(sigma_source), rng=sigma_rng)
+    integral_density = float(pred.integral_density)
+    A_per_eps2_unit = float(A_from_epsilon2(ds, float(mass), 1.0, integral_density))
 
     train_nsig_default = float(getattr(config, "gp_train_exclude_nsigma", None) or config.blind_nsigma)
     if train_exclude_nsigma is not None:
@@ -755,6 +768,8 @@ def _build_injection_mass_context(
         sigmaA_ref=float(sigmaA_ref),
         sigma_val=float(pred.sigma_val),
         sigma_x=float(getattr(pred, "sigma_x", float("nan"))),
+        integral_density=float(integral_density),
+        A_per_eps2_unit=float(A_per_eps2_unit),
         f_win=float(f_win),
         f_full=float(f_full),
         f_train=float(f_train),
@@ -882,6 +897,8 @@ def run_injection_extraction_streaming(
                 mass_GeV=float(m),
                 strength=float(A_inj),
                 sigmaA_ref=float(ctx.sigmaA_ref),
+                integral_density=float(ctx.integral_density),
+                A_per_eps2_unit=float(ctx.A_per_eps2_unit),
                 f_win=float(ctx.f_win),
                 f_train_frac=float(ctx.f_train_frac),
             )
@@ -1110,6 +1127,8 @@ def run_injection_extraction_streaming_combined(
                     mass_GeV=float(m),
                     strength=float(A_inj_by_ds[ds_key]),
                     sigmaA_ref=float(ctxs_m[ds_key].sigmaA_ref),
+                    integral_density=float(ctxs_m[ds_key].integral_density),
+                    A_per_eps2_unit=float(ctxs_m[ds_key].A_per_eps2_unit),
                     f_win=float(ctxs_m[ds_key].f_win),
                     f_train_frac=float(ctxs_m[ds_key].f_train_frac),
                 )
@@ -1135,6 +1154,8 @@ def run_injection_extraction_streaming_combined(
                         mass_GeV=float(m),
                         strength=float(comb_strength_nom),
                         sigmaA_ref=float(comb_sigma_ref),
+                        integral_density=float("nan"),
+                        A_per_eps2_unit=float("nan"),
                         f_win=float("nan"),
                         f_train_frac=float("nan"),
                     )
@@ -1485,6 +1506,8 @@ def summarize_injection_grid(df_toys: pd.DataFrame) -> pd.DataFrame:
             inj_nsigma=float(np.nanmean(inj_nsigma_vals)),
             inj_nsigma_xerr=float(inj_nsigma_std),
             sigmaA_ref=sigmaA_ref_mean,
+            integral_density=_mean_col(sub, "integral_density"),
+            A_per_eps2_unit=_mean_col(sub, "A_per_eps2_unit"),
             f_win=_mean_col(sub, "f_win"),
             f_train_frac=_mean_col(sub, "f_train_frac"),
             A_hat_mean=float(np.nanmean(Ahat)),

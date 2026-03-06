@@ -36,6 +36,11 @@ from .injection import (
     run_injection_extraction_streaming_combined,
     summarize_injection_grid,
 )
+from .extraction_display import (
+    make_single_extraction_display,
+    make_combined_extraction_display,
+    run_extraction_display_suite,
+)
 
 __all__ = [
     # Config
@@ -84,6 +89,9 @@ __all__ = [
     "run_injection_extraction_streaming",
     "run_injection_extraction_streaming_combined",
     "summarize_injection_grid",
+    "make_single_extraction_display",
+    "make_combined_extraction_display",
+    "run_extraction_display_suite",
     # Plotting
     "set_plot_style",
     "set_injection_plot_style",
