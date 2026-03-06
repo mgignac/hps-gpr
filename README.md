@@ -287,6 +287,37 @@ for z in 3 5 7; do
 done
 ```
 
+Copy/paste batch examples by workflow:
+
+```bash
+# 2015: one run per injected sigma level
+for z in 3 5 7; do
+  hps-gpr extract-display \
+    --config study_configs/config_2015_extraction_display_v15p8.yaml \
+    --dataset 2015 \
+    --strengths "${z}" \
+    --output-dir "outputs/extraction_display_2015_z${z}"
+done
+
+# 2016 10%: one run per injected sigma level
+for z in 3 5 7; do
+  hps-gpr extract-display \
+    --config study_configs/config_2016_extraction_display_v15p8.yaml \
+    --dataset 2016 \
+    --strengths "${z}" \
+    --output-dir "outputs/extraction_display_2016_10pct_z${z}"
+done
+
+# Combined 2015+2016: one run per injected sigma level
+for z in 3 5 7; do
+  hps-gpr extract-display \
+    --config study_configs/config_2015_2016_combined_extraction_display_v15p8.yaml \
+    --dataset combined \
+    --strengths "${z}" \
+    --output-dir "outputs/extraction_display_combined_z${z}"
+done
+```
+
 On SLURM the same idea becomes one task per sigma level, for example:
 
 ```bash
