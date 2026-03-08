@@ -1,0 +1,311 @@
+\section{Methodology}
+\label{sec:methodology}
+
+\subsection{From piecewise windows to a global GP fit}
+
+The original HPS GPR studies explored piecewise analysis windows and explicit sideband
+optimization at every mass point. Those studies were useful for establishing the basic
+viability of GP-based background interpolation, but they also exposed shortcomings that
+became increasingly important once smooth upper-limit curves and combined results were
+required. Window-by-window fitting generated limit structures that were visibly less
+smooth than the present global fit, increased sensitivity to local fit boundaries, and
+complicated the interpretation of shared-$\eps^2$ combinations. For these reasons, the
+current implementation performs a single global fit over the full histogram range of
+each dataset and excludes only a narrow mass-dependent training window around the test
+hypothesis.
+
+\subsection{Observable, scan grid, and blinding}
+
+The input observable is the reconstructed $e^+e^-$ invariant-mass histogram for each
+dataset. The default scan step in the package is
+\begin{equation}
+\Delta m = \SI{1}{MeV},
+\end{equation}
+and the blind window for a mass hypothesis $m_0$ is centered on the detector
+resolution,
+\begin{equation}
+\mathcal{B}(m_0) =
+\left[m_0 - n_{\mathrm{blind}}\sigma_d(m_0),\,
+      m_0 + n_{\mathrm{blind}}\sigma_d(m_0)\right].
+\end{equation}
+For the completed studies summarized in this note, the blind half-width is
+$n_{\mathrm{blind}}=1.64$, corresponding to the 95\% CL workflow requested for the
+current validation campaign. The same value is also used for the nominal GP training
+exclusion window, although the package exposes this choice independently through
+\texttt{gp\_train\_exclude\_nsigma} and \texttt{inj\_train\_exclude\_nsigma}.
+
+\subsection{Log-space preprocessing and the choice \texorpdfstring{$\alpha=1/y$}{alpha=1/y}}
+
+Following the recent HEP GPR background-modeling literature
+\cite{BarrLiu2025,Gandrakota2023}, the package fits the GP in transformed coordinates:
+\begin{equation}
+x = \log m,
+\qquad
+z = \log y,
+\end{equation}
+where $y$ is the observed bin count. The package then assigns a heteroscedastic
+variance term $\alpha_i$ to each training point and adds it to the kernel diagonal.
+The current analysis adopts
+\begin{equation}
+\alpha_i =
+\begin{cases}
+1/y_i, & y_i > 0, \\
+1, & y_i = 0,
+\end{cases}
+\label{eq:alpha-oney}
+\end{equation}
+with an explicit zero-count floor \texttt{pre\_zero\_alpha = 1.0}.
+
+This is one of the key deliberate departures from the Barr--Liu prescription. The
+motivation is that \texttt{GaussianProcessRegressor} expects a variance-like diagonal
+contribution, and the package therefore treats $\alpha_i$ as the variance associated
+with the transformed observation rather than as a regularization heuristic. In that
+sense the present workflow follows the statistical logic of Poisson-like counting data
+while removing the extra $\log y$ regularization factor that entered the earlier
+CMS-motivated discussion in the rough drafts.
+
+\subsection{Kernel choice and CMS-motivated background modeling}
+\label{sec:kernel-choice}
+
+The baseline kernel in the current package is a single
+ConstantKernel$\times$RBF model,
+\begin{equation}
+k(x,x') = C \exp\!\left[-\frac{(x-x')^2}{2\ell^2}\right],
+\end{equation}
+with broad amplitude bounds and a resolution-scaled RBF length scale.
+This choice is consistent with the smooth-background prior used in contemporary
+CMS-oriented GPR signal-extraction studies \cite{Gandrakota2023} and with the
+log-space HEP background-modeling strategy emphasized in Ref.~\cite{BarrLiu2025}. The
+current HPS workflow intentionally keeps the kernel simple: the amplitude parameter $C$
+controls the overall covariance scale, while $\ell$ controls the characteristic
+bending scale of the background. That division is well matched to a smooth trident
+spectrum in which the dominant statistical question is how rapidly the background is
+allowed to vary relative to the detector resolution.
+
+The earlier repository prototypes retained more elaborate kernel experiments, including
+piecewise analyses and ensemble-style diagnostics. Those alternatives remain useful for
+historical context, but they are not part of the current production baseline. The note
+therefore documents the single-kernel Constant$\times$RBF model as the authoritative
+choice.
+
+\subsection{Resolution-scaled length-scale parameterization and bounds}
+\label{sec:length-scale}
+
+The GP is trained in $x=\log m$, so detector resolution must be translated into
+log-mass units. The package defines
+\begin{equation}
+\sigma_x(m) = \log\!\left(m+\sigma_d(m)\right) - \log m
+\simeq \frac{\sigma_d(m)}{m}
+\qquad (\sigma_d \ll m),
+\end{equation}
+and uses this as the local physical scale that sets the RBF bounds. In the default
+\path{resolution_scaled_local} policy, the length scale satisfies
+\begin{equation}
+\ell_{\min}(m) = k_{\min}\sigma_x(m),
+\qquad
+\ell_{\max}(m) = k_{\max}\sigma_x(m),
+\end{equation}
+with a baseline lower factor $k_{\min}=0.5$.
+
+The physics-facing ceiling choice adopted in this note is
+\begin{equation}
+k_{\max} =
+\begin{cases}
+8, & \text{2015 and 2016}, \\
+9, & \text{2021}.
+\end{cases}
+\end{equation}
+This is the analyst-chosen interpretation of the length-scale-bound studies stored in
+the repository's length-scale plots and rough drafts, and it reflects the decision that
+the upper bound should be tethered to a physically meaningful multiple of the detector
+resolution rather than left free-floating. A free-floating ceiling gave the GP too much
+freedom to smooth over signal-like structure and could create the false appearance of
+improved fit quality. Conversely, a ceiling set too low forces the optimizer to sit on
+the bound and degrades the background description. The adopted 8$\sigma$ and 9$\sigma$
+ceilings are therefore presented as stability choices rather than as arbitrary tunings.
+
+The helper study YAMLs in this repository still contain an older 2021 upper factor of
+6 in some validation configs. That value is treated here as a legacy workflow setting,
+not as the final analysis prescription.
+
+In addition to the local scaling, the package applies two practical guards already
+visible in the current configuration:
+\begin{itemize}
+\item a dataset-statistic floor on $\ell_{\max}$, implemented through
+\path{kernel_ls_local_hi_floor_mode = dataset_stat}, which prevents
+unphysically small ceilings at masses where the local $\sigma_x(m)$ is unusually
+small;
+\item an optional cap at a fixed fraction of the training xrange
+(\path{kernel_ls_local_hi_cap_xrange_frac = 0.25} in the current study
+configs), which prevents the optimizer from turning the GP into an effectively global
+polynomial interpolant.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}[t]{0.48\linewidth}
+  \centering
+  \graphicorplaceholder{\linewidth}{kernel_lengthscale_figs/ls_hi_bounds_logm_overlay.png}
+  \caption{Upper bound in log-mass units.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.48\linewidth}
+  \centering
+  \graphicorplaceholder{\linewidth}{kernel_lengthscale_figs/dm_equiv_from_lhi_overlay.png}
+  \caption{Equivalent mass scale implied by $\ell_{\max}$.}
+\end{subfigure}
+\caption{Representative length-scale-bound studies to be copied into the Overleaf
+\texttt{kernel\_lengthscale\_figs/} directory. These figures motivate the use of
+resolution-tied ceilings rather than unconstrained smoothing scales.}
+\label{fig:lengthscale-bounds}
+\end{figure}
+
+\subsection{Blind-window prediction in count space}
+
+For each mass point, the package trains the GP only on the bins outside the training
+exclusion window and predicts the latent mean and covariance in the blinded bins. Since
+the fit is performed in log-count space, the output is mapped back to count space
+through the standard lognormal moment relations:
+\begin{align}
+\mu_i &= \exp\!\left(\mu^{(\log)}_i + \frac{1}{2}\Sigma^{(\log)}_{ii}\right), \\
+\mathrm{Cov}(y_i,y_j)
+&= \mu_i\mu_j\left[\exp\!\left(\Sigma^{(\log)}_{ij}\right)-1\right].
+\end{align}
+The resulting blind-window mean vector $\bm{b}$ and covariance matrix $\bm{C}$ are the
+central statistical objects used by both the extraction fit and the \CLs\ limit.
+
+\subsection{Signal model and conversion to \texorpdfstring{$\eps^2$}{epsilon2}}
+
+The signal template is a bin-integrated Gaussian centered at the test mass $m_0$ with
+width $\sigma_d(m_0)$:
+\begin{equation}
+w_{d,i}(m_0) = \int_{e_i}^{e_{i+1}}
+\frac{1}{\sqrt{2\pi}\sigma_d(m_0)}
+\exp\!\left[-\frac{(m-m_0)^2}{2\sigma_d(m_0)^2}\right]\,dm,
+\end{equation}
+renormalized so that $\sum_i w_{d,i}=1$ over the blinded bins. The signal-yield
+parameter $A$ is the total number of signal events in the blinded region, so the
+per-bin expectation is $A\,w_i$.
+
+The package then converts between $A$ and $\eps^2$ via
+\begin{equation}
+\eps^2 =
+\frac{2\alpha_{\mathrm{EM}}\,A}
+{3\pi\,m\,f_{\mathrm{rad},d}(m)\,\rho_d(m)},
+\label{eq:eps2-conversion}
+\end{equation}
+where $\rho_d(m)$ is the local integral density computed directly from the observed
+histogram in the interval $m\pm2\sigma_d(m)$. Equation~\eqref{eq:eps2-conversion}
+matches the current implementation in \texttt{hps\_gpr.conversion}.
+
+\subsection{Local significance and single-dataset signal extraction}
+
+The present local-significance baseline uses a profiled Gaussian multi-bin
+likelihood-ratio test. In the blinded window, the Poisson mean in bin $i$ is
+\begin{equation}
+\lambda_i(A,\bm{\theta}) = b_i + (L\bm{\theta})_i + A\,w_i,
+\qquad
+\bm{C}=LL^\top,
+\end{equation}
+with Gaussian nuisance parameters $\bm{\theta}\sim\mathcal{N}(0,I)$ encoding correlated
+background deformations in the blind window. The signal-extraction fit profiles the
+likelihood over $(A,\bm{\theta})$ and returns $(\hat A,\sigma_A)$, allowing $\hat A<0$
+for closure studies and enforcing the physical boundary $A\ge0$ for discovery and
+limit-setting test statistics.
+
+The local discovery significance is computed from the profiled likelihood-ratio test
+statistic $q_0=-2\ln\lambda(A=0)$, with the package reporting
+\begin{equation}
+Z_{\mathrm{local}} = \sqrt{q_0},
+\qquad
+p_0 = 1-\Phi(Z_{\mathrm{local}}).
+\end{equation}
+This replaces the older sum-count approximation that appears in the rough drafts.
+
+\subsection{\texorpdfstring{\CLs}{CLs} upper limits}
+
+For a fixed signal hypothesis, the package constructs the log-likelihood ratio
+\begin{equation}
+\ln Q(A) = -\sum_i s_i(A) + \sum_i n_i \ln\!\left(1+\frac{s_i(A)}{b_i}\right),
+\end{equation}
+and computes \CLs\ either with an asymptotic approximation or with toy Monte Carlo.
+In asymptotic mode the variance of $\ln Q$ includes both Poisson counting fluctuations
+and the GP background covariance contribution $c^\top\bm{C}c$, where
+$c_i=\ln(1+s_i/b_i)$. The upper limit $A_{95}$ is the smallest amplitude satisfying
+\begin{equation}
+\mathrm{CL}_s(A_{95}) = 0.05.
+\end{equation}
+Expected bands are derived from background-only pseudoexperiments. The public-facing
+plots written by the package provide the median expected limit together with the
+central $\pm1\sigma$ and $\pm2\sigma$ bands in both signal-yield and $\eps^2$ space.
+
+\subsection{Shared-\texorpdfstring{$\eps^2$}{epsilon2} combination across datasets}
+\label{sec:combination}
+
+At a common mass hypothesis $m$, each active dataset contributes its own blinded-bin
+count vector, GP background mean, covariance, and Gaussian signal template. The package
+defines a dataset-specific conversion factor
+\begin{equation}
+K_d(m) \equiv A_d(\eps^2=1)
+= \frac{3\pi\,m\,f_{\mathrm{rad},d}(m)\,\rho_d(m)}{2\alpha_{\mathrm{EM}}},
+\end{equation}
+so that the signal contribution for unit $\eps^2$ is $K_d(m)w_d(m)$. The combined fit
+then concatenates all active datasets:
+\begin{equation}
+\bm{n} = (\bm{n}_1,\bm{n}_2,\ldots),
+\quad
+\bm{b} = (\bm{b}_1,\bm{b}_2,\ldots),
+\quad
+\bm{s}_{\mathrm{unit}} = (K_1\bm{w}_1,K_2\bm{w}_2,\ldots),
+\end{equation}
+with a block-diagonal background covariance
+\begin{equation}
+\bm{C}_{\mathrm{comb}} = \mathrm{blockdiag}(\bm{C}_1,\bm{C}_2,\ldots).
+\end{equation}
+This construction corresponds to the standard HEP product likelihood for statistically
+independent channels with a shared parameter of interest \cite{Cowan2011,HistFactory}.
+
+The combined upper limit is therefore set directly on the shared coupling,
+\begin{equation}
+\eps^2_{95}(m) = \min\{\eps^2 : \mathrm{CL}_s(\eps^2)=0.05\},
+\end{equation}
+while the combined local significance is evaluated from the profiled Gaussian
+likelihood ratio built on the concatenated signal template per unit $\eps^2$.
+
+\subsection{Global significance and the look-elsewhere placeholder}
+
+The package currently reports local/global $p_0$ and $Z$ curves using a
+Sidak-corrected effective-trials estimate derived from the scan spacing, the blind
+window width, and the detector resolution \cite{GrossVitells2010}. This is an
+appropriate placeholder for validation and bookkeeping, but the global-significance
+statements in the present study should be treated as provisional until the rerun with
+the corrected global-$p$ treatment is complete. Accordingly, the final note retains a
+dedicated look-elsewhere section while deferring any definitive global-significance
+claim.
+
+\analysisplaceholder{\textbf{LEE placeholder.} Replace this subsection with the final
+global-significance treatment once the dedicated rerun is complete. The present
+repository-level summary plots are useful for layout and bookkeeping, but the final
+physics note should quote only the corrected global $p_0$ and corresponding $Z$
+curves.}
+
+\subsection{Signal absorption and alternative background-profile treatments}
+
+The production baseline documented here is the additive Gaussian-profiled treatment of
+blind-window background uncertainty. That choice is motivated by the fact that the GP
+predicts an additive mean vector and covariance in the blinded bins, and the current
+toy suite is built around the same object. Earlier drafts also explored a fixed
+background model and a log-normal profiling variant. Those alternatives are not the
+default package behavior, but they remain relevant as future-validation tools,
+particularly if additional toy studies confirm nontrivial signal absorption.
+
+Two unresolved questions deserve explicit tracking:
+\begin{itemize}
+\item whether reoptimizing the GP length scale on every toy in the full procedural
+pseudoexperiments partially absorbs injected signal;
+\item whether a fixed-background or Poisson-rate treatment would better preserve signal
+linearity in cases where the Gaussian-profile baseline is overly permissive.
+\end{itemize}
+For that reason, the present note documents the Gaussian-profile method as the current
+baseline while reserving a dedicated robustness program for alternative nuisance
+treatments rather than presenting them as equally mature production choices.

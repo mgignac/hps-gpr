@@ -1,0 +1,35 @@
+\section{Introduction}
+\label{sec:introduction}
+
+The Heavy Photon Search experiment probes narrow vector resonances in electroproduced
+$e^+e^-$ pairs, with sensitivity driven by precise control of smooth trident
+backgrounds and by statistically consistent treatment of detector resolution,
+counting fluctuations, and scanning effects \cite{HPS2015DarkPhoton,HPS2016PromptLong,
+HPSExperiment2022}. The present workflow replaces earlier piecewise and sideband-window
+constructions with a single global Gaussian-process interpolation for each active
+dataset, while preserving a narrow blinded interval around every mass hypothesis.
+
+The shift from the earlier piecewise draft to the present global-GP implementation was
+motivated by three empirical observations from the HPS validation program. First,
+piecewise windowing introduced visible discontinuities in the expected and observed
+limit curves near window boundaries. Second, local sideband reconfiguration made
+combined results more difficult to interpret when different datasets entered and left
+the fit at nearby masses. Third, the global fit naturally supports a shared-$\eps^2$
+combination because each dataset provides a single coherent background prediction and
+blind-window covariance at every tested mass. The current package therefore performs a
+global fit over the full dataset range, excluding only the training window associated
+with the signal hypothesis.
+
+This note is written from the current code path rather than the older drafts. In
+particular, local significance is based on a profiled Gaussian multi-bin likelihood
+ratio, not on the legacy blind-window sum-count approximation retained only for
+backward compatibility in utility functions. Similarly, the baseline extraction model
+is the additive Gaussian-profiled treatment of GP background uncertainty, while fixed
+background and alternative profile choices are discussed only as robustness studies and
+future checks.
+
+The document has two goals. The first is to provide a physics-analysis description of
+the existing package at a level suitable for internal review and later journal-facing
+adaptation. The second is to define an organized Overleaf handoff, with explicit
+destination paths for upper-limit, injection/extraction, fit-example, kernel, and
+combined-search figures.

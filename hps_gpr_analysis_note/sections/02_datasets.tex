@@ -1,0 +1,113 @@
+\section{Datasets and Analysis Scope}
+\label{sec:datasets}
+
+\subsection{Dataset inventory}
+
+The current package supports three HPS running periods through dataset-specific input
+histograms, mass-resolution models, radiative-fraction parameterizations, and scan
+ranges. In the production-validation configuration represented in this repository, the
+completed public-facing studies are the 2015 engineering run, the 2016 10\% subsample,
+and their shared-$\eps^2$ combination. The 2021 0.03\% study is presently a validation
+subset, while the 2021 1\% and 2021 10\% analyses remain structured placeholders in
+this note.
+
+\begin{table}[H]
+\centering
+\scriptsize
+{\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\linewidth}{@{} P{0.20\linewidth} P{0.12\linewidth} P{0.21\linewidth} P{0.14\linewidth} Y @{}}
+\toprule
+Dataset & Beam energy & Exposure used here & Scan range & Public status \\
+\midrule
+2015 engineering run &
+\SI{1.056}{GeV} &
+\SI{1170}{nb^{-1}} prompt-search exposure &
+\SIrange{20}{130}{MeV} &
+Published prompt dark-photon search \cite{HPS2015DarkPhoton}. \\
+2016 engineering run\newline (10\% analysis subset) &
+\SI{2.3}{GeV} &
+Parent public prompt-search exposure:\newline \SI{10608}{nb^{-1}} &
+\SIrange{35}{210}{MeV} &
+Public prompt and displaced search based on the full 2016 engineering run
+\cite{HPS2016PromptLong}. The present note documents the validated 10\% subset used by
+the package. \\
+2021 physics run\newline (0.03\% subset) &
+TODO: add public\newline beam-energy citation &
+Validation subset of the 2021 physics run;\newline absolute normalized exposure TODO &
+\SIrange{35}{230}{MeV} &
+Active validation subset; final public normalization citation still to be added. \\
+2021 physics run\newline (1\% subset) &
+TODO &
+Planned blinded-analysis subset;\newline normalized exposure TODO &
+\SIrange{35}{230}{MeV} &
+Structured placeholder section in this note. \\
+2021 physics run\newline (10\% subset) &
+TODO &
+Planned first-round unblinding subset;\newline normalized exposure TODO &
+\SIrange{35}{230}{MeV} &
+Structured placeholder section in this note. \\
+\bottomrule
+\end{tabularx}
+}
+\caption{Dataset summary used throughout this note. The 2015 and 2016 beam energies
+and prompt-search integrated luminosities are taken from public HPS publications. The
+2021 rows are intentionally explicit placeholders where the final normalized exposure
+has not yet been anchored to a public reference.}
+\label{tab:dataset-summary}
+\end{table}
+
+\subsection{Detector resolution and radiative-fraction inputs}
+
+The package parameterizes the detector mass resolution separately for each dataset:
+\begin{equation}
+\sigma_d(m) = \sum_{k=0}^{N_d} c^{(d)}_k\,m^k,
+\end{equation}
+with $m$ and $\sigma_d(m)$ expressed in GeV. These coefficients are loaded directly
+from the analysis configuration and then evaluated through the dataset abstraction in
+\texttt{hps\_gpr.dataset}. The current baseline choices are
+\begin{align}
+\sigma_{2015}(m) &= -9.22283032152\times10^{-5} + 5.32190838657\times10^{-2}\,m, \\
+\sigma_{2016}(m) &= 3.8\times10^{-4} + 4.1\times10^{-2}m - 2.7\times10^{-1}m^2
++ 3.49\,m^3 - 11.11\,m^4, \\
+\sigma_{2021}(m) &= 2.86957\times10^{-3} - 8.51449\times10^{-3}m + 2.5362319\times10^{-1}m^2.
+\end{align}
+For the 2016 dataset a linear high-mass tail is enforced above
+$m_0=\SI{0.18}{GeV}$, with slope override \num{0.0239}, to stabilize the resolution
+model in the upper scan region represented in the production configurations.
+
+The $\eps^2 \leftrightarrow A$ conversion requires a dataset-specific radiative-fraction
+model,
+\begin{equation}
+f_{\mathrm{rad},d}(m) = \sum_{k=0}^{M_d} r^{(d)}_k\,m^k.
+\end{equation}
+The baseline implementation uses a constant $f_{\mathrm{rad},2015}=0.085$ for 2015,
+while the full package supports higher-order polynomials for the later runs. The study
+configs in this repository retain simplified placeholder constants
+$f_{\mathrm{rad},2016}=f_{\mathrm{rad},2021}=0.05$ in some helper YAML files; these are
+convenience values for workflow validation and should not be interpreted as the final
+physics inputs for the full 2021 note.
+
+\subsection{Relation between full datasets and analysis subsets}
+
+The 2015 and 2016 publications establish the run-level detector, beam, and prompt
+selection context for the current resonance-search program
+\cite{HPS2015DarkPhoton,HPS2016PromptLong}. The present package introduces additional
+subset workflows for validation and rapid iteration:
+\begin{itemize}
+\item a 2016 10\% subset used for intensive toy production and extraction displays;
+\item a 2021 0.03\% subset used for the first analytic-functional-form and GP-toy
+closure studies;
+\item planned 2021 1\% and 10\% subsets, retained here as placeholders so the note
+structure already matches the eventual analysis sequence.
+\end{itemize}
+Whenever a subsection refers to 2016 10\% or to a 2021 subset, the physics conventions
+remain those of the parent run, while the statistical sample size and therefore the
+expected sensitivity correspond only to the stated subset.
+
+\subsection{Why the note keeps both 2021 1\% and 2021 10\% placeholders}
+
+The 2021 analysis program currently contains two distinct staging points. The 1\%
+workflow is the natural analog of the 2016 10\% validation study, intended for
+individual and combined upper-limit development. The 10\% workflow is reserved here as
+the explicit first-round unblinding milestone. Keeping both placeholders in the note
+prevents later restructuring once the corresponding products exist.

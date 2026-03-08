@@ -1,0 +1,27 @@
+\section{Conclusions and Outlook}
+\label{sec:conclusions}
+
+This note organizes the current HPS Gaussian-process resonance-search package in the
+language of a physics analysis rather than in the language of implementation alone. The
+core picture is now clear:
+\begin{itemize}
+\item the background model is a global log-space GP with a Constant$\times$RBF kernel
+and a variance-form $\alpha=1/y$ prescription;
+\item local signal extraction and local significance are based on a profiled Gaussian
+multi-bin likelihood;
+\item single-dataset and combined upper limits are set in a shared $\eps^2$ framework;
+\item extensive toy studies already exist to assess linearity, bias, pull width,
+coverage, significance calibration, and the benefit of combining datasets.
+\end{itemize}
+
+The main remaining tasks are equally clear. The 2021 dataset subsections need final
+public run metadata and the corresponding production plots. The global-significance
+section requires the corrected look-elsewhere rerun before any final claim is made. The
+signal-absorption question should be revisited with dedicated comparisons of fixed,
+Gaussian-profiled, and alternative nuisance treatments, especially in the full
+procedural pseudoexperiment mode.
+
+With those caveats, the present document is already suitable as the organized backbone
+for an Overleaf analysis note: the sectioning matches the anticipated final analysis
+sequence, the current completed figures have defined destination paths, and every
+missing product now has a concrete placeholder in the narrative.

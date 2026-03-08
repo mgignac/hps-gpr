@@ -1,0 +1,101 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,mathtools,bm}
+\usepackage{booktabs,tabularx,array,makecell,longtable}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{siunitx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{xurl}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{microtype}
+\usepackage{textcomp}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!60!black,
+  citecolor=blue!60!black,
+  urlcolor=blue!60!black
+}
+
+\setlist[itemize]{leftmargin=*}
+\setlist[enumerate]{leftmargin=*}
+\setlength{\tabcolsep}{5pt}
+\setlength{\emergencystretch}{2em}
+\renewcommand{\arraystretch}{1.12}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcommand{\eps}{\varepsilon}
+\newcommand{\CLs}{CL$_\mathrm{s}$}
+\newcommand{\Pre}{\textbf{Pre:}\ }
+\newcommand{\Pro}{\textbf{Prompt:}\ }
+\newcommand{\xspace}{}
+
+\newcommand{\graphicorplaceholder}[2]{%
+  \IfFileExists{#2}{%
+    \includegraphics[width=#1]{#2}%
+  }{%
+    \makebox[#1][c]{%
+      \fbox{%
+        \begin{minipage}[c][0.21\textheight][c]{\dimexpr#1-2\fboxsep-2\fboxrule\relax}
+          \centering
+          \footnotesize Figure placeholder\\[0.6ex]
+          \parbox{0.92\linewidth}{\raggedright\scriptsize\path{#2}}
+        \end{minipage}%
+      }%
+    }%
+  }%
+}
+
+\newcommand{\analysisplaceholder}[1]{%
+  \begin{center}
+  \fbox{%
+    \begin{minipage}{0.94\linewidth}
+      \small #1
+    \end{minipage}
+  }
+  \end{center}
+}
+
+\title{\vspace{-1.0em}HPS Gaussian-Process Resonance Search Analysis Note\\
+\large Global background modeling, limit setting, toy validation, and shared-$\eps^2$ combination}
+\author{Emrys Peets}
+\date{March 7, 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This note documents the current Heavy Photon Search (HPS) Gaussian-process-regression
+(GPR) bump-hunt workflow as implemented in the modular \texttt{hps\_gpr} package and
+validated in the \texttt{v15\_8} development notebook. The analysis performs global
+background interpolation in the invariant-mass spectrum, local signal extraction with
+Gaussian-profiled background nuisances, \CLs\ upper limits in signal-yield and
+$\eps^2$ space, and statistically independent multi-dataset combinations in a shared
+$\eps^2$ parameter of interest. The note is organized for Overleaf use and includes
+explicit placeholders where public 2021 run metadata or final unblinded products are
+not yet citable.
+\end{abstract}
+
+\tableofcontents
+\clearpage
+
+\input{sections/01_introduction}
+\input{sections/02_datasets}
+\input{sections/03_event_selection}
+\input{sections/04_methodology}
+\input{sections/05_toys_validation}
+\input{sections/06_results}
+\input{sections/07_conclusions}
+
+\clearpage
+\bibliographystyle{unsrt}
+\bibliography{hps_gpr_analysis_note}
+
+\end{document}

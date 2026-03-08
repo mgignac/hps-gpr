@@ -1,0 +1,100 @@
+\begin{table}[H]
+\centering
+\tiny
+{\setlength{\tabcolsep}{3pt}
+\begin{tabularx}{\linewidth}{@{} P{0.15\linewidth} P{0.27\linewidth} P{0.27\linewidth} P{0.27\linewidth} @{}}
+\toprule
+\textbf{Cut type} &
+\textbf{2015 (Eng. run 1)} &
+\textbf{2016 (Eng. run 2)} &
+\textbf{2021 (current placeholder)} \\
+\midrule
+
+Trigger / topology &
+\Pre pairs-1 trigger; ECAL halves:\newline
+$y_{e^+}^{\rm clu}y_{e^-}^{\rm clu}<0$.\newline
+\Pro same. &
+\Pre Pair1 trigger bit; opposite halves; opposite charge.\newline
+\Pro same. &
+\Pre public wording still to be synchronized.\newline
+\Pro TBD. \\
+
+Track momenta &
+\Pre $p(e^-)<0.75\,E_{\rm beam}$.\newline
+\Pro $p_{\rm sum}>0.8\,E_{\rm beam}$ and $p_{\rm sum}<1.2\,E_{\rm beam}$. &
+\Pre $p(e^\pm)<2.15~\mathrm{GeV}$; $p_{\rm sum}<1.2\,E_{\rm beam}$.\newline
+\Pro $p_{\rm sum}>1.90~\mathrm{GeV}$ and $p_{\rm sum}<2.4~\mathrm{GeV}$. &
+\Pre provisional subset values:
+$0.4<p_{e^-}<2.9~\mathrm{GeV}$ and
+$0.4<p_{e^+}<4.0~\mathrm{GeV}$.\newline
+\Pro final prompt-tight selection TBD. \\
+
+Track fit / hits &
+\Pre loose track--cluster match:
+$\chi^2_{\rm trk-clu}<10$.\newline
+\Pro GBL track $\chi^2_{\rm trk}<40$. &
+\Pre $\chi^2_{\rm trk}<12$; PID goodness $<10$.\newline
+\Pro no additional value stated in the current summary. &
+\Pre provisional values:
+$\chi^2_{\rm trk}<20$ and $N_{\rm 2D~hits}\ge10$.\newline
+\Pro TBD. \\
+
+Track--cluster timing &
+\Pre ---\newline
+\Pro $|t_{\rm clu}-t_{\rm trk}-43~\mathrm{ns}|<4.5~\mathrm{ns}$. &
+\Pre $|t_{\rm trk}-t_{\rm clu}|<6~\mathrm{ns}$.\newline
+\Pro no additional value stated. &
+\Pre provisional timing windows exist in the rough draft but must be replaced
+with the final 2021 selection note.\newline
+\Pro TBD. \\
+
+Cluster--cluster coincidence &
+\Pre ---\newline
+\Pro $|\Delta t_{\rm clu-clu}|<2~\mathrm{ns}$. &
+\Pre $|\Delta t_{\rm clu-clu}|<2~\mathrm{ns}$.\newline
+\Pro $|\Delta t_{\rm clu-clu}|<1.43~\mathrm{ns}$. &
+\Pre not yet frozen in this note.\newline
+\Pro TBD. \\
+
+Vertex / $V_0$ quality &
+\Pre if multiple $V_0$ remain, choose the best $\chi^2_{\rm vtx}$.\newline
+\Pro $\chi^2_{\rm vtx}<75$ and $p(V_0)<1.2\,E_{\rm beam}$. &
+\Pre target-constrained $V_0$ candidates.\newline
+\Pro no prompt-tight $\chi^2_{\rm vtx}$ value is stated in the current summary. &
+\Pre provisional values:
+$p_{\rm vtx}<4.0~\mathrm{GeV}$ and $\chi^2_{\rm vtx}<20$.\newline
+\Pro final values TBD. \\
+
+Positron cluster energy &
+\Pre ---\newline \Pro --- &
+\Pre ---\newline \Pro --- &
+\Pre provisional value:
+$0.2<E^{\rm clu}_{e^+}<4.0~\mathrm{GeV}$.\newline
+\Pro TBD. \\
+
+cWAB suppression &
+\Pre ---\newline
+\Pro $e^+$ must have L1 and L2 hits; $d_0(e^+)<1.1~\mathrm{mm}$; and
+$(p_T^- - p_T^+) / (p_T^- + p_T^+) < 0.47$. &
+\Pre ---\newline
+\Pro not applied in the final 2016 prompt selection summary. &
+\Pre under review for 2021 note integration.\newline
+\Pro TBD. \\
+
+Candidate multiplicity &
+\Pre unique-$V_0$ policy: keep the best $\chi^2_{\rm vtx}$.\newline
+\Pro enforced by the unique-$V_0$ logic. &
+\Pre ---\newline
+\Pro require a single surviving $V_0$ candidate. &
+\Pre not yet frozen.\newline
+\Pro TBD. \\
+
+\bottomrule
+\end{tabularx}
+}
+\caption{Compact comparison of prompt-resonance selections. The 2015 and 2016 columns
+follow the mature summary already assembled in the earlier rough draft. The 2021 column
+is intentionally kept provisional and should be updated against the final 2021
+selection note before journal submission.}
+\label{tab:event-selection}
+\end{table}

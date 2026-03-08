@@ -1,0 +1,241 @@
+\section{Results}
+\label{sec:results}
+
+\subsection{2015 analysis}
+\label{sec:results-2015}
+
+The completed 2015 study uses the engineering-run invariant-mass histogram over the
+\SIrange{20}{130}{MeV} scan region, the 2015 mass-resolution parameterization, and the
+published radiative-fraction treatment embedded in the current package. The principal
+deliverables are the signal-yield and $\eps^2$ upper-limit bands, complemented by
+local/global $p_0$ bookkeeping and representative fit displays.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}[t]{0.48\linewidth}
+  \centering
+  \graphicorplaceholder{\linewidth}{upper_limit_figs/2015/ul_bands_signal_yield_obsexp.png}
+  \caption{Signal-yield upper limits with expected bands.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.48\linewidth}
+  \centering
+  \graphicorplaceholder{\linewidth}{upper_limit_figs/2015/ul_bands_eps2_obsexp.png}
+  \caption{$\eps^2$ upper limits with expected bands.}
+\end{subfigure}
+\caption{2015 95\% CL upper limits. The left panel is in signal-yield space and the
+right panel is the corresponding mapping to $\eps^2$.}
+\label{fig:results-2015-ul}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\graphicorplaceholder{0.62\linewidth}{fit_example_figs/2015/m030MeV_blind_fit.png}
+\caption{Representative 2015 fit display at \SI{30}{MeV}. This plot illustrates the
+profiled background shift and the narrow signal template in a real-data mass
+hypothesis.}
+\label{fig:results-2015-fit}
+\end{figure}
+
+\subsection{2016 10\% analysis}
+\label{sec:results-2016}
+
+The 2016 validation study currently summarized in the package corresponds to the 10\%
+subset used for rapid scan development, toy production, and extraction displays. The
+statistical treatment is otherwise identical to the 2015 case, with the important
+difference that the 2016 resolution model includes the linear-tail extension above
+\SI{180}{MeV}.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}[t]{0.48\linewidth}
+  \centering
+  \graphicorplaceholder{\linewidth}{upper_limit_figs/2016_10pct/ul_bands_signal_yield_obsexp.png}
+  \caption{Signal-yield upper limits with expected bands.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.48\linewidth}
+  \centering
+  \graphicorplaceholder{\linewidth}{upper_limit_figs/2016_10pct/ul_bands_eps2_obsexp.png}
+  \caption{$\eps^2$ upper limits with expected bands.}
+\end{subfigure}
+\caption{2016 10\% validation-study upper limits at 95\% CL.}
+\label{fig:results-2016-ul}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\graphicorplaceholder{0.62\linewidth}{fit_example_figs/2016/m058MeV_blind_fit.png}
+\caption{Representative 2016 fit display at \SI{58}{MeV}. This example is retained
+because the best-fit $\hat A$ is negative, making it a clean visual reminder that the
+extraction estimator is intentionally allowed to fluctuate below zero in closure
+studies.}
+\label{fig:results-2016-fit}
+\end{figure}
+
+\subsection{2015+2016 10\% combined upper limit on \texorpdfstring{$\eps^2$}{epsilon2}}
+\label{sec:results-combined-1516}
+
+The first completed shared-$\eps^2$ combination joins the 2015 engineering run and the
+2016 10\% validation subset through the concatenated blind-window likelihood described
+in Section~\ref{sec:combination}. In the overlap region, the combination improves
+sensitivity by adding statistically independent information while correctly mapping the
+common coupling to dataset-specific signal yields through the conversion factors
+$K_d(m)$.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}[t]{0.48\linewidth}
+  \centering
+  \graphicorplaceholder{\linewidth}{upper_limit_figs/2015_2016_combined/ul_bands_signal_yield_obsexp.png}
+  \caption{Combined signal-yield upper limits.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.48\linewidth}
+  \centering
+  \graphicorplaceholder{\linewidth}{upper_limit_figs/2015_2016_combined/ul_bands_eps2_obsexp.png}
+  \caption{Combined $\eps^2$ upper limits.}
+\end{subfigure}
+\caption{Combined 2015+2016 10\% upper limits at 95\% CL. The signal-yield panel is
+included as an explicit Overleaf target path even if the current local repository does
+not yet contain the finalized combined-yield band image.}
+\label{fig:results-combined-1516-ul}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\graphicorplaceholder{0.70\linewidth}{combined_search_figs/extract_display_combined_m040MeV_z7p0.png}
+\caption{Illustrative combined extraction display at \SI{40}{MeV}. This pseudoexperiment
+figure is useful for showing how the common-$\eps^2$ extraction is assembled across
+datasets, but it should be interpreted as a diagnostic rather than as the finalized
+combined-search display because the current version still shows a negative pull.}
+\label{fig:results-combined-1516-display}
+\end{figure}
+
+\subsection{2021 0.03\% analysis}
+\label{sec:results-2021-003}
+
+\analysisplaceholder{\textbf{Placeholder section.} Insert the 2021 0.03\% validation
+upper-limit and significance products here once the corresponding summary suite is
+finalized. This section should mirror the structure of the 2015 and 2016 subsections:
+two-panel upper-limit figure, representative fit display, and a short discussion of
+subset-specific closure behavior.}
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}[t]{0.48\linewidth}
+  \centering
+  \graphicorplaceholder{\linewidth}{upper_limit_figs/2021_0pt03pct/ul_bands_signal_yield_obsexp.png}
+  \caption{Signal-yield upper limits.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.48\linewidth}
+  \centering
+  \graphicorplaceholder{\linewidth}{upper_limit_figs/2021_0pt03pct/ul_bands_eps2_obsexp.png}
+  \caption{$\eps^2$ upper limits.}
+\end{subfigure}
+\caption{Planned location for the 2021 0.03\% upper-limit summary.}
+\label{fig:results-2021-003-placeholder}
+\end{figure}
+
+\subsection{2021 1\% analysis}
+\label{sec:results-2021-1pct}
+
+\analysisplaceholder{\textbf{Placeholder section.} This section is reserved for the
+2021 1\% individual analysis and should eventually include both standalone and
+combination-facing interpretations.}
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}[t]{0.48\linewidth}
+  \centering
+  \graphicorplaceholder{\linewidth}{upper_limit_figs/2021_1pct/ul_bands_signal_yield_obsexp.png}
+  \caption{Signal-yield upper limits.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.48\linewidth}
+  \centering
+  \graphicorplaceholder{\linewidth}{upper_limit_figs/2021_1pct/ul_bands_eps2_obsexp.png}
+  \caption{$\eps^2$ upper limits.}
+\end{subfigure}
+\caption{Planned location for the 2021 1\% upper-limit summary.}
+\label{fig:results-2021-1pct-placeholder}
+\end{figure}
+
+\subsection{Combined limit on \texorpdfstring{$\eps^2$}{epsilon2} using 2015+2016+2021 1\%}
+\label{sec:results-combined-151621-1pct}
+
+\analysisplaceholder{\textbf{Placeholder section.} Insert the first three-way combined
+upper-limit products here once the 2021 1\% combination is available. The discussion
+should reference the same shared-$\eps^2$ combination procedure used for the 2015+2016
+result.}
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}[t]{0.48\linewidth}
+  \centering
+  \graphicorplaceholder{\linewidth}{upper_limit_figs/2015_2016_2021_1pct_combined/ul_bands_signal_yield_obsexp.png}
+  \caption{Signal-yield upper limits.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.48\linewidth}
+  \centering
+  \graphicorplaceholder{\linewidth}{upper_limit_figs/2015_2016_2021_1pct_combined/ul_bands_eps2_obsexp.png}
+  \caption{$\eps^2$ upper limits.}
+\end{subfigure}
+\caption{Planned location for the 2015+2016+2021 1\% combined upper limits.}
+\label{fig:results-combined-151621-1pct-placeholder}
+\end{figure}
+
+\subsection{First-round unblinding: 2015+2016+2021 10\%}
+\label{sec:results-first-unblinding}
+
+\analysisplaceholder{\textbf{Placeholder section.} This section is reserved for the
+first-round unblinding milestone based on the 2021 10\% workflow. It should include
+the finalized local/global significance discussion once the look-elsewhere rerun is
+available.}
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}[t]{0.48\linewidth}
+  \centering
+  \graphicorplaceholder{\linewidth}{upper_limit_figs/first_round_unblinding_2015_2016_2021_10pct/ul_bands_signal_yield_obsexp.png}
+  \caption{Signal-yield upper limits.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.48\linewidth}
+  \centering
+  \graphicorplaceholder{\linewidth}{upper_limit_figs/first_round_unblinding_2015_2016_2021_10pct/ul_bands_eps2_obsexp.png}
+  \caption{$\eps^2$ upper limits.}
+\end{subfigure}
+\caption{Planned location for the first-round unblinding summary.}
+\label{fig:results-first-unblinding-placeholder}
+\end{figure}
+
+\subsection{Individual 2016 analysis}
+\label{sec:results-individual-2016-placeholder}
+
+\analysisplaceholder{\textbf{Placeholder section.} Reserve this subsection for the
+full or updated standalone 2016 analysis that supersedes the current 10\% validation
+subset.}
+
+\subsection{Individual 2021 10\% analysis}
+\label{sec:results-individual-2021-10pct-placeholder}
+
+\analysisplaceholder{\textbf{Placeholder section.} Reserve this subsection for the
+standalone 2021 10\% analysis products.}
+
+\subsection{Fully unblinded 2021 dataset analysis}
+\label{sec:results-fully-unblinded-2021-placeholder}
+
+\analysisplaceholder{\textbf{Placeholder section.} Reserve this subsection for the
+fully unblinded 2021 dataset once the final prompt-selection, exposure, and global
+significance inputs are frozen.}
+
+\subsection{2015+2016+2021 complete combined analysis}
+\label{sec:results-complete-combined-placeholder}
+
+\analysisplaceholder{\textbf{Placeholder section.} Reserve this subsection for the
+final combined HPS prompt resonance result. The final version should quote only the
+validated analysis range, the corrected global-significance treatment, and the
+definitive radiative-fraction inputs.}
