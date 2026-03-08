@@ -13,7 +13,7 @@ mpl.use("Agg", force=True)
 import matplotlib.pyplot as plt
 from scipy import stats
 
-from .template import build_template
+from .template import build_full_template, build_window_template_from_full
 from .statistics import (
     _z_from_p_one_sided,
     _p_from_z_one_sided,
@@ -307,7 +307,7 @@ def plot_full_range(
 
     if A_show is not None and np.isfinite(A_show):
         try:
-            w_full = build_template(np.asarray(pred.edges_full, float), mass, pred.sigma_val)
+            w_full = build_full_template(np.asarray(pred.edges_full, float), mass, pred.sigma_val)
             if w_full.size == mu.size:
                 ax.plot(x, mu + float(A_show) * w_full, "--", color="C3", lw=1.7,
                         label=rf"GPR + $A w$ ($A={float(A_show):.2g}$)", zorder=5)
@@ -355,7 +355,7 @@ def plot_blind_window(
     zhi = float(pred.blind[1] + float(zoom_half_sigma) * pred.sigma_val)
     m_zoom = (x_full >= zlo) & (x_full <= zhi)
 
-    w_full = build_template(edges_full, mass, pred.sigma_val)
+    w_full = build_full_template(edges_full, mass, pred.sigma_val)
 
     fig, ax = plt.subplots(figsize=(8.6, 5.0))
     yz = y_full[m_zoom]
@@ -456,7 +456,9 @@ def plot_s_over_b(
     """
     edges = pred.edges
     centers = 0.5 * (edges[:-1] + edges[1:])
-    w = build_template(edges, mass, pred.sigma_val)
+    w, _ = build_window_template_from_full(
+        pred.edges_full, pred.blind_mask, mass, pred.sigma_val
+    )
     s = float(A_show) * w
     b = np.clip(pred.mu.astype(float), 1e-12, None)
 
@@ -501,7 +503,9 @@ def plot_scan_diagnostic_panels(
     mu_full = np.asarray(pred.mu_full, float)
     edges = pred.edges
     centers = 0.5 * (edges[:-1] + edges[1:])
-    w = build_template(edges, mass, pred.sigma_val)
+    w, w_full = build_window_template_from_full(
+        pred.edges_full, pred.blind_mask, mass, pred.sigma_val
+    )
     obs = pred.obs.astype(float)
     mu = pred.mu.astype(float)
 
@@ -516,10 +520,14 @@ def plot_scan_diagnostic_panels(
     ax.step(x_full, y_full, where="mid", label="Data", zorder=3)
     ax.plot(x_full, mu_full, label="GPR fit", zorder=4)
     if A_up is not None and np.isfinite(A_up):
-        mask_full = (x_full >= pred.blind[0]) & (x_full <= pred.blind[1])
-        sig_vec_full = np.zeros_like(mu_full)
-        sig_vec_full[mask_full] = float(A_up) * w
-        ax.plot(x_full, mu_full + sig_vec_full, "--", alpha=0.7, label=f"A_up={A_up:.1f}", zorder=5)
+        ax.plot(
+            x_full,
+            mu_full + float(A_up) * w_full,
+            "--",
+            alpha=0.7,
+            label=f"A_up={A_up:.1f}",
+            zorder=5,
+        )
     _shade_blind_window(ax, pred.blind)
     ax.set_xlabel("m (GeV)")
     ax.set_ylabel("Counts / bin")

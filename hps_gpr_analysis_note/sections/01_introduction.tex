@@ -2,34 +2,85 @@
 \label{sec:introduction}
 
 The Heavy Photon Search experiment probes narrow vector resonances in electroproduced
-$e^+e^-$ pairs, with sensitivity driven by precise control of smooth trident
-backgrounds and by statistically consistent treatment of detector resolution,
-counting fluctuations, and scanning effects \cite{HPS2015DarkPhoton,HPS2016PromptLong,
-HPSExperiment2022}. The present workflow replaces earlier piecewise and sideband-window
-constructions with a single global Gaussian-process interpolation for each active
-dataset, while preserving a narrow blinded interval around every mass hypothesis.
+$e^+e^-$ pairs. In this regime, the dominant analysis challenge is not the signal model
+itself but the control of the smooth trident background and its correlated uncertainty
+in the vicinity of each test mass. The present workflow addresses that problem with a
+single global Gaussian-process-regression (GPR) model for each active dataset, combined
+with a profiled multi-bin likelihood, expected \CLs\ bands, and a statistically
+well-defined multi-dataset combination in a shared coupling parameter
+$\eps^2$ \cite{HPS2015DarkPhoton,HPS2016PromptLong,HPSExperiment2022}.
 
-The shift from the earlier piecewise draft to the present global-GP implementation was
-motivated by three empirical observations from the HPS validation program. First,
-piecewise windowing introduced visible discontinuities in the expected and observed
-limit curves near window boundaries. Second, local sideband reconfiguration made
-combined results more difficult to interpret when different datasets entered and left
-the fit at nearby masses. Third, the global fit naturally supports a shared-$\eps^2$
-combination because each dataset provides a single coherent background prediction and
-blind-window covariance at every tested mass. The current package therefore performs a
-global fit over the full dataset range, excluding only the training window associated
-with the signal hypothesis.
+This note is written from the current package implementation rather than from the older
+piecewise drafts. In particular, the baseline local-significance calculation is the
+profiled Gaussian multi-bin likelihood-ratio test, not the legacy blind-window
+sum-count approximation. Likewise, the signal template is now treated as a
+full-histogram Gaussian line shape whose blinded-bin slice enters the likelihood
+without renormalization inside the blind region. That choice preserves the physically
+useful interpretation that the signal parameter $A$ denotes the total local signal
+yield of the narrow resonance rather than only the portion captured inside a finite
+blind window.
 
-This note is written from the current code path rather than the older drafts. In
-particular, local significance is based on a profiled Gaussian multi-bin likelihood
-ratio, not on the legacy blind-window sum-count approximation retained only for
-backward compatibility in utility functions. Similarly, the baseline extraction model
-is the additive Gaussian-profiled treatment of GP background uncertainty, while fixed
-background and alternative profile choices are discussed only as robustness studies and
-future checks.
+\subsection{Relation to the published HPS prompt searches}
 
-The document has two goals. The first is to provide a physics-analysis description of
-the existing package at a level suitable for internal review and later journal-facing
-adaptation. The second is to define an organized Overleaf handoff, with explicit
-destination paths for upper-limit, injection/extraction, fit-example, kernel, and
-combined-search figures.
+The published 2015 and 2016 HPS prompt-search results established the experimental
+benchmark for narrow dark-photon searches in fixed-target $e^+e^-$ spectra. Those
+results remain the public reference points for the prompt program and are reproduced in
+Figure~\ref{fig:published-hps-context}. The analysis documented here should be viewed as
+the next statistical step beyond that published baseline: the detector inputs remain
+dataset-specific and conventional, but the background modeling, the treatment of
+blinded-bin covariance, the expected-band workflow, and the shared-$\eps^2$
+combination are all substantially more unified than in the original resonance-search
+pipeline.
+
+The move from earlier local-window and sideband-reconfiguration studies to the present
+global-GP workflow was driven by validation experience inside this repository. First,
+piecewise windows produced visibly less smooth expected and observed limit curves near
+window boundaries. Second, local fit-range changes complicated the interpretation of
+cross-dataset combinations because different datasets could enter or leave the local
+model in slightly different ways at neighboring masses. Third, once the background is
+represented as a coherent mean-plus-covariance object at every mass hypothesis, the
+statistical combination becomes a true multi-channel likelihood problem rather than an
+ad hoc averaging of per-dataset limits. In internal validation studies these choices
+lead to markedly more stable scans and, in selected mass intervals, sensitivity gains
+that can reach the order-of-magnitude level relative to earlier exploratory analysis
+configurations. Because the leakage-retaining signal-template update documented in this
+note still requires a final rerun of the main limit products, those gains are treated
+here as provisional analysis-development observations rather than as final physics
+claims.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}[t]{0.32\linewidth}
+  \centering
+  \graphicorplaceholder{\linewidth}{published_reference_figs/hps2015_published_limit.png}
+  \caption{Published 2015 engineering-run exclusion summary \cite{HPS2015DarkPhoton}.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.32\linewidth}
+  \centering
+  \graphicorplaceholder{\linewidth}{published_reference_figs/hps2016_published_prompt_pvalue.png}
+  \caption{Published 2016 prompt-search local/global $p_0$ bookkeeping \cite{HPS2016PromptLong}.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.32\linewidth}
+  \centering
+  \graphicorplaceholder{\linewidth}{published_reference_figs/hps2016_published_prompt_limit.png}
+  \caption{Published 2016 prompt-search upper-limit summary \cite{HPS2016PromptLong}.}
+\end{subfigure}
+\caption{Public HPS prompt-search reference figures included for historical context.
+The present GPR analysis note does not supersede these results on the basis of the
+copied pre-rerun study products alone; instead, it documents the methodological path
+toward the next prompt-resonance result.}
+\label{fig:published-hps-context}
+\end{figure}
+
+\subsection{Scope of this note}
+
+The first goal of the document is to provide a physics-analysis description of the
+current package at a level suitable for collaboration review and later journal-facing
+adaptation. The second goal is practical: the note is organized as a self-contained
+Overleaf handoff with explicit figure destinations for upper-limit bands,
+injection/extraction validation, representative fit displays, kernel studies, published
+reference figures, and significance bookkeeping. Wherever the underlying 2021 inputs or
+fully rerun products are not yet finalized, the corresponding sections are retained as
+explicit placeholders rather than written as if the analysis were already complete.

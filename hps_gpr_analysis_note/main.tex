@@ -66,7 +66,7 @@
 \title{\vspace{-1.0em}HPS Gaussian-Process Resonance Search Analysis Note\\
 \large Global background modeling, limit setting, toy validation, and shared-$\eps^2$ combination}
 \author{Emrys Peets}
-\date{March 7, 2026}
+\date{March 8, 2026}
 
 \begin{document}
 \maketitle
@@ -78,9 +78,12 @@ validated in the \texttt{v15\_8} development notebook. The analysis performs glo
 background interpolation in the invariant-mass spectrum, local signal extraction with
 Gaussian-profiled background nuisances, \CLs\ upper limits in signal-yield and
 $\eps^2$ space, and statistically independent multi-dataset combinations in a shared
-$\eps^2$ parameter of interest. The note is organized for Overleaf use and includes
-explicit placeholders where public 2021 run metadata or final unblinded products are
-not yet citable.
+$\eps^2$ parameter of interest. The signal model is implemented as a full-range
+Gaussian template whose blinded-bin slice enters the local likelihood without
+renormalization, so the fitted amplitude retains the interpretation of a total local
+signal yield. The note is organized as a self-contained Overleaf bundle with note-local
+figure assets and explicit placeholders where public 2021 run metadata or final
+unblinded products are not yet citable.
 \end{abstract}
 
 \tableofcontents

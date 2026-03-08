@@ -21,7 +21,7 @@ except ImportError:
     _threadpool_limits = contextlib.nullcontext  # type: ignore[assignment]
 
 from .io import estimate_background_for_dataset
-from .template import build_template
+from .template import build_template, build_window_template_from_full
 from .conversion import A_from_epsilon2
 from .statistics import (
     fit_A_profiled_gaussian,
@@ -121,7 +121,9 @@ def _sigmaA_reference(
     rng: Optional[np.random.Generator] = None,
 ) -> float:
     """Estimate σ_A(m) under B-only for 'sigma-level' injection scaling."""
-    tmpl = build_template(pred.edges, mass, pred.sigma_val)
+    tmpl, _ = build_window_template_from_full(
+        pred.edges_full, pred.blind_mask, mass, pred.sigma_val
+    )
     b = np.asarray(pred.mu, float)
     if source == "poisson":
         if rng is None:
@@ -225,13 +227,13 @@ def run_injection_extraction_toys(
         m = float(m)
         pred = estimate_background_for_dataset(ds, m, config)
 
-        tmpl_win = build_template(pred.edges, m, pred.sigma_val)
+        tmpl_win, tmpl_full = build_window_template_from_full(
+            pred.edges_full, pred.blind_mask, m, pred.sigma_val
+        )
         f_win = float(np.sum(tmpl_win))
 
         # Full-range template for leakage diagnostics
-        edges_full = np.asarray(pred.edges_full, float)
         x_full = np.asarray(pred.x_full, float).reshape(-1)
-        tmpl_full = build_template(edges_full, m, pred.sigma_val)
         f_full = float(np.sum(tmpl_full))
 
         sigmaA_ref = _sigmaA_reference(pred, m, source=sigma_source, rng=rng)
@@ -727,10 +729,11 @@ def _build_injection_mass_context(
     """Build per-mass context used by the streaming toy runner."""
     pred = estimate_background_for_dataset(ds, float(mass), config)
 
-    tmpl_win = build_template(pred.edges, float(mass), pred.sigma_val)
+    tmpl_win, tmpl_full = build_window_template_from_full(
+        pred.edges_full, pred.blind_mask, float(mass), pred.sigma_val
+    )
     f_win = float(np.sum(tmpl_win))
     x_full = np.asarray(pred.x_full, float).reshape(-1)
-    tmpl_full = build_template(np.asarray(pred.edges_full, float), float(mass), pred.sigma_val)
     f_full = float(np.sum(tmpl_full))
 
     sigma_seed = _stable_point_seed(int(seed), str(ds.key), float(mass), -1.0)

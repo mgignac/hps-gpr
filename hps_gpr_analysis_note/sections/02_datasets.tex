@@ -80,26 +80,59 @@ model,
 \begin{equation}
 f_{\mathrm{rad},d}(m) = \sum_{k=0}^{M_d} r^{(d)}_k\,m^k.
 \end{equation}
-The baseline implementation uses a constant $f_{\mathrm{rad},2015}=0.085$ for 2015,
-while the full package supports higher-order polynomials for the later runs. The study
-configs in this repository retain simplified placeholder constants
-$f_{\mathrm{rad},2016}=f_{\mathrm{rad},2021}=0.05$ in some helper YAML files; these are
-convenience values for workflow validation and should not be interpreted as the final
-physics inputs for the full 2021 note.
+In the present note, the 2015 and 2016 forms are taken from the mature HPS bump-hunt
+workflow and from the refined simultaneous-combination drafts already preserved in this
+repository. The 2015 engineering-run treatment uses the constant approximation
+\begin{equation}
+f_{\mathrm{rad},2015}(m) = 0.085,
+\end{equation}
+which is the same effective normalization convention carried through the earlier 2015
+bump-hunt interpretation. In practice this packages the 2015 radiative-trident
+normalization into the same compact effective input used throughout the earlier HPS
+prompt-search workflow.
+
+For the 2016 prompt search, the package baseline is the higher-order polynomial
+\begin{align}
+f_{\mathrm{rad},2016}(m) ={}& -0.104070 + 9.59977\,m - 212.211\,m^2 \nonumber\\
+& + 2148.12\,m^3 - 10140.1\,m^4 + 18048.5\,m^5,
+\end{align}
+with $m$ expressed in GeV. This is the parameterization that should be regarded as the
+physics-facing 2016 input for the current note. The previous 2016 bump-hunt notes
+construct this quantity from fully selected Monte Carlo samples of the radiative
+trident, trident, and converted wide-angle Bremsstrahlung components, then fit the
+mass dependence with a fifth-order polynomial. The important point for the present note
+is that the 2016 radiative fraction is intrinsically mass dependent and belongs to the
+definition of the result, not merely to the plotting layer. Those earlier studies also
+tracked a radiative-fraction uncertainty at the several-percent level, reinforcing that
+the normalization model must be treated as part of the statistical interpretation of
+the coupling limit.
+
+The distinction between these inputs and some of the helper study YAMLs is important.
+Several validation configs in this repository retain simplified placeholder constants,
+most visibly $f_{\mathrm{rad},2016}=f_{\mathrm{rad},2021}=0.05$, purely to accelerate
+workflow testing. Those convenience values should not be quoted as the mature physics
+inputs for the 2016 or 2021 analyses. Because $\eps^2$ scales inversely with
+$f_{\mathrm{rad},d}(m)\rho_d(m)$, any change in the radiative-fraction model maps
+directly into the coupling limit and must therefore be treated as part of the
+definition of the result, not as a cosmetic plotting choice.
+
+For 2021, the current package also contains a default polynomial coefficient set, but
+the 2021 radiative-fraction normalization is kept explicitly provisional in this note
+until the corresponding dataset-level documentation and public-facing normalization
+inputs are frozen.
 
 \subsection{Relation between full datasets and analysis subsets}
 
 The 2015 and 2016 publications establish the run-level detector, beam, and prompt
 selection context for the current resonance-search program
 \cite{HPS2015DarkPhoton,HPS2016PromptLong}. The present package introduces additional
-subset workflows for validation and rapid iteration:
-\begin{itemize}
-\item a 2016 10\% subset used for intensive toy production and extraction displays;
-\item a 2021 0.03\% subset used for the first analytic-functional-form and GP-toy
-closure studies;
-\item planned 2021 1\% and 10\% subsets, retained here as placeholders so the note
-structure already matches the eventual analysis sequence.
-\end{itemize}
+subset workflows for validation and rapid iteration. The completed 2016 10\% subset is
+the fast-turnaround sample used for the current toy campaign and extraction-display
+studies. The 2021 0.03\% subset is the first validation sample used for
+analytic-functional-form toys and early GP closure checks. The planned 2021 1\% and
+10\% subsets correspond to later milestones, namely an intermediate upper-limit
+campaign and a first-round unblinding stage, and are kept explicitly in the note so
+that the document structure already matches the anticipated analysis sequence.
 Whenever a subsection refers to 2016 10\% or to a 2021 subset, the physics conventions
 remain those of the parent run, while the statistical sample size and therefore the
 expected sensitivity correspond only to the stated subset.

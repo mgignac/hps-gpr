@@ -1,14 +1,25 @@
 \section{Results}
 \label{sec:results}
 
+The completed figures bundled with this note document the current state of the 2015,
+2016 10\%, and 2015+2016 validation program, but they were generated before the final
+adoption of the leakage-retaining signal-template convention described in
+Section~\ref{sec:methodology}. They are therefore retained as organized, publication-style
+placeholders for the main result classes rather than as the final frozen physics
+outputs. The qualitative structure of the results is already clear, and the note is
+written so that the figures can be replaced one-for-one when the rerun is complete.
+
 \subsection{2015 analysis}
 \label{sec:results-2015}
 
 The completed 2015 study uses the engineering-run invariant-mass histogram over the
 \SIrange{20}{130}{MeV} scan region, the 2015 mass-resolution parameterization, and the
-published radiative-fraction treatment embedded in the current package. The principal
-deliverables are the signal-yield and $\eps^2$ upper-limit bands, complemented by
-local/global $p_0$ bookkeeping and representative fit displays.
+2015 radiative-fraction treatment summarized in Section~\ref{sec:datasets}. The main
+deliverables are the 95\% CL upper-limit bands in signal-yield and $\eps^2$ space,
+supported by local/global significance bookkeeping and representative extraction
+displays. Even before the final leakage-retaining rerun, the 2015 study already shows
+that the global-GP workflow produces smooth scan products and a statistically coherent
+mapping between the local extracted yield and the coupling limit.
 
 \begin{figure}[H]
 \centering
@@ -23,28 +34,32 @@ local/global $p_0$ bookkeeping and representative fit displays.
   \graphicorplaceholder{\linewidth}{upper_limit_figs/2015/ul_bands_eps2_obsexp.png}
   \caption{$\eps^2$ upper limits with expected bands.}
 \end{subfigure}
-\caption{2015 95\% CL upper limits. The left panel is in signal-yield space and the
-right panel is the corresponding mapping to $\eps^2$.}
+\caption{2015 upper limits for the current 95\% CL workflow. The left panel is quoted
+in total signal-yield space and the right panel is the corresponding mapping to
+$\eps^2$. Because these curves predate the final full-range-template rerun, they should
+be treated as provisional packaged outputs rather than final publication values.}
 \label{fig:results-2015-ul}
 \end{figure}
 
 \begin{figure}[H]
 \centering
 \graphicorplaceholder{0.62\linewidth}{fit_example_figs/2015/m030MeV_blind_fit.png}
-\caption{Representative 2015 fit display at \SI{30}{MeV}. This plot illustrates the
-profiled background shift and the narrow signal template in a real-data mass
-hypothesis.}
+\caption{Representative 2015 fit display at \SI{30}{MeV}. This figure remains useful
+after the template-definition update because it illustrates the local competition
+between the profiled background deformation and the narrow resonance template in a
+concrete data example.}
 \label{fig:results-2015-fit}
 \end{figure}
 
 \subsection{2016 10\% analysis}
 \label{sec:results-2016}
 
-The 2016 validation study currently summarized in the package corresponds to the 10\%
-subset used for rapid scan development, toy production, and extraction displays. The
-statistical treatment is otherwise identical to the 2015 case, with the important
-difference that the 2016 resolution model includes the linear-tail extension above
-\SI{180}{MeV}.
+The 2016 validation study summarized here corresponds to the 10\% subset used for scan
+development, toy generation, and extraction displays. Its detector-specific inputs
+differ from 2015 through the 2016 resolution model, the higher-order 2016
+radiative-fraction parameterization, and the broader parent mass coverage of the 2016
+run. Within that subset, the same statistical machinery is used: global GP prediction,
+profiled local extraction, and \CLs\ limits in both yield and coupling space.
 
 \begin{figure}[H]
 \centering
@@ -59,17 +74,19 @@ difference that the 2016 resolution model includes the linear-tail extension abo
   \graphicorplaceholder{\linewidth}{upper_limit_figs/2016_10pct/ul_bands_eps2_obsexp.png}
   \caption{$\eps^2$ upper limits with expected bands.}
 \end{subfigure}
-\caption{2016 10\% validation-study upper limits at 95\% CL.}
+\caption{2016 10\% validation-study upper limits at 95\% CL. As in the 2015 case,
+these note-local bundled figures are retained as provisional baseline products pending
+the final rerun with the full-range signal template.}
 \label{fig:results-2016-ul}
 \end{figure}
 
 \begin{figure}[H]
 \centering
 \graphicorplaceholder{0.62\linewidth}{fit_example_figs/2016/m058MeV_blind_fit.png}
-\caption{Representative 2016 fit display at \SI{58}{MeV}. This example is retained
-because the best-fit $\hat A$ is negative, making it a clean visual reminder that the
-extraction estimator is intentionally allowed to fluctuate below zero in closure
-studies.}
+\caption{Representative 2016 fit display at \SI{58}{MeV}. The negative best-fit
+amplitude shown here is intentional and provides a clear visual reminder that the
+closure estimator is allowed to fluctuate below zero before the physical boundary is
+applied in the discovery and limit-setting test statistics.}
 \label{fig:results-2016-fit}
 \end{figure}
 
@@ -77,11 +94,13 @@ studies.}
 \label{sec:results-combined-1516}
 
 The first completed shared-$\eps^2$ combination joins the 2015 engineering run and the
-2016 10\% validation subset through the concatenated blind-window likelihood described
-in Section~\ref{sec:combination}. In the overlap region, the combination improves
-sensitivity by adding statistically independent information while correctly mapping the
-common coupling to dataset-specific signal yields through the conversion factors
-$K_d(m)$.
+2016 10\% validation subset through the joint likelihood described in
+Section~\ref{sec:combination}. This is the first point in the note where the value of a
+likelihood-level combination becomes explicit. The result is not constructed by
+averaging single-dataset limits; it is obtained by fitting a common coupling directly
+to the concatenated blinded-bin information. In the overlap region the combination
+therefore gains sensitivity by adding statistically independent information while
+preserving the correct dataset-specific mapping from $\eps^2$ to total signal yield.
 
 \begin{figure}[H]
 \centering
@@ -96,19 +115,20 @@ $K_d(m)$.
   \graphicorplaceholder{\linewidth}{upper_limit_figs/2015_2016_combined/ul_bands_eps2_obsexp.png}
   \caption{Combined $\eps^2$ upper limits.}
 \end{subfigure}
-\caption{Combined 2015+2016 10\% upper limits at 95\% CL. The signal-yield panel is
-included as an explicit Overleaf target path even if the current local repository does
-not yet contain the finalized combined-yield band image.}
+\caption{Combined 2015+2016 10\% upper limits at 95\% CL. The right panel is a copied
+summary product from the current validation workflow, while the left panel is a
+note-local provisional stand-in marking the exact final Overleaf path for the combined
+signal-yield bands. Both panels should be replaced after the leakage-retaining rerun.}
 \label{fig:results-combined-1516-ul}
 \end{figure}
 
 \begin{figure}[H]
 \centering
 \graphicorplaceholder{0.70\linewidth}{combined_search_figs/extract_display_combined_m040MeV_z7p0.png}
-\caption{Illustrative combined extraction display at \SI{40}{MeV}. This pseudoexperiment
-figure is useful for showing how the common-$\eps^2$ extraction is assembled across
-datasets, but it should be interpreted as a diagnostic rather than as the finalized
-combined-search display because the current version still shows a negative pull.}
+\caption{Illustrative combined extraction display at \SI{40}{MeV}. This common-signal
+pseudoexperiment is especially useful for showing how the shared-$\eps^2$ fit is
+assembled across datasets. The visible negative pull is one reason it is presented here
+as a diagnostic figure rather than as the final combined-search display.}
 \label{fig:results-combined-1516-display}
 \end{figure}
 
@@ -142,8 +162,8 @@ subset-specific closure behavior.}
 \label{sec:results-2021-1pct}
 
 \analysisplaceholder{\textbf{Placeholder section.} This section is reserved for the
-2021 1\% individual analysis and should eventually include both standalone and
-combination-facing interpretations.}
+2021 1\% individual analysis and should ultimately include both the standalone result
+and the way that subset enters the later shared-$\eps^2$ combinations.}
 
 \begin{figure}[H]
 \centering
@@ -167,8 +187,8 @@ combination-facing interpretations.}
 
 \analysisplaceholder{\textbf{Placeholder section.} Insert the first three-way combined
 upper-limit products here once the 2021 1\% combination is available. The discussion
-should reference the same shared-$\eps^2$ combination procedure used for the 2015+2016
-result.}
+should reuse the shared-likelihood logic of Section~\ref{sec:combination} and make
+clear how the new dataset changes the combined sensitivity.}
 
 \begin{figure}[H]
 \centering
@@ -192,8 +212,8 @@ result.}
 
 \analysisplaceholder{\textbf{Placeholder section.} This section is reserved for the
 first-round unblinding milestone based on the 2021 10\% workflow. It should include
-the finalized local/global significance discussion once the look-elsewhere rerun is
-available.}
+the finalized local/global significance discussion only after the corrected
+look-elsewhere rerun is available.}
 
 \begin{figure}[H]
 \centering
@@ -236,6 +256,6 @@ significance inputs are frozen.}
 \label{sec:results-complete-combined-placeholder}
 
 \analysisplaceholder{\textbf{Placeholder section.} Reserve this subsection for the
-final combined HPS prompt resonance result. The final version should quote only the
-validated analysis range, the corrected global-significance treatment, and the
-definitive radiative-fraction inputs.}
+final combined HPS prompt resonance result. The completed version should quote only the
+validated analysis range, the corrected global-significance treatment, and the final
+radiative-fraction inputs.}

@@ -3,16 +3,17 @@
 
 \subsection{From piecewise windows to a global GP fit}
 
-The original HPS GPR studies explored piecewise analysis windows and explicit sideband
-optimization at every mass point. Those studies were useful for establishing the basic
-viability of GP-based background interpolation, but they also exposed shortcomings that
-became increasingly important once smooth upper-limit curves and combined results were
-required. Window-by-window fitting generated limit structures that were visibly less
-smooth than the present global fit, increased sensitivity to local fit boundaries, and
-complicated the interpretation of shared-$\eps^2$ combinations. For these reasons, the
-current implementation performs a single global fit over the full histogram range of
-each dataset and excludes only a narrow mass-dependent training window around the test
-hypothesis.
+The original HPS GPR studies explored piecewise mass windows, explicit sideband
+reconfiguration at each hypothesis, and several alternative background-profile
+constructions. Those studies were useful for establishing that a GP could interpolate
+the smooth trident spectrum, but they also made clear where the older strategy became
+fragile. Window-by-window fits produced visibly less smooth limit curves, amplified the
+dependence of the result on local fit boundaries, and complicated any attempt to write
+a statistically coherent multi-dataset combination. The present workflow therefore uses
+a single global fit over the full histogram range of each dataset and excludes only a
+narrow mass-dependent training region around the test mass. That choice yields a
+background description that is smoother, easier to validate, and naturally compatible
+with a combined likelihood in a shared parameter of interest.
 
 \subsection{Observable, scan grid, and blinding}
 
@@ -24,28 +25,36 @@ dataset. The default scan step in the package is
 and the blind window for a mass hypothesis $m_0$ is centered on the detector
 resolution,
 \begin{equation}
-\mathcal{B}(m_0) =
+\mathcal{B}_d(m_0) =
 \left[m_0 - n_{\mathrm{blind}}\sigma_d(m_0),\,
       m_0 + n_{\mathrm{blind}}\sigma_d(m_0)\right].
 \end{equation}
 For the completed studies summarized in this note, the blind half-width is
-$n_{\mathrm{blind}}=1.64$, corresponding to the 95\% CL workflow requested for the
-current validation campaign. The same value is also used for the nominal GP training
-exclusion window, although the package exposes this choice independently through
-\texttt{gp\_train\_exclude\_nsigma} and \texttt{inj\_train\_exclude\_nsigma}.
+$n_{\mathrm{blind}}=1.64$. For an ideal Gaussian line shape this interval contains
+\begin{equation}
+f_{\mathrm{blind}}^{\mathrm{ideal}}
+= \mathrm{erf}\!\left(\frac{1.64}{\sqrt{2}}\right)
+\simeq 0.899,
+\end{equation}
+so roughly 10\% of the signal lies outside the blinded region. This point matters
+conceptually and numerically: the current code does \emph{not} renormalize the signal
+template inside the blind window. Instead, it keeps the full Gaussian normalization and
+lets only the blinded subset enter the local likelihood. The same $1.64\,\sigma_d$
+scale is used for the nominal GP training exclusion in the current validation studies,
+although the package exposes the training exclusion and the extraction blind window as
+independent controls.
 
 \subsection{Log-space preprocessing and the choice \texorpdfstring{$\alpha=1/y$}{alpha=1/y}}
 
-Following the recent HEP GPR background-modeling literature
+Following recent HEP GPR background-modeling studies
 \cite{BarrLiu2025,Gandrakota2023}, the package fits the GP in transformed coordinates:
 \begin{equation}
 x = \log m,
 \qquad
 z = \log y,
 \end{equation}
-where $y$ is the observed bin count. The package then assigns a heteroscedastic
-variance term $\alpha_i$ to each training point and adds it to the kernel diagonal.
-The current analysis adopts
+where $y$ is the observed bin count. A heteroscedastic diagonal term $\alpha_i$ is then
+added to the kernel covariance,
 \begin{equation}
 \alpha_i =
 \begin{cases}
@@ -54,15 +63,16 @@ The current analysis adopts
 \end{cases}
 \label{eq:alpha-oney}
 \end{equation}
-with an explicit zero-count floor \texttt{pre\_zero\_alpha = 1.0}.
+with the explicit zero-count floor implemented through
+\texttt{pre\_zero\_alpha = 1.0}.
 
-This is one of the key deliberate departures from the Barr--Liu prescription. The
-motivation is that \texttt{GaussianProcessRegressor} expects a variance-like diagonal
-contribution, and the package therefore treats $\alpha_i$ as the variance associated
-with the transformed observation rather than as a regularization heuristic. In that
-sense the present workflow follows the statistical logic of Poisson-like counting data
-while removing the extra $\log y$ regularization factor that entered the earlier
-CMS-motivated discussion in the rough drafts.
+This is a deliberate departure from the earlier Barr--Liu-inspired draft
+parameterization. In the present analysis, $\alpha_i$ is treated as the variance-like
+diagonal contribution expected by \texttt{GaussianProcessRegressor}, rather than as a
+pure regularization device. The working interpretation is therefore that the GP is
+fitted to a smooth latent log-rate with a variance assignment that mirrors the
+counting-noise structure of the original histogram, while avoiding the extra $\log y$
+weighting that was explored in the first rough drafts.
 
 \subsection{Kernel choice and CMS-motivated background modeling}
 \label{sec:kernel-choice}
@@ -72,42 +82,41 @@ ConstantKernel$\times$RBF model,
 \begin{equation}
 k(x,x') = C \exp\!\left[-\frac{(x-x')^2}{2\ell^2}\right],
 \end{equation}
-with broad amplitude bounds and a resolution-scaled RBF length scale.
-This choice is consistent with the smooth-background prior used in contemporary
-CMS-oriented GPR signal-extraction studies \cite{Gandrakota2023} and with the
-log-space HEP background-modeling strategy emphasized in Ref.~\cite{BarrLiu2025}. The
-current HPS workflow intentionally keeps the kernel simple: the amplitude parameter $C$
-controls the overall covariance scale, while $\ell$ controls the characteristic
-bending scale of the background. That division is well matched to a smooth trident
-spectrum in which the dominant statistical question is how rapidly the background is
-allowed to vary relative to the detector resolution.
+with broad amplitude bounds and a resolution-scaled RBF length scale. This is closely
+aligned with the smooth-background prior used in contemporary CMS-oriented GPR
+signal-extraction studies \cite{Gandrakota2023} and with the log-space HEP background
+modeling framework emphasized in Ref.~\cite{BarrLiu2025}. The HPS implementation keeps
+this kernel intentionally simple. The amplitude parameter $C$ sets the overall
+covariance scale, while $\ell$ controls how rapidly the background is allowed to bend
+in log-mass space. For a smooth prompt trident spectrum, that separation is both
+physically transparent and statistically sufficient.
 
-The earlier repository prototypes retained more elaborate kernel experiments, including
-piecewise analyses and ensemble-style diagnostics. Those alternatives remain useful for
-historical context, but they are not part of the current production baseline. The note
-therefore documents the single-kernel Constant$\times$RBF model as the authoritative
-choice.
+The repository preserves older studies of more complicated kernels and piecewise
+procedures for historical context, but those variants are no longer the production
+baseline. This note therefore documents the Constant$\times$RBF model as the
+authoritative kernel choice and treats more elaborate alternatives as robustness checks
+rather than competing mainline methods.
 
 \subsection{Resolution-scaled length-scale parameterization and bounds}
 \label{sec:length-scale}
 
-The GP is trained in $x=\log m$, so detector resolution must be translated into
+Because the GP is trained in $x=\log m$, detector resolution must be translated into
 log-mass units. The package defines
 \begin{equation}
 \sigma_x(m) = \log\!\left(m+\sigma_d(m)\right) - \log m
 \simeq \frac{\sigma_d(m)}{m}
 \qquad (\sigma_d \ll m),
 \end{equation}
-and uses this as the local physical scale that sets the RBF bounds. In the default
-\path{resolution_scaled_local} policy, the length scale satisfies
+and uses this local physical scale to set the RBF bounds. In the default
+\path{resolution_scaled_local} policy,
 \begin{equation}
 \ell_{\min}(m) = k_{\min}\sigma_x(m),
 \qquad
 \ell_{\max}(m) = k_{\max}\sigma_x(m),
 \end{equation}
-with a baseline lower factor $k_{\min}=0.5$.
+with the baseline lower factor $k_{\min}=0.5$.
 
-The physics-facing ceiling choice adopted in this note is
+The physics-facing ceiling adopted in this note is
 \begin{equation}
 k_{\max} =
 \begin{cases}
@@ -115,31 +124,22 @@ k_{\max} =
 9, & \text{2021}.
 \end{cases}
 \end{equation}
-This is the analyst-chosen interpretation of the length-scale-bound studies stored in
-the repository's length-scale plots and rough drafts, and it reflects the decision that
-the upper bound should be tethered to a physically meaningful multiple of the detector
-resolution rather than left free-floating. A free-floating ceiling gave the GP too much
-freedom to smooth over signal-like structure and could create the false appearance of
-improved fit quality. Conversely, a ceiling set too low forces the optimizer to sit on
-the bound and degrades the background description. The adopted 8$\sigma$ and 9$\sigma$
-ceilings are therefore presented as stability choices rather than as arbitrary tunings.
+These values are motivated by the dedicated length-scale scans preserved in the
+repository and by the practical requirement that the upper bound remain tied to a
+detector-scale quantity. Leaving $\ell$ effectively free allowed the GP to become too
+aggressive in smoothing away signal-like structure, which could make the fit appear
+better while reducing signal fidelity. Setting the ceiling too low creates the opposite
+problem: the optimizer rides the boundary and the background model becomes visibly too
+rigid. The adopted 8$\sigma_d$ and 9$\sigma_d$ ceilings are therefore presented as
+stability choices anchored to detector resolution, not as arbitrary tune points.
 
-The helper study YAMLs in this repository still contain an older 2021 upper factor of
-6 in some validation configs. That value is treated here as a legacy workflow setting,
-not as the final analysis prescription.
-
-In addition to the local scaling, the package applies two practical guards already
-visible in the current configuration:
-\begin{itemize}
-\item a dataset-statistic floor on $\ell_{\max}$, implemented through
-\path{kernel_ls_local_hi_floor_mode = dataset_stat}, which prevents
-unphysically small ceilings at masses where the local $\sigma_x(m)$ is unusually
-small;
-\item an optional cap at a fixed fraction of the training xrange
-(\path{kernel_ls_local_hi_cap_xrange_frac = 0.25} in the current study
-configs), which prevents the optimizer from turning the GP into an effectively global
-polynomial interpolant.
-\end{itemize}
+Two additional guards appear in the current configurations and remain part of the
+method definition. First, a dataset-statistics floor on $\ell_{\max}$ prevents the
+ceiling from becoming artificially small where the local resolution is exceptionally
+tight. Second, an optional cap at a fixed fraction of the training xrange prevents the
+GP from drifting toward an effectively global polynomial interpolant. Together these
+controls keep the kernel flexible enough to describe the smooth spectrum while
+preventing it from becoming either too stiff or too unconstrained.
 
 \begin{figure}[H]
 \centering
@@ -154,9 +154,9 @@ polynomial interpolant.
   \graphicorplaceholder{\linewidth}{kernel_lengthscale_figs/dm_equiv_from_lhi_overlay.png}
   \caption{Equivalent mass scale implied by $\ell_{\max}$.}
 \end{subfigure}
-\caption{Representative length-scale-bound studies to be copied into the Overleaf
-\texttt{kernel\_lengthscale\_figs/} directory. These figures motivate the use of
-resolution-tied ceilings rather than unconstrained smoothing scales.}
+\caption{Representative length-scale studies copied into the Overleaf
+\texttt{kernel\_lengthscale\_figs/} directory. They show why the upper bound is tied to
+the detector resolution rather than left free floating.}
 \label{fig:lengthscale-bounds}
 \end{figure}
 
@@ -164,148 +164,265 @@ resolution-tied ceilings rather than unconstrained smoothing scales.}
 
 For each mass point, the package trains the GP only on the bins outside the training
 exclusion window and predicts the latent mean and covariance in the blinded bins. Since
-the fit is performed in log-count space, the output is mapped back to count space
+the fit is performed in log-count space, the prediction is mapped back to count space
 through the standard lognormal moment relations:
 \begin{align}
 \mu_i &= \exp\!\left(\mu^{(\log)}_i + \frac{1}{2}\Sigma^{(\log)}_{ii}\right), \\
 \mathrm{Cov}(y_i,y_j)
 &= \mu_i\mu_j\left[\exp\!\left(\Sigma^{(\log)}_{ij}\right)-1\right].
 \end{align}
-The resulting blind-window mean vector $\bm{b}$ and covariance matrix $\bm{C}$ are the
-central statistical objects used by both the extraction fit and the \CLs\ limit.
+The resulting blind-window mean vector $\bm{b}_d(m)$ and covariance matrix
+$\bm{C}_d(m)$ are the central statistical objects entering both the local extraction
+fit and the \CLs\ limit. In other words, once the GP prediction has been translated
+back into count space, the analysis no longer works with an abstract regression model;
+it works with an explicit multivariate background prediction in the blinded bins.
 
 \subsection{Signal model and conversion to \texorpdfstring{$\eps^2$}{epsilon2}}
 
-The signal template is a bin-integrated Gaussian centered at the test mass $m_0$ with
-width $\sigma_d(m_0)$:
+For each dataset $d$ and mass hypothesis $m_0$, the package first constructs a
+full-range Gaussian line-shape template over the histogram binning,
 \begin{equation}
-w_{d,i}(m_0) = \int_{e_i}^{e_{i+1}}
+w^{\mathrm{full}}_{d,i}(m_0) =
+\int_{e_i}^{e_{i+1}}
 \frac{1}{\sqrt{2\pi}\sigma_d(m_0)}
 \exp\!\left[-\frac{(m-m_0)^2}{2\sigma_d(m_0)^2}\right]\,dm,
 \end{equation}
-renormalized so that $\sum_i w_{d,i}=1$ over the blinded bins. The signal-yield
-parameter $A$ is the total number of signal events in the blinded region, so the
-per-bin expectation is $A\,w_i$.
+normalized so that
+\begin{equation}
+\sum_{i \in \mathrm{full\ range}} w^{\mathrm{full}}_{d,i}(m_0) = 1.
+\end{equation}
+The template entering the local likelihood is then the blinded-bin slice of this
+full-range object,
+\begin{equation}
+w_{d,i}(m_0) =
+\begin{cases}
+w^{\mathrm{full}}_{d,i}(m_0), & i \in \mathcal{B}_d(m_0), \\
+\text{not used in the local fit}, & i \notin \mathcal{B}_d(m_0).
+\end{cases}
+\end{equation}
+Its blinded-bin sum is therefore
+\begin{equation}
+f_{\mathrm{blind},d}(m_0) = \sum_{i \in \mathcal{B}_d(m_0)} w_{d,i}(m_0) < 1,
+\end{equation}
+with a value near 0.90 for the nominal $1.64\,\sigma_d$ half-width. The signal
+amplitude $A_d$ is defined as the \emph{total} local Gaussian signal yield associated
+with the mass hypothesis, not merely the yield inside the blind window. The expected
+signal contribution entering bin $i$ of the local likelihood is therefore
+\begin{equation}
+s_{d,i}(A_d;m_0) = A_d\,w_{d,i}(m_0),
+\end{equation}
+so the total expected signal actually visible inside the blind window is
+$f_{\mathrm{blind},d}(m_0)\,A_d$.
 
-The package then converts between $A$ and $\eps^2$ via
+This convention is more physical than blind-window renormalization because it preserves
+the fact that a finite blind region never contains the entire Gaussian line shape. It
+also keeps the signal parameter used in the fit aligned with the full-histogram
+injection model used in the procedural toy studies.
+
+The package converts between $A_d$ and $\eps^2$ through
 \begin{equation}
 \eps^2 =
-\frac{2\alpha_{\mathrm{EM}}\,A}
+\frac{2\alpha_{\mathrm{EM}}\,A_d}
 {3\pi\,m\,f_{\mathrm{rad},d}(m)\,\rho_d(m)},
 \label{eq:eps2-conversion}
 \end{equation}
 where $\rho_d(m)$ is the local integral density computed directly from the observed
-histogram in the interval $m\pm2\sigma_d(m)$. Equation~\eqref{eq:eps2-conversion}
-matches the current implementation in \texttt{hps\_gpr.conversion}.
+histogram in the interval $m\pm2\sigma_d(m)$. It is convenient to define the
+dataset-specific conversion factor
+\begin{equation}
+K_d(m) \equiv A_d(\eps^2 = 1)
+= \frac{3\pi\,m\,f_{\mathrm{rad},d}(m)\,\rho_d(m)}{2\alpha_{\mathrm{EM}}},
+\end{equation}
+so that a shared coupling $\eps^2$ predicts a dataset-specific total signal yield
+$A_d = K_d(m)\eps^2$.
 
 \subsection{Local significance and single-dataset signal extraction}
 
-The present local-significance baseline uses a profiled Gaussian multi-bin
-likelihood-ratio test. In the blinded window, the Poisson mean in bin $i$ is
+For a fixed dataset $d$ and mass hypothesis $m$, let $\bm{n}_d$ denote the vector of
+observed blinded-bin counts, $\bm{b}_d$ the GP-predicted blinded-bin mean,
+$\bm{C}_d = L_dL_d^\top$ the corresponding covariance, and $\bm{w}_d$ the non-renormalized
+blind slice of the full Gaussian template. The profiled local likelihood is
 \begin{equation}
-\lambda_i(A,\bm{\theta}) = b_i + (L\bm{\theta})_i + A\,w_i,
-\qquad
-\bm{C}=LL^\top,
+\mathcal{L}_d(A_d,\bm{\theta}_d)
+=
+\left[
+\prod_{i=1}^{N_d(m)}
+\mathrm{Pois}\!\left(
+n_{d,i}\,\middle|\,
+b_{d,i} + (L_d\bm{\theta}_d)_i + A_d w_{d,i}
+\right)
+\right]
+\exp\!\left(-\frac{1}{2}\bm{\theta}_d^\top\bm{\theta}_d\right),
+\label{eq:singlelike}
 \end{equation}
-with Gaussian nuisance parameters $\bm{\theta}\sim\mathcal{N}(0,I)$ encoding correlated
-background deformations in the blind window. The signal-extraction fit profiles the
-likelihood over $(A,\bm{\theta})$ and returns $(\hat A,\sigma_A)$, allowing $\hat A<0$
-for closure studies and enforcing the physical boundary $A\ge0$ for discovery and
-limit-setting test statistics.
+where the Gaussian nuisance vector $\bm{\theta}_d \sim \mathcal{N}(0,I)$ encodes
+correlated background deformations consistent with the GP covariance in the blind
+window. Profiling Eq.~\eqref{eq:singlelike} yields the best-fit signal amplitude
+$\hat A_d$ and its local uncertainty $\sigma_{A,d}$. For closure and linearity studies
+$\hat A_d$ is allowed to fluctuate below zero; for discovery and upper-limit test
+statistics the physical boundary $A_d \ge 0$ is imposed in the usual way.
 
-The local discovery significance is computed from the profiled likelihood-ratio test
-statistic $q_0=-2\ln\lambda(A=0)$, with the package reporting
+The local significance is obtained from the profiled likelihood-ratio statistic
 \begin{equation}
-Z_{\mathrm{local}} = \sqrt{q_0},
-\qquad
-p_0 = 1-\Phi(Z_{\mathrm{local}}).
+q_{0,d}(m) = -2\ln
+\frac{\mathcal{L}_d(A_d=0,\hat{\hat{\bm{\theta}}}_d)}
+{\mathcal{L}_d(\hat A_d,\hat{\bm{\theta}}_d)},
 \end{equation}
-This replaces the older sum-count approximation that appears in the rough drafts.
+with
+\begin{equation}
+Z_{\mathrm{local},d}(m) = \sqrt{q_{0,d}(m)},
+\qquad
+p_{0,d}(m) = 1-\Phi\!\left(Z_{\mathrm{local},d}(m)\right).
+\end{equation}
+This profiled multi-bin test replaces the older sum-count approximation used in the
+earliest drafts and is the only local-significance definition treated as current in
+this note.
 
 \subsection{\texorpdfstring{\CLs}{CLs} upper limits}
 
-For a fixed signal hypothesis, the package constructs the log-likelihood ratio
+For a fixed signal hypothesis, the package constructs the usual likelihood-ratio test
+for either the total amplitude $A_d$ or, after conversion, the shared coupling
+$\eps^2$. In asymptotic mode the variance of the log-likelihood ratio includes both the
+Poisson counting component and the additional GP background uncertainty
+$\bm{c}^\top\bm{C}\bm{c}$, where $c_i=\ln(1+s_i/b_i)$. In toy mode the same test
+statistic is calibrated by pseudoexperiments. The quoted 95\% upper limit is the
+smallest parameter value satisfying
 \begin{equation}
-\ln Q(A) = -\sum_i s_i(A) + \sum_i n_i \ln\!\left(1+\frac{s_i(A)}{b_i}\right),
+\mathrm{CL}_s = 0.05
 \end{equation}
-and computes \CLs\ either with an asymptotic approximation or with toy Monte Carlo.
-In asymptotic mode the variance of $\ln Q$ includes both Poisson counting fluctuations
-and the GP background covariance contribution $c^\top\bm{C}c$, where
-$c_i=\ln(1+s_i/b_i)$. The upper limit $A_{95}$ is the smallest amplitude satisfying
-\begin{equation}
-\mathrm{CL}_s(A_{95}) = 0.05.
-\end{equation}
-Expected bands are derived from background-only pseudoexperiments. The public-facing
-plots written by the package provide the median expected limit together with the
-central $\pm1\sigma$ and $\pm2\sigma$ bands in both signal-yield and $\eps^2$ space.
+\cite{Junk1999,Read2002,Cowan2011}. Expected bands are obtained from background-only
+pseudoexperiments and are reported both in signal-yield space and after mapping to
+$\eps^2$.
 
 \subsection{Shared-\texorpdfstring{$\eps^2$}{epsilon2} combination across datasets}
 \label{sec:combination}
 
-At a common mass hypothesis $m$, each active dataset contributes its own blinded-bin
-count vector, GP background mean, covariance, and Gaussian signal template. The package
-defines a dataset-specific conversion factor
+At a common mass hypothesis $m$, each active dataset contributes a distinct blinded-bin
+count vector, GP background prediction, covariance matrix, and Gaussian signal
+template. Let the set of datasets that cover the hypothesis be $\mathcal{D}(m)$. For
+each $d \in \mathcal{D}(m)$, define
 \begin{equation}
-K_d(m) \equiv A_d(\eps^2=1)
-= \frac{3\pi\,m\,f_{\mathrm{rad},d}(m)\,\rho_d(m)}{2\alpha_{\mathrm{EM}}},
+\bm{n}_d(m),\qquad
+\bm{b}_d(m),\qquad
+\bm{C}_d(m)=L_dL_d^\top,\qquad
+\bm{w}_d(m),\qquad
+K_d(m),
 \end{equation}
-so that the signal contribution for unit $\eps^2$ is $K_d(m)w_d(m)$. The combined fit
-then concatenates all active datasets:
+where $K_d(m)$ converts the shared coupling $\eps^2$ into the total signal yield of
+dataset $d$. The per-dataset likelihood is then
 \begin{equation}
-\bm{n} = (\bm{n}_1,\bm{n}_2,\ldots),
-\quad
-\bm{b} = (\bm{b}_1,\bm{b}_2,\ldots),
-\quad
-\bm{s}_{\mathrm{unit}} = (K_1\bm{w}_1,K_2\bm{w}_2,\ldots),
+\mathcal{L}_d(\eps^2,\bm{\theta}_d)
+=
+\left[
+\prod_{i=1}^{N_d(m)}
+\mathrm{Pois}\!\left(
+n_{d,i}\,\middle|\,
+b_{d,i} + (L_d\bm{\theta}_d)_i + \eps^2 K_d(m) w_{d,i}(m)
+\right)
+\right]
+\exp\!\left(-\frac{1}{2}\bm{\theta}_d^\top\bm{\theta}_d\right).
+\label{eq:dataset-poi-like}
 \end{equation}
-with a block-diagonal background covariance
+The baseline combined likelihood is the product over datasets,
 \begin{equation}
-\bm{C}_{\mathrm{comb}} = \mathrm{blockdiag}(\bm{C}_1,\bm{C}_2,\ldots).
+\mathcal{L}_{\mathrm{comb}}(\eps^2,\{\bm{\theta}_d\})
+= \prod_{d \in \mathcal{D}(m)} \mathcal{L}_d(\eps^2,\bm{\theta}_d).
+\label{eq:combinedlike-product}
 \end{equation}
-This construction corresponds to the standard HEP product likelihood for statistically
-independent channels with a shared parameter of interest \cite{Cowan2011,HistFactory}.
+Equivalently, one may concatenate all blinded-bin vectors into a single object,
+\begin{align}
+\bm{n} &=
+\left(\bm{n}_1,\bm{n}_2,\ldots\right), \\
+\bm{b} &=
+\left(\bm{b}_1,\bm{b}_2,\ldots\right), \\
+\bm{s}_{\mathrm{unit}} &=
+\left(K_1\bm{w}_1, K_2\bm{w}_2,\ldots\right), \\
+\bm{C}_{\mathrm{comb}} &=
+\mathrm{blockdiag}(\bm{C}_1,\bm{C}_2,\ldots),
+\end{align}
+so that the total expected mean is
+\begin{equation}
+\bm{\lambda}(\eps^2,\bm{\theta})
+= \bm{b} + L_{\mathrm{comb}}\bm{\theta} + \eps^2\bm{s}_{\mathrm{unit}},
+\qquad
+\bm{C}_{\mathrm{comb}} = L_{\mathrm{comb}}L_{\mathrm{comb}}^\top.
+\end{equation}
 
-The combined upper limit is therefore set directly on the shared coupling,
+Two points are essential. First, the baseline combination shares only the parameter of
+interest $\eps^2$. The nuisance vectors $\bm{\theta}_d$ are independent between
+datasets, and no common radiative-fraction, luminosity, or resolution nuisance
+parameters are profiled across runs in the current production model. Second, the
+combination is performed at the likelihood level, not by averaging precomputed
+upper-limit curves. At fixed $\eps^2$,
+\begin{equation}
+-2\ln\lambda_{\mathrm{comb}}(\eps^2)
+=
+\sum_{d \in \mathcal{D}(m)} -2\ln\lambda_d(\eps^2),
+\end{equation}
+after profiling the independent nuisance blocks. The sensitivity gain therefore comes
+from the additive information content of statistically independent channels, each with
+its own detector response and normalization factor, rather than from any post hoc
+merging of already-compressed outputs.
+
+The combined upper limit is set directly on the shared coupling,
 \begin{equation}
 \eps^2_{95}(m) = \min\{\eps^2 : \mathrm{CL}_s(\eps^2)=0.05\},
 \end{equation}
-while the combined local significance is evaluated from the profiled Gaussian
-likelihood ratio built on the concatenated signal template per unit $\eps^2$.
+while the combined local significance is evaluated from the same profiled likelihood
+with the common signal vector $\eps^2 \bm{s}_{\mathrm{unit}}$.
 
 \subsection{Global significance and the look-elsewhere placeholder}
 
 The package currently reports local/global $p_0$ and $Z$ curves using a
-Sidak-corrected effective-trials estimate derived from the scan spacing, the blind
-window width, and the detector resolution \cite{GrossVitells2010}. This is an
-appropriate placeholder for validation and bookkeeping, but the global-significance
-statements in the present study should be treated as provisional until the rerun with
-the corrected global-$p$ treatment is complete. Accordingly, the final note retains a
-dedicated look-elsewhere section while deferring any definitive global-significance
-claim.
+Sidak-corrected effective-trials estimate derived from the scan spacing, blind-window
+width, and detector resolution \cite{GrossVitells2010}. That treatment is adequate for
+validation bookkeeping, for layout studies, and for monitoring where the local search
+has its largest upward fluctuation. It is not yet the final global-significance
+prescription intended for the finished prompt-search result. All global-significance
+statements in the present note should therefore be read as provisional until the
+dedicated rerun with the corrected global-$p$ treatment is complete.
 
-\analysisplaceholder{\textbf{LEE placeholder.} Replace this subsection with the final
-global-significance treatment once the dedicated rerun is complete. The present
-repository-level summary plots are useful for layout and bookkeeping, but the final
-physics note should quote only the corrected global $p_0$ and corresponding $Z$
-curves.}
+\begin{figure}[H]
+\centering
+\begin{subfigure}[t]{0.48\linewidth}
+  \centering
+  \graphicorplaceholder{\linewidth}{significance_figs/2015_2016_combined/p0_analytic_local_global.png}
+  \caption{Combined local and provisional global $p_0$ curves.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.48\linewidth}
+  \centering
+  \graphicorplaceholder{\linewidth}{significance_figs/2015_2016_combined/Z_local_global.png}
+  \caption{Combined local and provisional global $Z$ curves.}
+\end{subfigure}
+\caption{Current combined-significance bookkeeping figures copied into the note-local
+\texttt{significance\_figs/} directory. These are useful for documenting the present
+scan structure, but the global component should be treated as a placeholder until the
+final look-elsewhere rerun is completed.}
+\label{fig:combined-significance-placeholder}
+\end{figure}
+
+\analysisplaceholder{\textbf{LEE placeholder.} Replace the provisional Sidak-style
+global-significance treatment with the finalized look-elsewhere evaluation once the
+dedicated rerun is complete. The local-significance curves are already useful for scan
+bookkeeping; the global curves should not yet be quoted as final physics results.}
 
 \subsection{Signal absorption and alternative background-profile treatments}
 
-The production baseline documented here is the additive Gaussian-profiled treatment of
-blind-window background uncertainty. That choice is motivated by the fact that the GP
-predicts an additive mean vector and covariance in the blinded bins, and the current
-toy suite is built around the same object. Earlier drafts also explored a fixed
-background model and a log-normal profiling variant. Those alternatives are not the
-default package behavior, but they remain relevant as future-validation tools,
-particularly if additional toy studies confirm nontrivial signal absorption.
+The production baseline documented here is the additive Gaussian-profile treatment of
+blind-window background uncertainty. That choice is natural because the GP delivers an
+additive mean vector and covariance matrix in the blinded bins, and the entire current
+toy-validation program is built around that object. At the same time, the remaining
+signal-absorption question should be stated explicitly. The newly adopted
+leakage-retaining signal model removes one obvious source of bias associated with
+blind-window renormalization, but it does not by itself prove that the full procedural
+toy workflow is free of absorption once the GP is refit toy by toy.
 
-Two unresolved questions deserve explicit tracking:
-\begin{itemize}
-\item whether reoptimizing the GP length scale on every toy in the full procedural
-pseudoexperiments partially absorbs injected signal;
-\item whether a fixed-background or Poisson-rate treatment would better preserve signal
-linearity in cases where the Gaussian-profile baseline is overly permissive.
-\end{itemize}
-For that reason, the present note documents the Gaussian-profile method as the current
-baseline while reserving a dedicated robustness program for alternative nuisance
-treatments rather than presenting them as equally mature production choices.
+The most likely residual sources are the refitting freedom of the GP hyperparameters,
+especially the effective length scale, and the flexibility of the Gaussian-profile
+background nuisance itself. For that reason, the current note keeps the
+Gaussian-profile model as the mainline baseline while reserving fixed-background and
+alternative Poisson-style treatments as targeted robustness studies. Those alternatives
+are not presented as equally mature production choices, but they remain important if
+future pseudoexperiments show that the current nuisance model still absorbs an
+unacceptable fraction of injected signal.

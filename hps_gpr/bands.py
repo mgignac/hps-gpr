@@ -19,7 +19,7 @@ except ImportError:
     _threadpool_limits = contextlib.nullcontext  # type: ignore[assignment]
 
 from .io import estimate_background_for_dataset
-from .template import build_template, cls_limit_for_template
+from .template import build_window_template_from_full, cls_limit_for_template
 from .statistics import draw_bkg_mvn_nonneg, p0_profiled_gaussian_LRT
 from .gpr import make_kernel_for_dataset, fit_gpr, predict_counts_from_log_gpr
 from .evaluation import (
@@ -128,7 +128,9 @@ def expected_ul_bands_for_dataset(
                 train_exclude_nsigma=float(train_exclude_nsigma),
             )
 
-        tmpl = build_template(pred.edges, m, pred.sigma_val)
+        tmpl, _ = build_window_template_from_full(
+            pred.edges_full, pred.blind_mask, m, pred.sigma_val
+        )
         obs = np.asarray(pred.obs, int)
         mu = np.asarray(pred.mu, float)
         cov = np.asarray(pred.cov, float)
@@ -476,7 +478,9 @@ def expected_ul_bands_for_combination(
             if len(ds_here) == 1:
                 # Single-dataset fallback: use single-dataset CLs
                 k = ds_here[0]
-                tmpl = build_template(preds[k].edges, m, preds[k].sigma_val)
+                tmpl, _ = build_window_template_from_full(
+                    preds[k].edges_full, preds[k].blind_mask, m, preds[k].sigma_val
+                )
                 for t in range(int(n_toys)):
                     eps2_t, _ = cls_limit_for_template(
                         n_draws_list[0][t],
@@ -550,6 +554,8 @@ def expected_ul_bands_for_combination(
                         mu=np.asarray(mu_fit, float),
                         cov=np.asarray(cov_fit, float),
                         edges=np.asarray(preds[k].edges, float),
+                        edges_full=np.asarray(preds[k].edges_full, float),
+                        blind_mask=np.asarray(preds[k].blind_mask, bool),
                         sigma_val=float(preds[k].sigma_val),
                         integral_density=float(preds[k].integral_density),
                     ))
@@ -580,9 +586,14 @@ def expected_ul_bands_for_combination(
         if compute_obs:
             try:
                 # Build a unit template at eps2=1 to get a combined signal shape
-                from .template import build_template as _bt
+                from .template import build_window_template_from_full as _btf
                 tmpl_c = np.concatenate([
-                    _bt(preds[k].edges, float(m), float(preds[k].sigma_val))
+                    _btf(
+                        preds[k].edges_full,
+                        preds[k].blind_mask,
+                        float(m),
+                        float(preds[k].sigma_val),
+                    )[0]
                     for k in ds_here
                 ])
                 p0_obs_c, Z_obs_c, _, _ = p0_profiled_gaussian_LRT(obs_vec0, b_vec, cov_mat, tmpl_c)

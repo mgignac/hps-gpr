@@ -25,7 +25,11 @@ from .plotting import (
     set_injection_plot_style,
 )
 from .statistics import fit_A_profiled_gaussian_details
-from .template import build_template, cls_limit_for_amplitude, gaussian_bin_integrals
+from .template import (
+    build_full_template,
+    build_window_template_from_full,
+    cls_limit_for_amplitude,
+)
 
 
 @dataclass
@@ -48,7 +52,7 @@ class _SingleDisplayContext:
 class SingleExtractionDisplay:
     ctx: _SingleDisplayContext
     inj_nsigma: float
-    A_inj_window: float
+    A_inj_total: float
     eps2_inj: float
     seed: int
     refit_gp_on_toy: bool
@@ -82,12 +86,12 @@ class SingleExtractionDisplay:
     @property
     def pull(self) -> float:
         if np.isfinite(self.sigma_A) and self.sigma_A > 0:
-            return float((self.A_hat - self.A_inj_window) / self.sigma_A)
+            return float((self.A_hat - self.A_inj_total) / self.sigma_A)
         return float("nan")
 
     @property
     def signal_curve_injected(self) -> np.ndarray:
-        return float(self.A_inj_window) * self.ctx.signal_per_blind_amp_full
+        return float(self.A_inj_total) * self.ctx.signal_per_blind_amp_full
 
     @property
     def signal_curve_extracted(self) -> np.ndarray:
@@ -99,7 +103,7 @@ class SingleExtractionDisplay:
             "mass_GeV": float(self.ctx.mass),
             "mass_MeV": float(self.ctx.mass * 1e3),
             "inj_nsigma": float(self.inj_nsigma),
-            "A_inj_window": float(self.A_inj_window),
+            "A_inj_total": float(self.A_inj_total),
             "A_hat": float(self.A_hat),
             "sigma_A": float(self.sigma_A),
             "pull": float(self.pull),
@@ -195,17 +199,21 @@ def _build_single_context(
         sigma_val=float(pred.sigma_val),
         config=config,
         seed=seed_cls,
+        full_edges=pred.edges_full,
+        window_mask=pred.blind_mask,
     )
     eps2_up_obs = float(epsilon2_from_A(ds, float(mass), float(A_up_obs), pred.integral_density))
 
     x_full = np.asarray(pred.x_full, float).reshape(-1)
     blind = tuple(pred.blind)
-    blind_mask = (x_full >= float(blind[0])) & (x_full <= float(blind[1]))
-    raw_signal_full = gaussian_bin_integrals(np.asarray(pred.edges_full, float), float(mass), float(pred.sigma_val))
+    blind_mask = np.asarray(pred.blind_mask, bool)
+    raw_signal_full = build_full_template(
+        np.asarray(pred.edges_full, float), float(mass), float(pred.sigma_val)
+    )
     blind_fraction = float(np.sum(raw_signal_full[blind_mask]))
     if not np.isfinite(blind_fraction) or blind_fraction <= 0:
         raise RuntimeError(f"{ds.key} m={float(mass):.6g}: blind-window signal fraction is non-positive")
-    signal_per_blind_amp_full = raw_signal_full / blind_fraction
+    signal_per_blind_amp_full = np.asarray(raw_signal_full, float)
 
     tn = getattr(config, "extraction_display_train_exclude_nsigma", None)
     if train_exclude_nsigma is not None:
@@ -242,7 +250,7 @@ def _simulate_single_display_from_context(
     config,
     *,
     inj_nsigma: float,
-    A_inj_window: float,
+    A_inj_total: float,
     seed: int,
     inj_mode: str,
     refit_gp_on_toy: bool,
@@ -255,7 +263,7 @@ def _simulate_single_display_from_context(
     mu_full = np.asarray(pred.mu_full, float).reshape(-1)
 
     bkg_full = rng.poisson(np.clip(mu_full, 0.0, None)).astype(int)
-    expected_total_strength = float(A_inj_window) / float(ctx.blind_fraction)
+    expected_total_strength = float(A_inj_total)
     sig_full, n_sig_realized_total, _ = _inject_counts_from_template(
         ctx.raw_signal_full,
         expected_total_strength,
@@ -294,14 +302,16 @@ def _simulate_single_display_from_context(
         y_win_toy,
         mu_win_fit,
         cov_win_fit,
-        build_template(pred.edges, float(ctx.mass), float(pred.sigma_val)),
+        build_window_template_from_full(
+            pred.edges_full, pred.blind_mask, float(ctx.mass), float(pred.sigma_val)
+        )[0],
         allow_negative=bool(getattr(config, "extract_allow_negative", True)),
     )
     return SingleExtractionDisplay(
         ctx=ctx,
         inj_nsigma=float(inj_nsigma),
-        A_inj_window=float(A_inj_window),
-        eps2_inj=float(epsilon2_from_A(ctx.ds, float(ctx.mass), float(A_inj_window), pred.integral_density)),
+        A_inj_total=float(A_inj_total),
+        eps2_inj=float(epsilon2_from_A(ctx.ds, float(ctx.mass), float(A_inj_total), pred.integral_density)),
         seed=int(seed),
         refit_gp_on_toy=bool(refit_gp_on_toy),
         refit_ok=bool(refit_ok),
@@ -340,7 +350,7 @@ def make_single_extraction_display(
         ctx,
         config,
         inj_nsigma=float(inj_nsigma),
-        A_inj_window=float(inj_nsigma) * float(ctx.sigmaA_ref),
+        A_inj_total=float(inj_nsigma) * float(ctx.sigmaA_ref),
         seed=int(seed),
         inj_mode=str(getattr(config, "extraction_display_inj_mode", "multinomial")),
         refit_gp_on_toy=bool(getattr(config, "extraction_display_refit_gp_on_toy", True)),
@@ -385,14 +395,14 @@ def make_combined_extraction_display(
 
     displays = []
     for ctx in contexts:
-        A_inj_window = float(ctx.A_per_eps2_unit) * float(eps2_inj)
+        A_inj_total = float(ctx.A_per_eps2_unit) * float(eps2_inj)
         ds_seed = _stable_display_seed(int(seed), str(ctx.ds.key), float(mass), float(inj_nsigma))
         displays.append(
             _simulate_single_display_from_context(
                 ctx,
                 config,
-                inj_nsigma=float(A_inj_window / ctx.sigmaA_ref) if ctx.sigmaA_ref > 0 else float("nan"),
-                A_inj_window=float(A_inj_window),
+                inj_nsigma=float(A_inj_total / ctx.sigmaA_ref) if ctx.sigmaA_ref > 0 else float("nan"),
+                A_inj_total=float(A_inj_total),
                 seed=int(ds_seed),
                 inj_mode=str(getattr(config, "extraction_display_inj_mode", "multinomial")),
                 refit_gp_on_toy=bool(getattr(config, "extraction_display_refit_gp_on_toy", True)),
@@ -503,7 +513,7 @@ def plot_single_extraction_display(
         f"Dataset: {display.ctx.ds.key}",
         f"Mass: {display.ctx.mass * 1e3:.0f} MeV",
         f"Injected level: {display.inj_nsigma:.1f} sigma",
-        f"A_inj (blind): {display.A_inj_window:.1f}",
+        f"A_inj (total): {display.A_inj_total:.1f}",
         f"A_hat: {display.A_hat:.1f} ± {display.sigma_A:.1f}",
         f"Pull: {display.pull:.2f}",
         f"eps^2_inj: {display.eps2_inj:.3e}",
@@ -595,7 +605,7 @@ def plot_combined_extraction_display(
         ax_sig[idx].legend(loc="upper left", frameon=True, fontsize=8.6)
         _grid(ax_sig[idx])
 
-        sum_A_inj += float(disp.A_inj_window)
+        sum_A_inj += float(disp.A_inj_total)
         sum_A_hat += float(disp.A_hat)
 
     u = np.linspace(-float(display.displays[0].ctx.pred.blind[1] - display.mass) / float(display.displays[0].ctx.pred.sigma_val) - float(zoom_half_sigma),
@@ -628,7 +638,7 @@ def plot_combined_extraction_display(
     for disp in display.displays:
         info_lines.extend(
             [
-                f"{disp.ctx.ds.key}: A_inj={disp.A_inj_window:.1f}, A_hat={disp.A_hat:.1f} ± {disp.sigma_A:.1f}",
+                f"{disp.ctx.ds.key}: A_inj(total)={disp.A_inj_total:.1f}, A_hat={disp.A_hat:.1f} ± {disp.sigma_A:.1f}",
                 f"{disp.ctx.ds.key}: eps^2_UL={disp.ctx.eps2_up_obs:.3e}, signal={disp.Nsig_realized_total} total / {disp.Nsig_realized_blind} blind",
             ]
         )

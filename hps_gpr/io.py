@@ -34,6 +34,7 @@ class BlindPrediction:
     y_full: np.ndarray  # All observed counts
     mu_full: np.ndarray  # Background prediction for all bins
     edges_full: np.ndarray  # All bin edges
+    blind_mask: np.ndarray  # Mask of the blind window in the full binning
 
     integral_density: float  # Counts per GeV in signal region
     blind_train: Optional[Tuple[float, float]] = None  # GP training exclusion window
@@ -272,6 +273,7 @@ def estimate_background_for_dataset(
         y_full=np.asarray(y, float),
         mu_full=np.asarray(mu_full, float),
         edges_full=np.asarray(model.histogram.axes[0].edges, float),
+        blind_mask=np.asarray((X >= blind[0]) & (X <= blind[1]), bool),
         integral_density=integral_density,
         blind_train=blind_train,
         kernel_str=str(getattr(gpr, "kernel_", "")),

@@ -10,7 +10,7 @@ from scipy.stats import norm
 
 from .io import BlindPrediction, estimate_background_for_dataset
 from .template import (
-    build_template,
+    build_window_template_from_full,
     cls_limit_for_amplitude,
     cls_amplitude_asymptotic,
     cls_amplitude_toys,
@@ -171,11 +171,15 @@ def evaluate_single_dataset(
         sigma_val=pred.sigma_val,
         config=config,
         seed=seed,
+        full_edges=pred.edges_full,
+        window_mask=pred.blind_mask,
     )
     eps2_up = epsilon2_from_A(ds, mass, A_up, pred.integral_density)
 
     # --- p0/Z via profiled LRT (v15) ---
-    tmpl = build_template(pred.edges, mass, pred.sigma_val)
+    tmpl, _ = build_window_template_from_full(
+        pred.edges_full, pred.blind_mask, mass, pred.sigma_val
+    )
     p0, Z, _, _ = p0_profiled_gaussian_LRT(pred.obs, pred.mu, pred.cov, tmpl)
 
     # --- Signal extraction ---
@@ -237,7 +241,10 @@ def build_combined_components(
     obs = np.concatenate([p.obs for p in preds]).astype(int)
     b = np.concatenate([p.mu for p in preds]).astype(float)
     cov = _concat_block_diag([p.cov for p in preds]).astype(float)
-    templates = [build_template(p.edges, mass, p.sigma_val) for p in preds]
+    templates = [
+        build_window_template_from_full(p.edges_full, p.blind_mask, mass, p.sigma_val)[0]
+        for p in preds
+    ]
     Ks = [A_from_epsilon2(ds, mass, 1.0, p.integral_density) for ds, p in zip(ds_list, preds)]
     s_unit = np.concatenate([K * t for K, t in zip(Ks, templates)]).astype(float)
     return obs, b, cov, s_unit

@@ -56,6 +56,44 @@ def build_template(
     return normalize_template(gaussian_bin_integrals(edges, mass, sigma_val))
 
 
+def build_full_template(
+    edges_full: np.ndarray, mass: float, sigma_val: float
+) -> np.ndarray:
+    """Build a Gaussian signal template normalized on the full histogram range."""
+    return build_template(edges_full, mass, sigma_val)
+
+
+def slice_template_to_window(
+    template_full: np.ndarray,
+    window_mask: np.ndarray,
+) -> np.ndarray:
+    """Extract the blinded-bin slice from a full-range normalized template."""
+    w = np.asarray(template_full, float).reshape(-1)
+    m = np.asarray(window_mask, bool).reshape(-1)
+    if w.size != m.size:
+        raise ValueError(
+            "slice_template_to_window requires template_full and window_mask "
+            "to have the same number of bins."
+        )
+    return np.asarray(w[m], float)
+
+
+def build_window_template_from_full(
+    edges_full: np.ndarray,
+    window_mask: np.ndarray,
+    mass: float,
+    sigma_val: float,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Build a full-range template and return its blinded-bin slice.
+
+    The returned window template is not renormalized inside the blinded region.
+    Its sum therefore equals the signal fraction contained inside the blind window.
+    """
+    w_full = build_full_template(edges_full, mass, sigma_val)
+    w_window = slice_template_to_window(w_full, window_mask)
+    return w_window, w_full
+
+
 def _safe_mvn_draw(
     mean: np.ndarray,
     cov: Optional[np.ndarray],
@@ -112,7 +150,8 @@ def cls_amplitude_asymptotic(
         n_obs: Observed counts
         b_mean: Background mean prediction
         cov: Background covariance matrix
-        template: Normalized signal template
+        template: Signal template on the fitted bins. This may be the blinded-bin
+            slice of a full-range normalized template, so its sum need not be 1.
         eps: Small value to prevent division by zero
 
     Returns:
@@ -174,7 +213,8 @@ def cls_amplitude_toys(
         n_obs: Observed counts
         b_mean: Background mean prediction
         cov: Background covariance matrix
-        template: Normalized signal template
+        template: Signal template on the fitted bins. This may be the blinded-bin
+            slice of a full-range normalized template, so its sum need not be 1.
         rng: Random number generator
         num_toys: Number of toys to generate
         floor: Small value to prevent division by zero
@@ -211,8 +251,11 @@ def cls_limit_for_amplitude(
     sigma_val: float,
     config: "Config",
     seed: int = 1,
+    *,
+    full_edges: Optional[np.ndarray] = None,
+    window_mask: Optional[np.ndarray] = None,
 ) -> Tuple[float, Dict[str, np.ndarray]]:
-    """Find the CLs upper limit on signal amplitude.
+    """Find the CLs upper limit on total signal amplitude.
 
     Uses bisection to find the amplitude A such that CLs = alpha.
 
@@ -220,16 +263,27 @@ def cls_limit_for_amplitude(
         n_obs: Observed counts
         b_mean: Background mean prediction
         b_cov: Background covariance matrix
-        edges: Bin edges
+        edges: Bin edges for the fitted window
         mass: Signal mass hypothesis
         sigma_val: Mass resolution
         config: Global configuration
         seed: Random seed
+        full_edges: Full histogram edges for the signal template normalization
+        window_mask: Blind-window mask in the full histogram binning
 
     Returns:
-        Tuple of (A_upper_limit, debug_dict)
+        Tuple of (A_upper_limit, debug_dict), where A_upper_limit is the total local
+        Gaussian signal yield associated with the supplied template definition.
     """
-    template = build_template(edges, mass, sigma_val)
+    if full_edges is not None and window_mask is not None:
+        template, _ = build_window_template_from_full(
+            np.asarray(full_edges, float),
+            np.asarray(window_mask, bool),
+            mass,
+            sigma_val,
+        )
+    else:
+        template = build_template(edges, mass, sigma_val)
     rng = np.random.default_rng(seed)
     alpha = config.cls_alpha
     mode = config.cls_mode
@@ -303,7 +357,9 @@ def cls_limit_for_template(
         n_obs: Observed counts
         b_mean: Background mean prediction
         b_cov: Background covariance matrix
-        template: Pre-built normalized signal template
+        template: Pre-built signal template on the fitted bins. It may be the
+            blinded-bin slice of a full-range normalized template, so its sum can
+            be less than 1.
         ds: Dataset config (required when use_eps2=True)
         mass: Signal mass in GeV (required when use_eps2=True)
         integral_density: Counts per GeV (required when use_eps2=True)
@@ -315,7 +371,8 @@ def cls_limit_for_template(
         A_hi0: Initial upper bracket for bisection (auto-set if None)
 
     Returns:
-        (limit, A_up) where limit = eps2_up if use_eps2=True else A_up
+        (limit, A_up) where limit = eps2_up if use_eps2=True else A_up, and A_up is
+        the total local Gaussian signal yield associated with the template.
     """
     template = np.asarray(template, float)
     rng = np.random.default_rng(int(seed))

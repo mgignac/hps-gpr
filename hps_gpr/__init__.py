@@ -6,7 +6,13 @@ from .config import Config, load_config
 from .dataset import DatasetConfig, make_datasets, ALPHA_EM
 from .validation import validate_datasets
 from .gpr import fit_gpr, predict_counts_from_log_gpr
-from .template import build_template, cls_limit_for_amplitude, cls_limit_for_template
+from .template import (
+    build_template,
+    build_full_template,
+    build_window_template_from_full,
+    cls_limit_for_amplitude,
+    cls_limit_for_template,
+)
 from .plotting import (
     set_plot_style, set_injection_plot_style,
     plot_full_range, plot_blind_window, plot_s_over_b,
@@ -57,6 +63,8 @@ __all__ = [
     "predict_counts_from_log_gpr",
     # Template
     "build_template",
+    "build_full_template",
+    "build_window_template_from_full",
     "cls_limit_for_amplitude",
     "cls_limit_for_template",
     # Statistics
