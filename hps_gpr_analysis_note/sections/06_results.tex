@@ -1,25 +1,25 @@
 \section{Results}
 \label{sec:results}
 
-The completed figures bundled with this note document the current state of the 2015,
-2016 10\%, and 2015+2016 validation program, but they were generated before the final
-adoption of the leakage-retaining signal-template convention described in
-Section~\ref{sec:methodology}. They are therefore retained as organized, publication-style
-placeholders for the main result classes rather than as the final frozen physics
-outputs. The qualitative structure of the results is already clear, and the note is
-written so that the figures can be replaced one-for-one when the rerun is complete.
+This section summarizes the currently completed 2015, 2016 10\%, and 2015+2016
+combination outputs. The quoted figures are still pre-rerun products in the sense
+described earlier: they were generated before the final leakage-retaining template
+update and before the optional radiative-fraction penalty was introduced. They are
+therefore best read as the present physics organization of the result rather than as
+the last word on the numerical limits. Even so, they already show the structure of the
+analysis clearly and indicate why the global-GP approach is promising for a combined
+prompt $A^\prime$ search.
 
 \subsection{2015 analysis}
 \label{sec:results-2015}
 
-The completed 2015 study uses the engineering-run invariant-mass histogram over the
-\SIrange{20}{130}{MeV} scan region, the 2015 mass-resolution parameterization, and the
-2015 radiative-fraction treatment summarized in Section~\ref{sec:datasets}. The main
-deliverables are the 95\% CL upper-limit bands in signal-yield and $\eps^2$ space,
-supported by local/global significance bookkeeping and representative extraction
-displays. Even before the final leakage-retaining rerun, the 2015 study already shows
-that the global-GP workflow produces smooth scan products and a statistically coherent
-mapping between the local extracted yield and the coupling limit.
+The 2015 analysis uses the fully unblinded engineering-run spectrum over
+\SIrange{20}{130}{MeV}. Relative to the published local-window search, the present GPR
+study is being validated over a substantially wider mass interval while preserving a
+smooth, well-behaved upper-limit curve. This is an important methodological point: the
+value of the GP approach is not merely that it fits the local background, but that it
+does so in a way that remains stable when the search window is widened and the local
+fit boundaries of the earlier polynomial approach are removed.
 
 \begin{figure}[H]
 \centering
@@ -34,32 +34,44 @@ mapping between the local extracted yield and the coupling limit.
   \graphicorplaceholder{\linewidth}{upper_limit_figs/2015/ul_bands_eps2_obsexp.png}
   \caption{$\eps^2$ upper limits with expected bands.}
 \end{subfigure}
-\caption{2015 upper limits for the current 95\% CL workflow. The left panel is quoted
-in total signal-yield space and the right panel is the corresponding mapping to
-$\eps^2$. Because these curves predate the final full-range-template rerun, they should
-be treated as provisional packaged outputs rather than final publication values.}
+\caption{2015 upper limits for the current 95\% CL workflow. The left panel is the
+limit in total signal-yield space and the right panel is the corresponding mapping to
+$\eps^2$. These curves should be interpreted as pre-rerun baselines, but they already
+demonstrate the smooth scan structure obtained with the global-GP background model.}
 \label{fig:results-2015-ul}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\graphicorplaceholder{0.62\linewidth}{fit_example_figs/2015/m030MeV_blind_fit.png}
-\caption{Representative 2015 fit display at \SI{30}{MeV}. This figure remains useful
-after the template-definition update because it illustrates the local competition
-between the profiled background deformation and the narrow resonance template in a
-concrete data example.}
-\label{fig:results-2015-fit}
+\begin{subfigure}[t]{0.48\linewidth}
+  \centering
+  \graphicorplaceholder{\linewidth}{significance_figs/2015/ul_pvalues_components_local_global_refs.png}
+  \caption{Toy-tail significance diagnostics: $p_{\rm strong}$, $p_{\rm weak}$, and
+  $p_{\rm two}$.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.48\linewidth}
+  \centering
+  \graphicorplaceholder{\linewidth}{significance_figs/2015/p0_analytic_local_global.png}
+  \caption{Analytic local and provisional global $p_0$ curves.}
+\end{subfigure}
+\caption{2015 significance summary. The left panel reports where the observed limit
+falls relative to the toy-limit ensemble, while the right panel shows the analytic
+profile-likelihood significance curves. The global component remains provisional until
+the final look-elsewhere treatment is rerun.}
+\label{fig:results-2015-significance}
 \end{figure}
 
 \subsection{2016 10\% analysis}
 \label{sec:results-2016}
 
-The 2016 validation study summarized here corresponds to the 10\% subset used for scan
-development, toy generation, and extraction displays. Its detector-specific inputs
-differ from 2015 through the 2016 resolution model, the higher-order 2016
-radiative-fraction parameterization, and the broader parent mass coverage of the 2016
-run. Within that subset, the same statistical machinery is used: global GP prediction,
-profiled local extraction, and \CLs\ limits in both yield and coupling space.
+The 2016 result shown here corresponds to the 10\% development subset used for the
+present statistical validation program. The mass resolution, radiative-fraction
+approximation, and search interval all differ from the 2015 case, but the statistical
+machinery is identical. In particular, the significance curves now carry the full set
+of analytic and toy-tail diagnostics discussed in Section~\ref{sec:methodology}, which
+makes the interpretation of upward and downward fluctuations considerably more
+transparent than in the earliest draft studies.
 
 \begin{figure}[H]
 \centering
@@ -74,72 +86,103 @@ profiled local extraction, and \CLs\ limits in both yield and coupling space.
   \graphicorplaceholder{\linewidth}{upper_limit_figs/2016_10pct/ul_bands_eps2_obsexp.png}
   \caption{$\eps^2$ upper limits with expected bands.}
 \end{subfigure}
-\caption{2016 10\% validation-study upper limits at 95\% CL. As in the 2015 case,
-these note-local bundled figures are retained as provisional baseline products pending
-the final rerun with the full-range signal template.}
+\caption{2016 10\% upper limits at 95\% CL. These are development-stage results, but
+they already show the expected smooth behavior of the global-GP procedure across the
+expanded 2016 mass interval.}
 \label{fig:results-2016-ul}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\graphicorplaceholder{0.62\linewidth}{fit_example_figs/2016/m058MeV_blind_fit.png}
-\caption{Representative 2016 fit display at \SI{58}{MeV}. The negative best-fit
-amplitude shown here is intentional and provides a clear visual reminder that the
-closure estimator is allowed to fluctuate below zero before the physical boundary is
-applied in the discovery and limit-setting test statistics.}
-\label{fig:results-2016-fit}
+\begin{subfigure}[t]{0.48\linewidth}
+  \centering
+  \graphicorplaceholder{\linewidth}{significance_figs/2016_10pct/ul_pvalues_components_local_global_refs.png}
+  \caption{Toy-tail significance diagnostics.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.48\linewidth}
+  \centering
+  \graphicorplaceholder{\linewidth}{significance_figs/2016_10pct/p0_analytic_local_global.png}
+  \caption{Analytic local and provisional global $p_0$ curves.}
+\end{subfigure}
+\caption{2016 10\% significance summary. The separation between toy-tail
+diagnostics and analytic profile-likelihood significance is important: the former test
+how unusual the observed \emph{limit} is relative to the toy ensemble, while the latter
+test how signal-like the observed spectrum is under the local extraction model.}
+\label{fig:results-2016-significance}
 \end{figure}
 
 \subsection{2015+2016 10\% combined upper limit on \texorpdfstring{$\eps^2$}{epsilon2}}
 \label{sec:results-combined-1516}
 
-The first completed shared-$\eps^2$ combination joins the 2015 engineering run and the
-2016 10\% validation subset through the joint likelihood described in
-Section~\ref{sec:combination}. This is the first point in the note where the value of a
-likelihood-level combination becomes explicit. The result is not constructed by
-averaging single-dataset limits; it is obtained by fitting a common coupling directly
-to the concatenated blinded-bin information. In the overlap region the combination
-therefore gains sensitivity by adding statistically independent information while
-preserving the correct dataset-specific mapping from $\eps^2$ to total signal yield.
+The first shared-$\eps^2$ combination joins the fully unblinded 2015 spectrum with the
+2016 10\% development sample. This is already a meaningful milestone for the analysis
+because it shows that the GPR framework can combine statistically independent data sets
+with different resolutions, search ranges, and radiative normalizations inside a single
+likelihood rather than by comparing precomputed limit curves after the fact.
+
+The combined parameter of interest is $\eps^2$, not the individual signal yield of a
+single data set. For that reason the combined result is quoted directly as an
+$\eps^2$ limit. This is also the natural place to compare the current GPR reach to the
+published HPS prompt exclusions once the final rerun is complete and the comparison
+overlay has been frozen.
 
 \begin{figure}[H]
 \centering
-\begin{subfigure}[t]{0.48\linewidth}
-  \centering
-  \graphicorplaceholder{\linewidth}{upper_limit_figs/2015_2016_combined/ul_bands_signal_yield_obsexp.png}
-  \caption{Combined signal-yield upper limits.}
-\end{subfigure}
-\hfill
-\begin{subfigure}[t]{0.48\linewidth}
-  \centering
-  \graphicorplaceholder{\linewidth}{upper_limit_figs/2015_2016_combined/ul_bands_eps2_obsexp.png}
-  \caption{Combined $\eps^2$ upper limits.}
-\end{subfigure}
-\caption{Combined 2015+2016 10\% upper limits at 95\% CL. The right panel is a copied
-summary product from the current validation workflow, while the left panel is a
-note-local provisional stand-in marking the exact final Overleaf path for the combined
-signal-yield bands. Both panels should be replaced after the leakage-retaining rerun.}
+\graphicorplaceholder{0.86\linewidth}{upper_limit_figs/2015_2016_combined/ul_bands_eps2_obsexp.png}
+\caption{Combined 2015+2016 10\% upper limit on $\eps^2$ at 95\% CL. This is the first
+result in the note that is intrinsically a shared-coupling measurement rather than a
+single-spectrum reinterpretation. The present curve is still a pre-rerun baseline, but
+it already demonstrates the expected gain from combining statistically independent
+channels in a common coupling parameter.}
 \label{fig:results-combined-1516-ul}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\graphicorplaceholder{0.70\linewidth}{combined_search_figs/extract_display_combined_m040MeV_z7p0.png}
-\caption{Illustrative combined extraction display at \SI{40}{MeV}. This common-signal
-pseudoexperiment is especially useful for showing how the shared-$\eps^2$ fit is
-assembled across datasets. The visible negative pull is one reason it is presented here
-as a diagnostic figure rather than as the final combined-search display.}
+\begin{subfigure}[t]{0.48\linewidth}
+  \centering
+  \graphicorplaceholder{\linewidth}{significance_figs/2015_2016_combined/ul_pvalues_components_local_global_refs.png}
+  \caption{Combined toy-tail significance diagnostics.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.48\linewidth}
+  \centering
+  \graphicorplaceholder{\linewidth}{significance_figs/2015_2016_combined/p0_analytic_local_global.png}
+  \caption{Combined analytic local and provisional global $p_0$ curves.}
+\end{subfigure}
+\caption{Combined significance summary for the 2015+2016 study. These plots are the
+appropriate place to track how the shared-$\eps^2$ procedure behaves statistically
+before the final global-significance evaluation is frozen.}
+\label{fig:results-combined-1516-significance}
+\end{figure}
+
+\begin{figure}[p]
+\centering
+\graphicorplaceholder{0.96\linewidth}{combined_search_figs/extract_display_combined_m040MeV_z7p0.png}
+\caption{Illustrative combined extraction display at \SI{40}{MeV}. The annotation box
+summarizes the injected common coupling, the extracted coupling, the observed combined
+limit, and the fitted per-dataset yields. The upper panels show how the two input data
+sets respond individually, while the lower panel shows the combined Gaussian signal
+representation. This figure is intentionally kept large because the interplay between
+the dataset-level fits and the combined interpretation is the central visual message of
+the shared-likelihood method.}
 \label{fig:results-combined-1516-display}
 \end{figure}
+
+\analysisplaceholder{\textbf{Published-comparison placeholder.} Once the final rerun is
+complete, insert an explicit comparison of the combined GPR limit with the published
+2015 and 2016 prompt exclusions. That comparison will be especially informative because
+the present GP-based analysis is already being validated over a wider search interval
+than the earlier local-window searches.}
 
 \subsection{2021 0.03\% analysis}
 \label{sec:results-2021-003}
 
 \analysisplaceholder{\textbf{Placeholder section.} Insert the 2021 0.03\% validation
 upper-limit and significance products here once the corresponding summary suite is
-finalized. This section should mirror the structure of the 2015 and 2016 subsections:
-two-panel upper-limit figure, representative fit display, and a short discussion of
-subset-specific closure behavior.}
+finalized. This section should mirror the structure of the completed 2015 and 2016
+subsections.}
 
 \begin{figure}[H]
 \centering
@@ -187,8 +230,7 @@ and the way that subset enters the later shared-$\eps^2$ combinations.}
 
 \analysisplaceholder{\textbf{Placeholder section.} Insert the first three-way combined
 upper-limit products here once the 2021 1\% combination is available. The discussion
-should reuse the shared-likelihood logic of Section~\ref{sec:combination} and make
-clear how the new dataset changes the combined sensitivity.}
+should reuse the shared-likelihood logic of Section~\ref{sec:combination}.}
 
 \begin{figure}[H]
 \centering
@@ -236,7 +278,7 @@ look-elsewhere rerun is available.}
 \label{sec:results-individual-2016-placeholder}
 
 \analysisplaceholder{\textbf{Placeholder section.} Reserve this subsection for the
-full or updated standalone 2016 analysis that supersedes the current 10\% validation
+full or updated standalone 2016 analysis that supersedes the current 10\% development
 subset.}
 
 \subsection{Individual 2021 10\% analysis}
@@ -245,17 +287,17 @@ subset.}
 \analysisplaceholder{\textbf{Placeholder section.} Reserve this subsection for the
 standalone 2021 10\% analysis products.}
 
-\subsection{Fully unblinded 2021 dataset analysis}
+\subsection{Fully unblinded 2021 data set analysis}
 \label{sec:results-fully-unblinded-2021-placeholder}
 
 \analysisplaceholder{\textbf{Placeholder section.} Reserve this subsection for the
-fully unblinded 2021 dataset once the final prompt-selection, exposure, and global
+fully unblinded 2021 data set once the final prompt selection, exposure, and global
 significance inputs are frozen.}
 
 \subsection{2015+2016+2021 complete combined analysis}
 \label{sec:results-complete-combined-placeholder}
 
 \analysisplaceholder{\textbf{Placeholder section.} Reserve this subsection for the
-final combined HPS prompt resonance result. The completed version should quote only the
+final combined HPS prompt-resonance result. The completed version should quote only the
 validated analysis range, the corrected global-significance treatment, and the final
 radiative-fraction inputs.}

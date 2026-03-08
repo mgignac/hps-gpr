@@ -52,8 +52,15 @@ sigma_coeffs_2021: [0.00286957, -0.00851449, 0.25362319]
 # f_rad(m) = sum_i coeffs[i] * m^i
 # =====================
 frad_coeffs_2015: [0.085]  # constant from paper
-frad_coeffs_2016: [0.05] #[-0.104070, 9.59977, -212.211, 2148.12, -10140.1, 18048.5]
+frad_coeffs_2016: [0.05]  # constant approximation used in the current search window
 frad_coeffs_2021: [0.05] #[-0.211, 10.5, -161.8, 1189.0, -4165.0, 5565.0]
+
+# Optional radiative-fraction penalty applied in the A <-> epsilon^2 conversion.
+# When enabled, the effective radiative fraction is f_rad^eff = f_rad * (1 - penalty_frac).
+radiative_penalty_on: false
+radiative_penalty_frac_2015: 0.07
+radiative_penalty_frac_2016: 0.07
+radiative_penalty_frac_2021: 0.07
 
 # =====================
 # Dataset enable switches

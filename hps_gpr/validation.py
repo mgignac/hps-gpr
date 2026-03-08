@@ -75,6 +75,7 @@ def validate_datasets(
             m_test = float(0.5 * (max(ds.m_low, lo_e) + min(ds.m_high, hi_e)))
             sig = ds.sigma(m_test)
             fr = ds.frad(m_test)
+            fr_eff = ds.frad_effective(m_test)
 
             ok = True
             msgs = []
@@ -108,13 +109,14 @@ def validate_datasets(
                 test_mass=m_test,
                 sigma_at_test=sig,
                 frad_at_test=fr,
+                frad_effective_at_test=fr_eff,
             )
 
             if config.debug_print:
                 print(
                     f"[validate] {k}: hist edges [{lo_e:.4f},{hi_e:.4f}]  "
                     f"total={tot:.3g}  test m={m_test:.4f}  "
-                    f"sigma={sig:.4g}  frad={fr:.4g}"
+                    f"sigma={sig:.4g}  frad={fr:.4g}  frad_eff={fr_eff:.4g}"
                 )
                 for m in msgs:
                     print("          ", m)

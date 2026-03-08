@@ -78,12 +78,16 @@ class Config:
 
     # Radiative fraction f_rad(m) polynomial coefficients
     frad_coeffs_2015: List[float] = field(default_factory=lambda: [0.085])
-    frad_coeffs_2016: List[float] = field(
-        default_factory=lambda: [-0.104070, 9.59977, -212.211, 2148.12, -10140.1, 18048.5]
-    )
+    frad_coeffs_2016: List[float] = field(default_factory=lambda: [0.05])
     frad_coeffs_2021: List[float] = field(
         default_factory=lambda: [-0.211, 10.5, -161.8, 1189.0, -4165.0, 5565.0]
     )
+    # Optional radiative-fraction sensitivity penalty.
+    # When enabled, conversions use f_rad^eff = f_rad * (1 - penalty_frac).
+    radiative_penalty_on: bool = False
+    radiative_penalty_frac_2015: float = 0.07
+    radiative_penalty_frac_2016: float = 0.07
+    radiative_penalty_frac_2021: float = 0.07
 
     # Dataset enable switches
     enable_2015: bool = True

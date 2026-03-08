@@ -1,24 +1,41 @@
 \section{Event Selection}
 \label{sec:event-selection}
 
-The resonance-search workflow in this package begins from histogrammed invariant-mass
-distributions that already encode the relevant prompt-selection logic for each run
-period. Because the current repository is focused on statistical inference rather than
-detector reconstruction, the event-selection discussion is intentionally scaffolded but
-should still be explicit about which ingredients are finalized and which remain under
-active documentation.
+The resonance-search workflow begins from histogrammed invariant-mass distributions that
+already encode the prompt-selection logic for each run period. The goal of the
+selection is to retain prompt $e^+e^-$ pairs that are kinematically consistent with the
+electroproduction of a narrow $A^\prime$, while suppressing accidental pairings,
+converted wide-angle Bremsstrahlung, and the broad Bethe--Heitler-dominated trident
+background that does not share the same prompt-resonance sensitivity as the radiative
+trident component.
+
+Several common ideas underlie the selection across all HPS data sets. The analysis uses
+well-reconstructed oppositely charged tracks matched to electromagnetic clusters, tight
+timing consistency between the two clusters, and momentum and vertex requirements that
+favor prompt pair production. These cuts matter for more than detector cleanliness
+alone. They directly control the sample composition entering the invariant-mass
+spectrum, and therefore they also control the radiative fraction, the mass resolution,
+and the background covariance subsequently modeled by the GP.
+
+The distinction between event categories is especially important in the 2016 analysis,
+where target-constrained and unconstrained vertex fits play different roles in the
+prompt and displaced searches. For the prompt narrow-resonance search, the
+target-constrained reconstruction is preferred because it improves the angular and mass
+resolution of the $e^+e^-$ pair. That is precisely the category whose invariant-mass
+spectrum enters the present GPR note.
 
 The 2015 and 2016 selections shown in Table~\ref{tab:event-selection} are adapted from
-the HPS internal prompt-resonance notes and from the prior rough draft maintained in
-this repository. They are sufficiently mature to anchor the present statistical note.
-By contrast, the 2021 column is kept deliberately provisional: the row structure is in
-place, but several prompt-tight values still need to be synchronized with the final
-2021 reconstruction note or publication.
+the mature HPS prompt-resonance notes and from the earlier analysis drafts that led to
+the current statistical workflow. They are sufficiently mature to anchor the present
+note. By contrast, the 2021 column is kept deliberately provisional: the row structure
+is in place, but several prompt-tight values still need to be synchronized with the
+final 2021 reconstruction documentation.
 
 \input{tables/event_selection_table}
 
 The statistical interpretation in the remaining sections assumes that each histogram is
 already defined after the corresponding prompt selection. No additional per-event cuts
-are introduced by the GP package itself; the package only consumes the binned invariant
-mass observable together with the dataset-specific scan range, mass resolution, and
-radiative-fraction inputs.
+are introduced by the GP analysis itself. The inference layer consumes only the binned
+invariant-mass spectrum together with the dataset-specific scan range, mass resolution,
+and radiative-fraction inputs, but all three of those quantities inherit their physical
+meaning from the event selection summarized here.

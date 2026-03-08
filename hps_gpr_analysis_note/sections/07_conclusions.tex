@@ -1,27 +1,28 @@
 \section{Conclusions and Outlook}
 \label{sec:conclusions}
 
-This note organizes the current HPS Gaussian-process resonance-search package in the
-language of a physics analysis rather than in the language of implementation alone. The
-core picture is now clear. The background model is a global log-space GP with a
-Constant$\times$RBF kernel and a variance-form $\alpha=1/y$ prescription. Local signal
-extraction and local significance are based on a profiled multi-bin likelihood fed by
-the GP blind-window mean and covariance. The signal template is now treated as a
-full-range Gaussian line shape whose blinded-bin slice enters the fit without
-renormalization, so the fitted amplitude remains interpretable as the total local
-signal yield. Single-dataset and combined upper limits are then set in a shared
-$\eps^2$ framework, with extensive toy studies already available to assess linearity,
-bias, pull width, coverage, significance calibration, and the sensitivity gain from
-combining datasets.
+This analysis establishes a coherent GPR-based framework for the HPS narrow prompt
+$A^\prime \rightarrow e^+e^-$ resonance search. The essential ingredients are now in
+place: a global GP description of the invariant-mass spectrum tied to the detector
+resolution, a local profiled-likelihood extraction with an explicitly full-range signal
+template, a conversion from signal yield to $\eps^2$ grounded in the radiative trident
+interpretation of fixed-target heavy-photon production, and a true shared-likelihood
+combination across statistically independent data sets. The accompanying toy program
+already demonstrates that these ingredients can be tested in the language that matters
+for a HEP search analysis, namely estimator bias, pull calibration, interval coverage,
+significance calibration, and combined-search behavior.
 
-The main remaining tasks are equally clear. The 2021 dataset subsections need final
-public run metadata and the corresponding production plots. The global-significance
-section requires the corrected look-elsewhere rerun before any final claim is made. The
-signal-absorption question should be revisited with dedicated comparisons of fixed,
-Gaussian-profiled, and alternative nuisance treatments, especially in the full
-procedural pseudoexperiment mode.
+This is a meaningful milestone for the use of Gaussian-process methods in HEP analyses.
+In many applications, GPR is introduced only as a flexible interpolation tool. Here it
+has been developed into a complete search framework: the GP background model is not an
+isolated fit, but part of a statistically explicit inference chain that supports local
+significance, expected and observed limits, and combined coupling limits across
+heterogeneous data sets. That is precisely the level at which GPR must operate if it is
+to become a mature analysis technique rather than an interesting auxiliary method.
 
-With those caveats, the present document is already suitable as the organized backbone
-for an Overleaf analysis note: the sectioning matches the anticipated final analysis
-sequence, the current completed figures are bundled under note-local destination paths,
-and every missing product now has a concrete placeholder in the narrative.
+The remaining work is well defined. The 2021 stages need their final production plots
+and normalization inputs, the global-significance treatment needs the dedicated
+look-elsewhere rerun, and the signal-absorption question should be revisited after the
+next round of full procedural toys and likelihood refinements. With those steps
+completed, the framework documented here is positioned to provide the first fully
+combined HPS GPR-based prompt-resonance result.

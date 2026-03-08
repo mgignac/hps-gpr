@@ -3,36 +3,31 @@
 
 \subsection{Scope of the current validation campaign}
 
-Unless a figure caption states otherwise, the injection/extraction studies summarized
-in this note correspond to the 95\% confidence-level workflow with blind width
-$1.64\,\sigma_m$ and \num{10000} toys per mass-strength point. The completed summary
-suite presently covers 2015, 2016 10\%, and the 2015+2016 shared-$\eps^2$
-combination. The physics-facing interpretation of the combined search will ultimately
-be restricted to the mass interval \SIrange{35}{130}{MeV}; behavior outside that range
-is retained for diagnostics but is not emphasized in the discussion below.
+Unless stated otherwise, the toy studies summarized here correspond to the 95\%
+confidence-level workflow with blind width $1.64\,\sigma_m$ and \num{10000} toys per
+mass-strength point. The completed suites cover the fully unblinded 2015 sample, the
+2016 10\% development sample, and the first 2015+2016 shared-$\eps^2$ combination.
+Throughout this section, the combined interpretation is focused on the overlap region
+\SIrange{35}{130}{MeV}, which is the mass interval where both data sets contribute
+meaningfully to the prompt-resonance search.
 
-The copied toy-validation, combined-search, and upper-limit figures bundled with this
-note were produced before the final adoption of the leakage-retaining signal-template
-convention described in Section~\ref{sec:methodology}. They remain useful because they
-already expose the main qualitative features of the extraction and combination
-machinery, but they should be interpreted as provisional until the corresponding rerun
-is completed with the full-range template definition.
+The bundled toy-validation figures were produced before the final adoption of the
+leakage-retaining signal template and before the future likelihood refinements
+mentioned in Section~\ref{sec:methodology}. They are nevertheless already informative
+for the statistical questions that matter most: closure, bias, pull calibration,
+coverage, and the logic of the combined extraction.
 
 \subsection{Three toy-generation modes}
 
-The current validation program uses three distinct pseudoexperiment constructions, each
-answering a different statistical question.
+The validation program uses three complementary pseudoexperiment constructions.
 
 \subsubsection{Analytic functional-form pseudoexperiments}
 
-The first toy category starts from an explicit analytic fit to the smooth mass spectrum
-and fluctuates pseudo-data around that closed-form background model. This approach is
-especially useful for the earliest closure tests because it isolates the question of
-gross spectral smoothness from the more complicated question of GP conditioning. The
-repository already contains a representative 2021 example showing that the selected
-analytic form tracks the 0.03\% subset well enough to seed this kind of study. The
-corresponding 2015 and 2016 validation plots have not yet been exported and are left
-as explicit placeholders in the note structure.
+The first class of toys starts from an analytic fit to the smooth $e^+e^-$
+invariant-mass spectrum and fluctuates pseudo-data around that closed-form background
+model. These studies isolate the question of gross spectral smoothness from the later
+question of GP conditioning. They are therefore useful as the first closure test before
+the full inference chain is exercised.
 
 \begin{figure}[H]
 \centering
@@ -54,220 +49,166 @@ as explicit placeholders in the note structure.
   \caption{2016 placeholder.}
 \end{subfigure}
 \caption{Analytic background fits used to seed functional-form pseudoexperiments. The
-2021 panel is an existing repository asset; the 2015 and 2016 panels mark the exact
-Overleaf paths for the analogous figures still to be produced.}
+2021 panel is already available; analogous 2015 and 2016 plots should be added when
+those studies are exported in final form.}
 \label{fig:analytic-fit-toys}
 \end{figure}
 
 \subsubsection{Conditional blind-window GP toys}
 
-The fastest production toy mode keeps the sideband-trained GP fixed at each test mass.
-Operationally, the procedure is to fit the GP on sidebands only, translate the
-prediction into a blinded-bin mean vector $\bm{b}$ and covariance $\bm{C}$, draw a
-background realization from the implied multivariate distribution, add signal in the
-blinded bins, and finally Poisson-sample the observed counts. Because the sideband fit
-is not rebuilt for every toy, this mode is ideal for stress-testing the extraction
-machinery under the posterior background model already implied by the real data. It is
-also the most efficient way to generate large expected-band ensembles.
+The fastest toy mode keeps the sideband-trained GP fixed at a given test mass. The GP
+fit is performed once on the sidebands, the blind-window mean vector and covariance are
+constructed from that fit, a background realization is drawn, signal is added, and the
+result is Poisson-sampled. This construction is ideal for high-statistics expected-band
+studies and for testing the response of the extraction fit under the posterior
+background model preferred by the real data.
 
 \subsubsection{Full procedural GP-mean/refit pseudoexperiments}
 
-The more realistic but slower toy mode constructs a new full-histogram pseudoexperiment
-from the GP-derived global background expectation, injects signal using the
-full-histogram Gaussian template, and then reruns the sideband-to-blind prediction on
-the toy before signal extraction. In the current package this corresponds to enabling
-\texttt{inj\_refit\_gp\_on\_toy}. This is the mode that most directly probes whether the
-full analysis chain absorbs part of the injected signal through GP refitting or through
-the profiled nuisance model. It is therefore the decisive validation mode for the
-remaining signal-absorption question.
+The most realistic toy mode generates a full pseudoexperiment from the GP-derived
+background expectation, injects signal with the full Gaussian template, and then reruns
+the GP sideband-to-blind prediction on the toy before signal extraction. This is the
+appropriate mode for diagnosing signal absorption, because it directly tests how much
+of the injected signal may be absorbed by the refitted background model or by the
+profiled nuisance treatment.
 
 \subsection{Asimov versus Poisson reference construction}
 
-When injections are specified in units of $\sigma_A$, the package first defines a
-reference uncertainty $\sigma_{A,\mathrm{ref}}(m)$. Two conventions are implemented.
-In \textbf{Asimov mode}, the reference counts are set equal to the predicted background
-mean, $n_i^{\mathrm{ref}}=b_i$, so the normalization reflects the deterministic local
-sensitivity of the fitted model. In \textbf{Poisson mode}, the reference counts are
-Poisson-fluctuated before $\sigma_{A,\mathrm{ref}}$ is extracted, so counting noise is
-already present at the normalization stage. The completed 95\% CL studies summarized
-here use the Asimov convention, which matches the current study configurations and is
-better suited to comparing different toy constructions on the same footing.
+When toy strengths are specified in units of $\sigma_A$, the package first constructs a
+reference extraction uncertainty $\sigma_{A,\mathrm{ref}}(m)$. In \textbf{Asimov mode},
+the reference spectrum is set equal to the predicted background mean and therefore
+encodes the deterministic sensitivity implied by the fit. In \textbf{Poisson mode}, the
+reference spectrum is fluctuated before $\sigma_{A,\mathrm{ref}}$ is extracted. The
+completed 95\% CL studies summarized here use the Asimov convention.
 
 \subsection{Poisson versus multinomial signal injection}
 
-Signal injection is handled separately from the choice of $\sigma_A$ reference.
-\textbf{Poisson-total injection} assigns each bin an independent Poisson draw with mean
-$A_{\mathrm{inj}}w_i$, so the realized total injected signal fluctuates from toy to toy.
-\textbf{Multinomial fixed-total injection} keeps the total injected yield fixed and
-distributes it across bins according to the Gaussian template weights. In the current
-implementation $A_{\mathrm{inj}}$ denotes the total local Gaussian yield, while the
-expected signal appearing inside the blinded bins is
-$f_{\mathrm{blind}}A_{\mathrm{inj}}$ with $f_{\mathrm{blind}}<1$ for the nominal
-$1.64\,\sigma_m$ window.
+Signal injection is distinct from the choice of $\sigma_A$ reference. In
+\textbf{Poisson-total injection}, each bin receives a Poisson draw with mean
+$A_{\mathrm{inj}}w_i$, so the realized total signal fluctuates from toy to toy. In
+\textbf{multinomial fixed-total injection}, the total number of injected events is
+fixed and only the bin-to-bin allocation fluctuates. Since the present signal template
+is normalized on the full histogram range, $A_{\mathrm{inj}}$ denotes the total local
+signal yield and only the fraction $f_{\mathrm{blind}}A_{\mathrm{inj}}$ is expected to
+appear inside the blinded bins for the nominal $1.64\,\sigma_m$ window.
 
-This distinction explains the horizontal error bars that appear in some injection
-summary plots. Only Poisson-total injection produces a genuine spread in the realized
-horizontal coordinate because the total injected signal itself fluctuates. For
-multinomial fixed-total injection the x-axis value is exact, so any horizontal whisker
-would merely be a plotting convention rather than a toy-derived uncertainty. The
-blind-window injection studies that populate the summary suite use
-\texttt{inj\_mode = poisson}, whereas the extraction-display plots prefer a fixed-total
-injection so that the visual comparison between requested and fitted signal strength is
-cleaner.
+This distinction matters when interpreting uncertainty bars on validation plots. Only
+Poisson-total injection produces a genuine horizontal spread in the realized injected
+strength. Under fixed-total multinomial injection the horizontal coordinate is exact.
 
-\subsection{Representative extraction displays}
+\subsection{Representative single-mass extraction displays}
 
-Representative extraction displays are useful because they show what the statistical
-model is doing at the level of individual mass hypotheses rather than only through
-summary metrics. The 2016 \SI{58}{MeV} blind-fit display is particularly informative
-because the fitted amplitude is negative, making it a clear example of how the
-unconstrained closure estimator is allowed to fluctuate below zero. The 2015
-\SI{30}{MeV} display provides a lower-mass comparison with a similarly transparent
-profiled-background response.
+Representative extraction displays make the statistical procedure concrete at the level
+of an individual mass hypothesis. The 2015 \SI{30}{MeV} display and the 2016 10\%
+\SI{58}{MeV} display are retained because they show, in real data, how the profiled
+background deformation competes with the narrow signal template. The 2016 example is
+particularly useful because the best-fit amplitude is negative.
 
-\begin{figure}[H]
+\begin{figure}[p]
 \centering
-\begin{subfigure}[t]{0.48\linewidth}
+\begin{subfigure}[t]{0.88\linewidth}
   \centering
   \graphicorplaceholder{\linewidth}{fit_example_figs/2015/m030MeV_blind_fit.png}
   \caption{2015 data at \SI{30}{MeV}.}
 \end{subfigure}
-\hfill
-\begin{subfigure}[t]{0.48\linewidth}
+
+\vspace{1.0em}
+
+\begin{subfigure}[t]{0.88\linewidth}
   \centering
   \graphicorplaceholder{\linewidth}{fit_example_figs/2016/m058MeV_blind_fit.png}
-  \caption{2016 data at \SI{58}{MeV}, including a negative $\hat A$.}
+  \caption{2016 10\% data at \SI{58}{MeV}, including a negative $\hat A$.}
 \end{subfigure}
-\caption{Representative blind-window fits using data. These displays are retained as
-stable examples of how the profiled background shift and the narrow signal template
-compete inside a concrete mass window.}
+\caption{Representative blind-window fits using data. These displays show the fit
+components directly and serve as concrete examples of the local extraction machinery
+before one moves to ensemble diagnostics.}
 \label{fig:data-fit-examples}
 \end{figure}
 
-\subsection{Injection summary suite}
+\subsection{Pull, coverage, and significance-calibration diagnostics}
 
-The \texttt{injection\_summary\_9} suite is the main summary product of the completed
-2015, 2016, and combined toy campaign. The linearity panels test whether the mean
-extracted amplitude tracks the injected amplitude. The bias panels display the same
-information after subtracting the truth, so persistent offsets are immediately visible.
-The pull-width and coverage summaries then test whether the reported extraction
-uncertainty is calibrated correctly. Finally, the heatmaps and $Z$-calibration figures
-localize where mass dependence or signal strength dependence causes the extraction to
-depart from ideal behavior. Because these figures predate the final leakage-retaining
-rerun, they should be read as baseline diagnostics rather than as frozen final
-performance statements.
+The central ensemble-level validation quantities are the pull,
+\begin{equation}
+\mathrm{pull} = \frac{\hat A - A_{\mathrm{inj}}}{\sigma_A},
+\end{equation}
+its mean and width as a function of mass and injected strength, and the empirical
+coverage of the nominal one- and two-standard-deviation intervals. These are standard
+closure diagnostics in HEP statistical analyses because they test, respectively,
+whether the estimator is biased, whether the quoted uncertainty is correctly calibrated,
+and whether the reported intervals achieve the claimed frequentist coverage
+\cite{Cowan1998,Cowan2011}.
 
-\begin{figure}[H]
+For the present study, the pull-versus-mass plots are the most compact summary because
+they display both the pull mean and pull width at once. In the overlap region
+\SIrange{40}{115}{MeV}, both the 2015 and 2016 10\% studies show broadly promising
+behavior. The large downward excursion below \SI{40}{MeV} is dominated by the fact that
+the 2016 geometric acceptance is essentially zero there, especially at
+\SIlist{25;30}{MeV}. The upward drift above approximately \SI{130}{MeV} is influenced by
+the truncation of the 2015 spectrum near \SI{150}{MeV} and may also contain residual
+signal-leakage effects that should be revisited after the next likelihood update.
+
+\begin{figure}[p]
 \centering
 \begin{subfigure}[t]{0.48\linewidth}
   \centering
-  \graphicorplaceholder{\linewidth}{injection_extraction_figs/linearity_all.png}
-  \caption{Linearity across datasets.}
+  \graphicorplaceholder{\linewidth}{injection_extraction_figs/pull_vs_mass_2015.png}
+  \caption{2015 pull mean and width versus mass.}
 \end{subfigure}
 \hfill
 \begin{subfigure}[t]{0.48\linewidth}
   \centering
-  \graphicorplaceholder{\linewidth}{injection_extraction_figs/bias_all.png}
-  \caption{Bias across datasets.}
+  \graphicorplaceholder{\linewidth}{injection_extraction_figs/pull_vs_mass_2016.png}
+  \caption{2016 10\% pull mean and width versus mass.}
 \end{subfigure}
-
-\vspace{0.8em}
-
-\begin{subfigure}[t]{0.48\linewidth}
-  \centering
-  \graphicorplaceholder{\linewidth}{injection_extraction_figs/pull_width_all.png}
-  \caption{Pull-width summary.}
-\end{subfigure}
-\hfill
-\begin{subfigure}[t]{0.48\linewidth}
-  \centering
-  \graphicorplaceholder{\linewidth}{injection_extraction_figs/coverage_all.png}
-  \caption{Coverage summary.}
-\end{subfigure}
-\caption{Core injection/extraction closure summaries for the 95\% CL,
-$1.64\,\sigma_m$, \num{10000}-toy campaign. These panels collectively test response
-linearity, bias, uncertainty calibration, and empirical interval coverage. The bundle
-is retained here as a provisional baseline pending the leakage-retaining rerun.}
-\label{fig:inj-core-summaries}
+\caption{Mass-dependent pull diagnostics for the single-dataset analyses. The points
+show the mean pull and pull width extracted from the toy ensembles, while the shaded
+bands reflect the uncertainty of those quantities under the Poisson injection scheme.
+These plots summarize the most important closure information more directly than the
+separate linearity, bias, and pull-width aggregate summaries.}
+\label{fig:pull-vs-mass}
 \end{figure}
 
-\begin{figure}[H]
-\centering
-\begin{subfigure}[t]{0.32\linewidth}
-  \centering
-  \graphicorplaceholder{\linewidth}{injection_extraction_figs/heatmap_pull_mean_2015.png}
-  \caption{2015 pull mean.}
-\end{subfigure}
-\hfill
-\begin{subfigure}[t]{0.32\linewidth}
-  \centering
-  \graphicorplaceholder{\linewidth}{injection_extraction_figs/heatmap_pull_mean_2016.png}
-  \caption{2016 pull mean.}
-\end{subfigure}
-\hfill
-\begin{subfigure}[t]{0.32\linewidth}
-  \centering
-  \graphicorplaceholder{\linewidth}{injection_extraction_figs/heatmap_pull_mean_combined.png}
-  \caption{Combined pull mean.}
-\end{subfigure}
+The coverage plots complement the pull diagnostics by testing whether the empirical
+fractions satisfying $|\mathrm{pull}|<1$ and $|\mathrm{pull}|<2$ remain close to the
+nominal Gaussian expectations of approximately 68\% and 95\%. For both 2015 and the
+2016 10\% sample, the observed coverage is reasonably close to expectation across the
+core search region.
 
-\vspace{0.8em}
-
-\begin{subfigure}[t]{0.32\linewidth}
-  \centering
-  \graphicorplaceholder{\linewidth}{injection_extraction_figs/heatmap_pull_width_2015.png}
-  \caption{2015 pull width.}
-\end{subfigure}
-\hfill
-\begin{subfigure}[t]{0.32\linewidth}
-  \centering
-  \graphicorplaceholder{\linewidth}{injection_extraction_figs/heatmap_pull_width_2016.png}
-  \caption{2016 pull width.}
-\end{subfigure}
-\hfill
-\begin{subfigure}[t]{0.32\linewidth}
-  \centering
-  \graphicorplaceholder{\linewidth}{injection_extraction_figs/heatmap_pull_width_combined.png}
-  \caption{Combined pull width.}
-\end{subfigure}
-\caption{Mass-strength heatmaps for mean pull and pull width. These figures are the
-most direct way to localize where residual bias or uncertainty miscalibration is
-largest, and they are therefore central to monitoring possible signal absorption as the
-toy model is refined.}
-\label{fig:inj-heatmaps}
-\end{figure}
-
-\begin{figure}[H]
+\begin{figure}[p]
 \centering
 \begin{subfigure}[t]{0.48\linewidth}
   \centering
-  \graphicorplaceholder{\linewidth}{injection_extraction_figs/z_calibration_residual_comparison.png}
-  \caption{$Z$-calibration comparison.}
+  \graphicorplaceholder{\linewidth}{injection_extraction_figs/coverage_2015.png}
+  \caption{2015 interval coverage.}
 \end{subfigure}
 \hfill
 \begin{subfigure}[t]{0.48\linewidth}
   \centering
-  \graphicorplaceholder{\linewidth}{injection_extraction_figs/pull_vs_mass_combined.png}
-  \caption{Combined pull evolution versus mass.}
+  \graphicorplaceholder{\linewidth}{injection_extraction_figs/coverage_2016.png}
+  \caption{2016 10\% interval coverage.}
 \end{subfigure}
-\caption{The $Z$-calibration residuals test whether the fitted significance scale tracks
-the injected scale, while the combined pull-versus-mass summary shows where the
-calibration is most sensitive to mass-dependent background structure.}
-\label{fig:inj-zcal}
+\caption{Empirical coverage of the nominal one- and two-standard-deviation pull
+intervals. These panels test whether the extracted uncertainty $\sigma_A$ is correctly
+calibrated as an interval statement, not only as a width parameter.}
+\label{fig:coverage}
 \end{figure}
+
+The significance-calibration studies provide a third layer of validation by comparing
+the extracted significance scale with the injected scale. This information corroborates
+the combined-search-power studies discussed below: both are asking whether the
+multi-dataset procedure accumulates significance in a way consistent with the expected
+inverse-variance weighting of the constituent channels.
 
 \subsection{Combined search-power studies}
 
-The combined-search-power figures explain qualitatively why the shared-$\eps^2$
-combination can outperform either constituent dataset alone. The scenario-level summary
-shows how the combined local significance grows under different assumptions about the
-relative strength of the contributing datasets. The constituent-requirement plot
-recasts a target combined $5\sigma$ excess into the local $Z$ and $p_0$ each dataset
-would need to supply. The mass-specific allocation plots at \SIlist{40;80;115}{MeV}
-then visualize how the required signal partitions between 2015 and 2016 according to
-the inverse-variance weighting implicit in $\sigma_{A,\mathrm{ref}}$. These figures are
-best understood as interpretation aids for the shared-likelihood machinery rather than
-as direct limit-setting inputs.
+The combined-search-power figures illustrate why a shared-$\eps^2$ combination can
+outperform either constituent data set alone. The key point is that the combined
+injection is not defined by adding the same number of signal events to each data set.
+Instead, a common injected $\eps^2$ is mapped into dataset-specific total signal yields
+through the conversion factors $K_d(m)$ and then interpreted relative to the
+dataset-specific $\sigma_{A,\mathrm{ref}}$. As a result, a combined ``7$\sigma$''
+injection means a seven-standard-deviation common coupling in the combined statistic,
+not seven standard deviations in each constituent data set separately.
 
 \begin{figure}[H]
 \centering
@@ -280,46 +221,34 @@ as direct limit-setting inputs.
 \begin{subfigure}[t]{0.48\linewidth}
   \centering
   \graphicorplaceholder{\linewidth}{combined_search_figs/combined_search_power_constituent_pvalues_5sigma.png}
-  \caption{Local constituent requirements for a combined $5\sigma$ target.}
+  \caption{Constituent requirements for a target combined $5\sigma$ excess.}
 \end{subfigure}
-\caption{Combined-search-power studies derived from the injection summary suite. They
-are useful for understanding how sensitivity accumulates across statistically
-independent datasets before the final shared-likelihood combination is quoted.}
+\caption{Combined-search-power diagnostics. These plots show how sensitivity accumulates
+in the shared-$\eps^2$ framework and should be interpreted together with the
+significance-calibration studies rather than as direct limit-setting observables.}
 \label{fig:combined-search-power}
 \end{figure}
 
-\subsection{Pseudoexperiment combined extraction displays}
+\subsection{Combined extraction displays}
 
-The repository also contains a compact display suite for common-signal
-pseudoexperiments at fixed injected significance. The combined \SI{40}{MeV} example is
-particularly useful because it shows the present multi-dataset extraction strategy
-directly. The visible negative pull in that panel is one of the reasons it should be
-read as illustrative and preliminary rather than as a final physics figure. It is
-exactly the kind of structure that motivates the remaining signal-absorption checks
-discussed in Section~\ref{sec:methodology}.
+The common-signal extraction displays are the most transparent way to visualize the
+shared-$\eps^2$ construction. The top row shows individual single-dataset
+pseudoexperiments. The lower panel shows the combined Gaussian signal representation
+constructed from the same injected coupling. For the currently available \SI{40}{MeV}
+example, the injected combined strength is seven standard deviations in the
+\emph{combined} statistic, which corresponds to different effective per-dataset
+strengths because the two data sets have different conversion factors and reference
+uncertainties.
 
-\begin{figure}[H]
+\begin{figure}[p]
 \centering
-\begin{subfigure}[t]{0.32\linewidth}
-  \centering
-  \graphicorplaceholder{\linewidth}{combined_search_figs/extract_display_2015_m025MeV_z7p0.png}
-  \caption{2015 individual display.}
-\end{subfigure}
-\hfill
-\begin{subfigure}[t]{0.32\linewidth}
-  \centering
-  \graphicorplaceholder{\linewidth}{combined_search_figs/extract_display_2016_m080MeV_z7p0.png}
-  \caption{2016 individual display.}
-\end{subfigure}
-\hfill
-\begin{subfigure}[t]{0.32\linewidth}
-  \centering
-  \graphicorplaceholder{\linewidth}{combined_search_figs/extract_display_combined_m040MeV_z7p0.png}
-  \caption{Combined \SI{40}{MeV} display, illustrative and preliminary.}
-\end{subfigure}
-\caption{Representative common-signal pseudoexperiment displays at fixed injected
-significance. The combined panel is intentionally presented as a diagnostic figure and
-should be regenerated after the leakage-retaining rerun before being used as a final
-analysis illustration.}
+\graphicorplaceholder{0.96\linewidth}{combined_search_figs/extract_display_combined_m040MeV_z7p0.png}
+\caption{Illustrative combined extraction display at \SI{40}{MeV}. The annotation box
+summarizes the injected coupling, the extracted combined coupling, the observed combined
+limit, and the corresponding per-dataset fitted yields. The upper panels show the
+single-dataset fits and extracted signal components, while the lower panel shows the
+combined Gaussian signal representation that enters the shared-$\eps^2$ interpretation.
+The visible negative pull is why this figure should still be regarded as a diagnostic
+display rather than as the final combined-search illustration.}
 \label{fig:combined-extract-displays}
 \end{figure}

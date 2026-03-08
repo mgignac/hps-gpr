@@ -41,6 +41,10 @@ sigma_coeffs_2021: [0.00286957, -0.00851449, 0.25362319]
 frad_coeffs_2015: [0.085]
 frad_coeffs_2016: [0.05]
 frad_coeffs_2021: [0.05]
+radiative_penalty_on: false
+radiative_penalty_frac_2015: 0.07
+radiative_penalty_frac_2016: 0.07
+radiative_penalty_frac_2021: 0.07
 
 # =====================
 # Dataset activation (baseline: 2015 validation)

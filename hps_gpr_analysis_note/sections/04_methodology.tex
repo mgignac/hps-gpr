@@ -91,11 +91,11 @@ covariance scale, while $\ell$ controls how rapidly the background is allowed to
 in log-mass space. For a smooth prompt trident spectrum, that separation is both
 physically transparent and statistically sufficient.
 
-The repository preserves older studies of more complicated kernels and piecewise
-procedures for historical context, but those variants are no longer the production
-baseline. This note therefore documents the Constant$\times$RBF model as the
-authoritative kernel choice and treats more elaborate alternatives as robustness checks
-rather than competing mainline methods.
+Earlier studies preserved in the analysis history explored more complicated kernels and
+piecewise procedures, but those variants are no longer the production baseline. This
+note therefore documents the Constant$\times$RBF model as the authoritative kernel
+choice and treats more elaborate alternatives as robustness checks rather than
+competing mainline methods.
 
 \subsection{Resolution-scaled length-scale parameterization and bounds}
 \label{sec:length-scale}
@@ -124,8 +124,8 @@ k_{\max} =
 9, & \text{2021}.
 \end{cases}
 \end{equation}
-These values are motivated by the dedicated length-scale scans preserved in the
-repository and by the practical requirement that the upper bound remain tied to a
+These values are motivated by the dedicated length-scale scans already performed for
+this analysis and by the practical requirement that the upper bound remain tied to a
 detector-scale quantity. Leaving $\ell$ effectively free allowed the GP to become too
 aggressive in smoothing away signal-like structure, which could make the fit appear
 better while reducing signal fidelity. Setting the ceiling too low creates the opposite
@@ -145,18 +145,21 @@ preventing it from becoming either too stiff or too unconstrained.
 \centering
 \begin{subfigure}[t]{0.48\linewidth}
   \centering
-  \graphicorplaceholder{\linewidth}{kernel_lengthscale_figs/ls_hi_bounds_logm_overlay.png}
-  \caption{Upper bound in log-mass units.}
+  \graphicorplaceholder{\linewidth}{kernel_lengthscale_figs/sigma_x_logm_overlay.png}
+  \caption{Signal-template width $\sigma_x(m)$ in the GP coordinate $x=\ln m$.}
 \end{subfigure}
 \hfill
 \begin{subfigure}[t]{0.48\linewidth}
   \centering
-  \graphicorplaceholder{\linewidth}{kernel_lengthscale_figs/dm_equiv_from_lhi_overlay.png}
-  \caption{Equivalent mass scale implied by $\ell_{\max}$.}
+  \graphicorplaceholder{\linewidth}{kernel_lengthscale_figs/ls_bounds_band_logm_overlay.png}
+  \caption{Allowed RBF length-scale band imposed for each dataset.}
 \end{subfigure}
-\caption{Representative length-scale studies copied into the Overleaf
-\texttt{kernel\_lengthscale\_figs/} directory. They show why the upper bound is tied to
-the detector resolution rather than left free floating.}
+\caption{Length-scale parameterization used in the GPR fit. Panel (a) shows the local
+signal-template width in the GP coordinate, while panel (b) shows the allowed
+length-scale band obtained by multiplying that physical width by the chosen lower and
+upper factors. The purpose of the bound is to permit smooth background variation
+without allowing the optimizer to drift into an unphysically unconstrained smoothing
+regime.}
 \label{fig:lengthscale-bounds}
 \end{figure}
 
@@ -219,7 +222,23 @@ the fact that a finite blind region never contains the entire Gaussian line shap
 also keeps the signal parameter used in the fit aligned with the full-histogram
 injection model used in the procedural toy studies.
 
-The package converts between $A_d$ and $\eps^2$ through
+The conversion between signal yield and dark-photon coupling follows the standard
+fixed-target relation between $A^\prime$ production and radiative trident production
+\cite{EssigEtAl2011,HPS2015DarkPhoton,HPS2016PromptLong}. In the present notation,
+\begin{equation}
+\frac{dN_{A^\prime}}{dm}\bigg|_{m=m_{A^\prime}}
+= \frac{3\pi}{2N_{\mathrm{eff}}\alpha_{\mathrm{EM}}}
+\; m_{A^\prime}\,\eps^2\,
+\frac{dN_{\gamma^\ast}}{dm}\bigg|_{m=m_{A^\prime}},
+\end{equation}
+with $N_{\mathrm{eff}}=1$ throughout the mass range of interest here. Writing the
+radiative differential rate as
+\begin{equation}
+\frac{dN_{\gamma^\ast}}{dm}
+= f_{\mathrm{rad},d}(m)\,\rho_d(m),
+\end{equation}
+where $\rho_d(m)$ is the differential prompt background rate in the selected
+invariant-mass spectrum, the package converts between $A_d$ and $\eps^2$ through
 \begin{equation}
 \eps^2 =
 \frac{2\alpha_{\mathrm{EM}}\,A_d}
@@ -235,6 +254,16 @@ K_d(m) \equiv A_d(\eps^2 = 1)
 \end{equation}
 so that a shared coupling $\eps^2$ predicts a dataset-specific total signal yield
 $A_d = K_d(m)\eps^2$.
+
+The code also supports an optional radiative-fraction penalty in this conversion. When
+enabled for dataset $d$, the effective radiative fraction is
+\begin{equation}
+f_{\mathrm{rad},d}^{\mathrm{eff}}(m)
+= \left(1-\delta_{f,d}\right) f_{\mathrm{rad},d}(m),
+\end{equation}
+so the same signal-yield limit maps to a weaker $\eps^2$ limit. This switch is
+intended to accommodate the several-percent uncertainty on the radiative-fraction
+normalization discussed in the published HPS prompt searches.
 
 \subsection{Local significance and single-dataset signal extraction}
 
@@ -293,6 +322,52 @@ smallest parameter value satisfying
 \cite{Junk1999,Read2002,Cowan2011}. Expected bands are obtained from background-only
 pseudoexperiments and are reported both in signal-yield space and after mapping to
 $\eps^2$.
+
+\subsection{Observed-limit tail diagnostics and significance summaries}
+
+In addition to the analytic profile-likelihood $p_0$ and $Z$ curves, the upper-limit
+study produces three toy-tail diagnostics derived from the distribution of background-only
+toy limits at each mass:
+\begin{align}
+p_{\mathrm{strong}} &= P\!\left(\eps^2_{\mathrm{toy}} \le \eps^2_{\mathrm{obs}}\right), \\
+p_{\mathrm{weak}} &= P\!\left(\eps^2_{\mathrm{toy}} \ge \eps^2_{\mathrm{obs}}\right), \\
+p_{\mathrm{two}} &= 2\min\!\left(p_{\mathrm{strong}}, p_{\mathrm{weak}}\right).
+\end{align}
+These quantities are not discovery $p$-values in the same sense as the analytic
+profile-likelihood $p_0$. Instead, they measure where the observed upper limit falls
+relative to the toy-derived expected-limit distribution. That is why the curves often
+start near 0.5 rather than near 1.0: if the observed limit is close to the median of
+the background-only toy ensemble, then roughly half the toys lie above it and half lie
+below it. In that regime, $p_{\mathrm{strong}}$ and $p_{\mathrm{weak}}$ are both near
+0.5 by construction.
+
+These curves are still useful. They provide a compact summary of whether the observed
+limit is stronger than typical, weaker than typical, or statistically ordinary at a
+given mass. When plotted together with local and global reference lines, they also show
+how the observed-limit behavior compares with the usual one-sided Gaussian significance
+benchmarks.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}[t]{0.48\linewidth}
+  \centering
+  \graphicorplaceholder{\linewidth}{significance_figs/2015_2016_combined/ul_pvalues.png}
+  \caption{Combined toy-tail $p$-values.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.48\linewidth}
+  \centering
+  \graphicorplaceholder{\linewidth}{significance_figs/2015_2016_combined/ul_pvalues_components_local_global_refs.png}
+  \caption{Same quantities with local and provisional global reference lines.}
+\end{subfigure}
+\caption{Toy-tail significance summary for the combined search. The curves
+$p_{\rm strong}$, $p_{\rm weak}$, and $p_{\rm two}$ describe the position of the
+observed upper limit within the toy-derived limit ensemble and therefore naturally take
+values near 0.5 when the observation is close to the median expected behavior. The
+reference lines indicate the one-sided Gaussian levels used elsewhere in the note for
+local and provisional global-significance comparisons.}
+\label{fig:combined-ul-tail-pvalues}
+\end{figure}
 
 \subsection{Shared-\texorpdfstring{$\eps^2$}{epsilon2} combination across datasets}
 \label{sec:combination}
@@ -376,7 +451,7 @@ with the common signal vector $\eps^2 \bm{s}_{\mathrm{unit}}$.
 The package currently reports local/global $p_0$ and $Z$ curves using a
 Sidak-corrected effective-trials estimate derived from the scan spacing, blind-window
 width, and detector resolution \cite{GrossVitells2010}. That treatment is adequate for
-validation bookkeeping, for layout studies, and for monitoring where the local search
+validation studies, for layout studies, and for monitoring where the local search
 has its largest upward fluctuation. It is not yet the final global-significance
 prescription intended for the finished prompt-search result. All global-significance
 statements in the present note should therefore be read as provisional until the
@@ -395,8 +470,8 @@ dedicated rerun with the corrected global-$p$ treatment is complete.
   \graphicorplaceholder{\linewidth}{significance_figs/2015_2016_combined/Z_local_global.png}
   \caption{Combined local and provisional global $Z$ curves.}
 \end{subfigure}
-\caption{Current combined-significance bookkeeping figures copied into the note-local
-\texttt{significance\_figs/} directory. These are useful for documenting the present
+\caption{Current combined analytic-significance curves. These are useful for documenting
+the present
 scan structure, but the global component should be treated as a placeholder until the
 final look-elsewhere rerun is completed.}
 \label{fig:combined-significance-placeholder}
@@ -405,7 +480,7 @@ final look-elsewhere rerun is completed.}
 \analysisplaceholder{\textbf{LEE placeholder.} Replace the provisional Sidak-style
 global-significance treatment with the finalized look-elsewhere evaluation once the
 dedicated rerun is complete. The local-significance curves are already useful for scan
-bookkeeping; the global curves should not yet be quoted as final physics results.}
+summary; the global curves should not yet be quoted as final physics results.}
 
 \subsection{Signal absorption and alternative background-profile treatments}
 

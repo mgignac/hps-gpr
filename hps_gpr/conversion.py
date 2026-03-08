@@ -17,7 +17,7 @@ def epsilon2_from_A(
     """Convert signal amplitude A to epsilon^2.
 
     Uses the formula:
-        epsilon^2 = (2 * alpha_em * A) / (3 * pi * m * f_rad * rho)
+        epsilon^2 = (2 * alpha_em * A) / (3 * pi * m * f_rad^eff * rho)
 
     where rho is the integral density (counts per GeV).
 
@@ -30,7 +30,7 @@ def epsilon2_from_A(
     Returns:
         epsilon^2 value, or NaN if conversion is not possible
     """
-    frad = ds.frad(mass)
+    frad = ds.frad_effective(mass)
 
     if (
         (not np.isfinite(frad))
@@ -52,7 +52,7 @@ def A_from_epsilon2(
     """Convert epsilon^2 to signal amplitude A.
 
     Uses the formula:
-        A = epsilon^2 * (3 * pi * m * f_rad * rho) / (2 * alpha_em)
+        A = epsilon^2 * (3 * pi * m * f_rad^eff * rho) / (2 * alpha_em)
 
     where rho is the integral density (counts per GeV).
 
@@ -65,7 +65,7 @@ def A_from_epsilon2(
     Returns:
         Signal amplitude A, or NaN if conversion is not possible
     """
-    frad = ds.frad(mass)
+    frad = ds.frad_effective(mass)
 
     if (
         (not np.isfinite(frad))

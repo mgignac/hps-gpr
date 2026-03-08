@@ -51,10 +51,16 @@ standalone project.
 | --- | --- | --- | --- |
 | `significance_figs/2015/p0_analytic_local_global.png` | `summary_combined_2015/p0_analytic_local_global.png` | provisional | Pre-rerun 2015 local/global `p_0` bookkeeping. |
 | `significance_figs/2015/Z_local_global.png` | `summary_combined_2015/Z_local_global.png` | provisional | Pre-rerun 2015 local/global `Z` bookkeeping. |
+| `significance_figs/2015/ul_pvalues.png` | `summary_combined_2015/ul_pvalues.png` | provisional | 2015 toy-tail `p`-value summary. |
+| `significance_figs/2015/ul_pvalues_components_local_global_refs.png` | `summary_combined_2015/ul_pvalues_components_local_global_refs.png` | provisional | 2015 toy-tail `p`-value components with local/global reference lines. |
 | `significance_figs/2016_10pct/p0_analytic_local_global.png` | `summary_combined_2016/p0_analytic_local_global.png` | provisional | Pre-rerun 2016 10% local/global `p_0` bookkeeping. |
 | `significance_figs/2016_10pct/Z_local_global.png` | `summary_combined_2016/Z_local_global.png` | provisional | Pre-rerun 2016 10% local/global `Z` bookkeeping. |
+| `significance_figs/2016_10pct/ul_pvalues.png` | `summary_combined_2016/ul_pvalues.png` | provisional | 2016 10% toy-tail `p`-value summary. |
+| `significance_figs/2016_10pct/ul_pvalues_components_local_global_refs.png` | `summary_combined_2016/ul_pvalues_components_local_global_refs.png` | provisional | 2016 10% toy-tail `p`-value components with local/global reference lines. |
 | `significance_figs/2015_2016_combined/p0_analytic_local_global.png` | `summary_combined_all/p0_analytic_local_global.png` | provisional | Pre-rerun combined local/global `p_0` bookkeeping. |
 | `significance_figs/2015_2016_combined/Z_local_global.png` | `summary_combined_all/Z_local_global.png` | provisional | Pre-rerun combined local/global `Z` bookkeeping. |
+| `significance_figs/2015_2016_combined/ul_pvalues.png` | `summary_combined_all/ul_pvalues.png` | provisional | Combined toy-tail `p`-value summary. |
+| `significance_figs/2015_2016_combined/ul_pvalues_components_local_global_refs.png` | `summary_combined_all/ul_pvalues_components_local_global_refs.png` | provisional | Combined toy-tail `p`-value components with local/global reference lines. |
 
 ## Fit-example figures
 
@@ -84,6 +90,10 @@ standalone project.
 | `injection_extraction_figs/bias_all.png` | `injection_summary_9/bias_all.png` | provisional | Cross-dataset extraction bias summary. |
 | `injection_extraction_figs/pull_width_all.png` | `injection_summary_9/pull_width_all.png` | provisional | Cross-dataset pull-width summary. |
 | `injection_extraction_figs/coverage_all.png` | `injection_summary_9/coverage_all.png` | provisional | Cross-dataset empirical coverage summary. |
+| `injection_extraction_figs/pull_vs_mass_2015.png` | `injection_summary_9/pull_vs_mass_2015.png` | provisional | 2015 pull mean and width versus mass. |
+| `injection_extraction_figs/pull_vs_mass_2016.png` | `injection_summary_9/pull_vs_mass_2016.png` | provisional | 2016 10% pull mean and width versus mass. |
+| `injection_extraction_figs/coverage_2015.png` | `injection_summary_9/coverage_2015.png` | provisional | 2015 interval coverage versus mass and injected strength. |
+| `injection_extraction_figs/coverage_2016.png` | `injection_summary_9/coverage_2016.png` | provisional | 2016 10% interval coverage versus mass and injected strength. |
 | `injection_extraction_figs/heatmap_pull_mean_2015.png` | `injection_summary_9/heatmap_pull_mean_2015.png` | provisional | 2015 mean-pull heatmap. |
 | `injection_extraction_figs/heatmap_pull_mean_2016.png` | `injection_summary_9/heatmap_pull_mean_2016.png` | provisional | 2016 mean-pull heatmap. |
 | `injection_extraction_figs/heatmap_pull_mean_combined.png` | `injection_summary_9/heatmap_pull_mean_combined.png` | provisional | Combined mean-pull heatmap. |
@@ -107,6 +117,8 @@ standalone project.
 | --- | --- | --- | --- |
 | `kernel_lengthscale_figs/ls_hi_bounds_logm_overlay.png` | `ls_bound_plots/ls_hi_bounds_logm_overlay.png` | stable | Length-scale upper bound in log-mass units. |
 | `kernel_lengthscale_figs/dm_equiv_from_lhi_overlay.png` | `ls_bound_plots/dm_equiv_from_lhi_overlay.png` | stable | Equivalent mass-scale interpretation of the upper bound. |
+| `kernel_lengthscale_figs/ls_bounds_band_logm_overlay.png` | `ls_bound_plots/ls_bounds_band_logm_overlay.png` | stable | Allowed RBF length-scale band implied by the chosen lower and upper factors. |
+| `kernel_lengthscale_figs/sigma_x_logm_overlay.png` | `ls_bound_plots/sigma_x_logm_overlay.png` | stable | Signal-template width in the GP coordinate $x=\ln m$. |
 | `kernel_lengthscale_figs/ls_hi_vs_k_2021.png` | `ls_bound_plots/ls_hi_vs_k_2021.png` | stable | Additional 2021 length-scale study retained for later use. |
 
 ## Reserved folders currently without exported figures

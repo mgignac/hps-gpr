@@ -1,146 +1,149 @@
-\section{Datasets and Analysis Scope}
+\section{HPS Data Sets and Analysis Scope}
 \label{sec:datasets}
 
-\subsection{Dataset inventory}
+\subsection{HPS 2015, 2016, and 2021 data samples}
 
-The current package supports three HPS running periods through dataset-specific input
-histograms, mass-resolution models, radiative-fraction parameterizations, and scan
-ranges. In the production-validation configuration represented in this repository, the
-completed public-facing studies are the 2015 engineering run, the 2016 10\% subsample,
-and their shared-$\eps^2$ combination. The 2021 0.03\% study is presently a validation
-subset, while the 2021 1\% and 2021 10\% analyses remain structured placeholders in
-this note.
+The present analysis is organized around three HPS running periods: the 2015
+engineering run, the 2016 engineering run, and the 2021 physics run. The 2015 and
+2016 data were collected with essentially the same detector configuration; in
+particular, the engineering-run detector remained under vacuum between those periods,
+which makes the two samples especially natural to compare and combine. By contrast, the
+2021 run followed the major detector and beam-delivery upgrades described in the later
+HPS experiment documentation \cite{HPSExperiment2022}. It therefore represents both a
+substantially larger exposure and a distinct detector era.
+
+From the standpoint of statistical workflow, the three samples also play different
+roles. The 2015 data remain fully unblinded in the present GPR development chain and
+therefore provide the cleanest environment for methodology validation. The 2016 and
+2021 samples are treated in staged unblinding steps, consistent with standard HEP
+practice: first through development subsets used for fit and toy validation, then
+through progressively larger analysis stages once the procedure is frozen.
 
 \begin{table}[H]
 \centering
 \scriptsize
 {\setlength{\tabcolsep}{4pt}
-\begin{tabularx}{\linewidth}{@{} P{0.20\linewidth} P{0.12\linewidth} P{0.21\linewidth} P{0.14\linewidth} Y @{}}
+\begin{tabularx}{\linewidth}{@{} P{0.20\linewidth} P{0.11\linewidth} P{0.21\linewidth} P{0.14\linewidth} Y @{}}
 \toprule
-Dataset & Beam energy & Exposure used here & Scan range & Public status \\
+Data set & Beam energy & Exposure used here & Scan range & Comments \\
 \midrule
 2015 engineering run &
 \SI{1.056}{GeV} &
-\SI{1170}{nb^{-1}} prompt-search exposure &
+\SI{1170}{nb^{-1}} &
 \SIrange{20}{130}{MeV} &
-Published prompt dark-photon search \cite{HPS2015DarkPhoton}. \\
-2016 engineering run\newline (10\% analysis subset) &
+Published HPS prompt $A^\prime\rightarrow e^+e^-$ search \cite{HPS2015DarkPhoton}. The
+published resonance search covered \SIrange{19}{81}{MeV}; the present GPR study is
+validated over a wider interval. \\
+2016 engineering run\newline (10\% study sample) &
 \SI{2.3}{GeV} &
-Parent public prompt-search exposure:\newline \SI{10608}{nb^{-1}} &
+Parent prompt-search exposure:\newline \SI{10608}{nb^{-1}} &
 \SIrange{35}{210}{MeV} &
-Public prompt and displaced search based on the full 2016 engineering run
-\cite{HPS2016PromptLong}. The present note documents the validated 10\% subset used by
-the package. \\
-2021 physics run\newline (0.03\% subset) &
-TODO: add public\newline beam-energy citation &
-Validation subset of the 2021 physics run;\newline absolute normalized exposure TODO &
+Published HPS prompt and displaced search on the full run \cite{HPS2016PromptLong}. The
+current note documents the 10\% subset used for statistical development while retaining
+the run-level detector and normalization context of the full sample. \\
+2021 physics run\newline (0.03\%, 1\%, and 10\% study stages) &
+\SI{3.74}{GeV} &
+Full-run luminosity\newline $\sim \SI{160}{pb^{-1}}$ &
 \SIrange{35}{230}{MeV} &
-Active validation subset; final public normalization citation still to be added. \\
-2021 physics run\newline (1\% subset) &
-TODO &
-Planned blinded-analysis subset;\newline normalized exposure TODO &
-\SIrange{35}{230}{MeV} &
-Structured placeholder section in this note. \\
-2021 physics run\newline (10\% subset) &
-TODO &
-Planned first-round unblinding subset;\newline normalized exposure TODO &
-\SIrange{35}{230}{MeV} &
-Structured placeholder section in this note. \\
+Upgraded-detector physics run. The note keeps 0.03\%, 1\%, and 10\% stages explicit so
+that the document already matches the intended staged-unblinding sequence. \\
 \bottomrule
 \end{tabularx}
 }
-\caption{Dataset summary used throughout this note. The 2015 and 2016 beam energies
-and prompt-search integrated luminosities are taken from public HPS publications. The
-2021 rows are intentionally explicit placeholders where the final normalized exposure
-has not yet been anchored to a public reference.}
+\caption{Summary of the HPS data samples considered in this note. The 2015 and 2016
+rows are anchored to published prompt-search results, while the 2021 row records the
+physics-run beam energy and approximate delivered luminosity used to organize the later
+analysis stages.}
 \label{tab:dataset-summary}
 \end{table}
 
-\subsection{Detector resolution and radiative-fraction inputs}
+\subsection{Mass resolution and the reconstructed invariant-mass spectrum}
 
-The package parameterizes the detector mass resolution separately for each dataset:
+The observable entering the statistical analysis is the reconstructed $e^+e^-$
+invariant-mass spectrum after the prompt event selection. The narrow signal model is
+therefore controlled by the detector mass resolution,
 \begin{equation}
 \sigma_d(m) = \sum_{k=0}^{N_d} c^{(d)}_k\,m^k,
 \end{equation}
-with $m$ and $\sigma_d(m)$ expressed in GeV. These coefficients are loaded directly
-from the analysis configuration and then evaluated through the dataset abstraction in
-\texttt{hps\_gpr.dataset}. The current baseline choices are
+with $m$ and $\sigma_d(m)$ expressed in GeV. The current baseline parameterizations are
 \begin{align}
 \sigma_{2015}(m) &= -9.22283032152\times10^{-5} + 5.32190838657\times10^{-2}\,m, \\
 \sigma_{2016}(m) &= 3.8\times10^{-4} + 4.1\times10^{-2}m - 2.7\times10^{-1}m^2
 + 3.49\,m^3 - 11.11\,m^4, \\
 \sigma_{2021}(m) &= 2.86957\times10^{-3} - 8.51449\times10^{-3}m + 2.5362319\times10^{-1}m^2.
 \end{align}
-For the 2016 dataset a linear high-mass tail is enforced above
-$m_0=\SI{0.18}{GeV}$, with slope override \num{0.0239}, to stabilize the resolution
-model in the upper scan region represented in the production configurations.
+For 2016, the polynomial is not used unchanged at arbitrarily high mass. The older
+parameterization turns over above approximately \SI{180}{MeV} and would imply an
+artificial improvement of the mass resolution with increasing mass. To avoid that
+unphysical behavior, the current implementation enforces a linear continuation above
+$m_0=\SI{0.18}{GeV}$ with slope override \num{0.0239}. This is a technical but
+important detail: without it, the width of the signal model would be systematically
+underestimated in the upper part of the 2016 search window.
 
-The $\eps^2 \leftrightarrow A$ conversion requires a dataset-specific radiative-fraction
-model,
+\subsection{Radiative fraction and the \texorpdfstring{$\eps^2$}{epsilon2} normalization}
+
+The radiative fraction encodes the fraction of the selected prompt $e^+e^-$ background
+that arises from the purely radiative trident process. This quantity matters because
+heavy-photon production in fixed-target experiments is proportional to the radiative
+trident rate \cite{EssigEtAl2011,HPS2015DarkPhoton,HPS2016PromptLong}. In the language
+used by the published HPS prompt searches,
 \begin{equation}
-f_{\mathrm{rad},d}(m) = \sum_{k=0}^{M_d} r^{(d)}_k\,m^k.
+f_{\mathrm{rad}}(m)
+= \frac{dN_{\gamma^\ast}/dm}{dN_{\mathrm{bkg}}/dm}
+= \frac{dN_{\gamma^\ast}/dm}{dN_{\mathrm{tri}}/dm + dN_{\mathrm{wab}}/dm},
 \end{equation}
-In the present note, the 2015 and 2016 forms are taken from the mature HPS bump-hunt
-workflow and from the refined simultaneous-combination drafts already preserved in this
-repository. The 2015 engineering-run treatment uses the constant approximation
+where $dN_{\gamma^\ast}/dm$ denotes the radiative trident contribution, while the
+denominator contains the full physical prompt background after selection. Operationally,
+$f_{\mathrm{rad}}$ is determined from Monte Carlo samples of radiative tridents,
+tridents, and converted wide-angle Bremsstrahlung passed through the same selection
+used for the resonance search. It is therefore not an arbitrary scale factor: it is the
+physics quantity that converts the measured prompt spectrum into the rate of the
+process most directly analogous to $A^\prime$ production.
+
+For 2015, the present analysis follows the published constant approximation
 \begin{equation}
-f_{\mathrm{rad},2015}(m) = 0.085,
+f_{\mathrm{rad},2015}(m) = 0.085.
 \end{equation}
-which is the same effective normalization convention carried through the earlier 2015
-bump-hunt interpretation. In practice this packages the 2015 radiative-trident
-normalization into the same compact effective input used throughout the earlier HPS
-prompt-search workflow.
+For 2016, the earlier bump-hunt notes and the published prompt search used a
+mass-dependent fifth-order polynomial extracted from the Monte Carlo composition study.
+That parameterization is useful historically and should be discussed as part of the
+published methodology, but it becomes unstable above approximately \SI{180}{MeV} and
+can grow in a way that is not suitable for the wider GPR search window. The current GPR
+analysis therefore adopts the constant approximation
+\begin{equation}
+f_{\mathrm{rad},2016}(m) = 0.05,
+\end{equation}
+which is a good representation of the radiative fraction across the selected search
+region and avoids the high-mass blow-up of the published polynomial. The 2021
+radiative-fraction treatment is retained as provisional in this note pending the final
+freeze of the corresponding normalization inputs.
 
-For the 2016 prompt search, the package baseline is the higher-order polynomial
-\begin{align}
-f_{\mathrm{rad},2016}(m) ={}& -0.104070 + 9.59977\,m - 212.211\,m^2 \nonumber\\
-& + 2148.12\,m^3 - 10140.1\,m^4 + 18048.5\,m^5,
-\end{align}
-with $m$ expressed in GeV. This is the parameterization that should be regarded as the
-physics-facing 2016 input for the current note. The previous 2016 bump-hunt notes
-construct this quantity from fully selected Monte Carlo samples of the radiative
-trident, trident, and converted wide-angle Bremsstrahlung components, then fit the
-mass dependence with a fifth-order polynomial. The important point for the present note
-is that the 2016 radiative fraction is intrinsically mass dependent and belongs to the
-definition of the result, not merely to the plotting layer. Those earlier studies also
-tracked a radiative-fraction uncertainty at the several-percent level, reinforcing that
-the normalization model must be treated as part of the statistical interpretation of
-the coupling limit.
+The package now also supports an optional radiative-fraction sensitivity penalty in the
+$A \leftrightarrow \eps^2$ conversion. When enabled, the effective radiative fraction
+is reduced according to
+\begin{equation}
+f_{\mathrm{rad},d}^{\mathrm{eff}}(m)
+= \left(1-\delta_{f,d}\right) f_{\mathrm{rad},d}(m),
+\end{equation}
+with dataset-specific penalty fractions configured at the YAML level. The intended
+starting point is $\delta_{f,d}=0.07$ for 2015, 2016, and 2021, corresponding to a
+7\% sensitivity penalty in the radiative-fraction normalization. Because the bundled
+limit figures predate the activation of this switch, the current plots should be read
+as pre-penalty results unless stated otherwise.
 
-The distinction between these inputs and some of the helper study YAMLs is important.
-Several validation configs in this repository retain simplified placeholder constants,
-most visibly $f_{\mathrm{rad},2016}=f_{\mathrm{rad},2021}=0.05$, purely to accelerate
-workflow testing. Those convenience values should not be quoted as the mature physics
-inputs for the 2016 or 2021 analyses. Because $\eps^2$ scales inversely with
-$f_{\mathrm{rad},d}(m)\rho_d(m)$, any change in the radiative-fraction model maps
-directly into the coupling limit and must therefore be treated as part of the
-definition of the result, not as a cosmetic plotting choice.
+\subsection{Analysis subsets and staged unblinding}
 
-For 2021, the current package also contains a default polynomial coefficient set, but
-the 2021 radiative-fraction normalization is kept explicitly provisional in this note
-until the corresponding dataset-level documentation and public-facing normalization
-inputs are frozen.
+The current study uses the full 2015 sample, a 2016 10\% development sample, and a set
+of progressively larger 2021 study stages. The 2021 0.03\% sample is the first
+development subset used for functional-form and GP toy studies. The 2021 1\% sample is
+reserved for the first upper-limit and combination campaign, while the 2021 10\% sample
+marks the intended first-round unblinding stage. This staged structure is kept explicit
+throughout the note because it mirrors the actual analysis strategy rather than merely
+the bookkeeping of the current development stage.
 
-\subsection{Relation between full datasets and analysis subsets}
-
-The 2015 and 2016 publications establish the run-level detector, beam, and prompt
-selection context for the current resonance-search program
-\cite{HPS2015DarkPhoton,HPS2016PromptLong}. The present package introduces additional
-subset workflows for validation and rapid iteration. The completed 2016 10\% subset is
-the fast-turnaround sample used for the current toy campaign and extraction-display
-studies. The 2021 0.03\% subset is the first validation sample used for
-analytic-functional-form toys and early GP closure checks. The planned 2021 1\% and
-10\% subsets correspond to later milestones, namely an intermediate upper-limit
-campaign and a first-round unblinding stage, and are kept explicitly in the note so
-that the document structure already matches the anticipated analysis sequence.
-Whenever a subsection refers to 2016 10\% or to a 2021 subset, the physics conventions
-remain those of the parent run, while the statistical sample size and therefore the
-expected sensitivity correspond only to the stated subset.
-
-\subsection{Why the note keeps both 2021 1\% and 2021 10\% placeholders}
-
-The 2021 analysis program currently contains two distinct staging points. The 1\%
-workflow is the natural analog of the 2016 10\% validation study, intended for
-individual and combined upper-limit development. The 10\% workflow is reserved here as
-the explicit first-round unblinding milestone. Keeping both placeholders in the note
-prevents later restructuring once the corresponding products exist.
+The broader statistical motivation for these staged subsets is that the global GP model
+is being validated over search windows that are already wider than those used in the
+published 2015 and 2016 local-window analyses. That extension is only defensible if the
+background model, mass-resolution treatment, and toy-validation program remain stable
+across the enlarged mass range. The later sections are organized precisely to document
+that validation.

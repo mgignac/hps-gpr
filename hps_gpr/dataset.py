@@ -22,6 +22,8 @@ class DatasetConfig:
     sigma_coeffs: List[float]
     frad_coeffs: List[float]
     enabled: bool = True
+    radiative_penalty_on: bool = False
+    radiative_penalty_frac: float = 0.0
 
     # Optional piecewise linear sigma(m) tail, used for 2016.
     sigma_tail_m0: Optional[float] = None
@@ -56,6 +58,19 @@ class DatasetConfig:
         """Compute radiative fraction f_rad(m) from polynomial coefficients."""
         return float(sum(c * (m**i) for i, c in enumerate(self.frad_coeffs)))
 
+    def frad_penalty_scale(self) -> float:
+        """Multiplicative sensitivity penalty applied to f_rad when enabled."""
+        if not bool(self.radiative_penalty_on):
+            return 1.0
+        frac = float(self.radiative_penalty_frac)
+        if frac <= 0:
+            return 1.0
+        return float(max(0.0, 1.0 - frac))
+
+    def frad_effective(self, m: float) -> float:
+        """Effective radiative fraction after any configured penalty."""
+        return float(self.frad(float(m)) * self.frad_penalty_scale())
+
 
 def poly_str(coeffs: List[float], name: str = "p") -> str:
     """Format polynomial coefficients as a string."""
@@ -87,6 +102,8 @@ def make_datasets(config: "Config") -> Dict[str, DatasetConfig]:
             sigma_coeffs=config.sigma_coeffs_2015,
             frad_coeffs=config.frad_coeffs_2015,
             enabled=config.enable_2015 and (not config.only_2021_mc),
+            radiative_penalty_on=config.radiative_penalty_on,
+            radiative_penalty_frac=float(config.radiative_penalty_frac_2015),
             data_low=(config.data_range_2015[0] if config.data_range_2015 is not None else None),
             data_high=(config.data_range_2015[1] if config.data_range_2015 is not None else None),
         ),
@@ -100,6 +117,8 @@ def make_datasets(config: "Config") -> Dict[str, DatasetConfig]:
             sigma_coeffs=config.sigma_coeffs_2016,
             frad_coeffs=config.frad_coeffs_2016,
             enabled=config.enable_2016 and (not config.only_2021_mc),
+            radiative_penalty_on=config.radiative_penalty_on,
+            radiative_penalty_frac=float(config.radiative_penalty_frac_2016),
             sigma_tail_m0=config.sigma_tail_m0_2016,
             sigma_tail_slope_floor=config.sigma_tail_slope_floor_2016,
             sigma_tail_slope_override=config.sigma_tail_slope_override_2016,
@@ -116,6 +135,8 @@ def make_datasets(config: "Config") -> Dict[str, DatasetConfig]:
             sigma_coeffs=config.sigma_coeffs_2021,
             frad_coeffs=config.frad_coeffs_2021,
             enabled=config.enable_2021,
+            radiative_penalty_on=config.radiative_penalty_on,
+            radiative_penalty_frac=float(config.radiative_penalty_frac_2021),
             data_low=(config.data_range_2021[0] if config.data_range_2021 is not None else None),
             data_high=(config.data_range_2021[1] if config.data_range_2021 is not None else None),
         ),
@@ -132,5 +153,6 @@ def print_datasets(datasets: Dict[str, DatasetConfig]) -> None:
         print(
             f"  {k}: range=[{d.m_low:.3f},{d.m_high:.3f}]  "
             f"sigma: {poly_str(d.sigma_coeffs, 'σ')}  "
-            f"frad: {poly_str(d.frad_coeffs, 'f')}"
+            f"frad: {poly_str(d.frad_coeffs, 'f')}  "
+            f"penalty={'on' if d.radiative_penalty_on else 'off'}({100.0 * d.radiative_penalty_frac:.1f}%)"
         )

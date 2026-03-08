@@ -37,6 +37,10 @@ frad_coeffs_2016:
 - 0.05
 frad_coeffs_2021:
 - 0.05
+radiative_penalty_on: false
+radiative_penalty_frac_2015: 0.07
+radiative_penalty_frac_2016: 0.07
+radiative_penalty_frac_2021: 0.07
 enable_2015: false
 enable_2016: true
 enable_2021: false

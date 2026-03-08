@@ -1,86 +1,115 @@
 \section{Introduction}
 \label{sec:introduction}
 
-The Heavy Photon Search experiment probes narrow vector resonances in electroproduced
-$e^+e^-$ pairs. In this regime, the dominant analysis challenge is not the signal model
-itself but the control of the smooth trident background and its correlated uncertainty
-in the vicinity of each test mass. The present workflow addresses that problem with a
-single global Gaussian-process-regression (GPR) model for each active dataset, combined
-with a profiled multi-bin likelihood, expected \CLs\ bands, and a statistically
-well-defined multi-dataset combination in a shared coupling parameter
-$\eps^2$ \cite{HPS2015DarkPhoton,HPS2016PromptLong,HPSExperiment2022}.
+The Heavy Photon Search (HPS) experiment performs a dark-sector-motivated search for a
+narrow, electroproduced prompt $A^\prime \rightarrow e^+e^-$ resonance in the
+reconstructed invariant-mass spectrum. In this class of analysis the central
+statistical problem is the control of the smooth QED background immediately surrounding
+each test mass. The analysis documented here addresses that problem with a global
+Gaussian-process-regression (GPR) model for the invariant-mass spectrum of each active
+dataset, a profiled multi-bin likelihood for local signal extraction, \CLs\ upper
+limits in signal-yield and $\eps^2$ space, and a statistically consistent combination
+of multiple datasets in a shared coupling parameter
+\cite{HPS2015DarkPhoton,HPS2016PromptLong,HPSExperiment2022}.
 
-This note is written from the current package implementation rather than from the older
-piecewise drafts. In particular, the baseline local-significance calculation is the
-profiled Gaussian multi-bin likelihood-ratio test, not the legacy blind-window
-sum-count approximation. Likewise, the signal template is now treated as a
-full-histogram Gaussian line shape whose blinded-bin slice enters the likelihood
-without renormalization inside the blind region. That choice preserves the physically
-useful interpretation that the signal parameter $A$ denotes the total local signal
-yield of the narrow resonance rather than only the portion captured inside a finite
-blind window.
+This note is written from the current analysis implementation and from the mature
+physics logic of the study rather than from the earliest exploratory drafts. In
+particular, the baseline local-significance calculation is the profiled Gaussian
+multi-bin likelihood-ratio test rather than the older blind-window sum-count
+approximation, and the signal template is treated as a full Gaussian line shape whose
+blinded-bin slice enters the likelihood without renormalization. That convention keeps
+the fitted amplitude aligned with the physically meaningful quantity, namely the total
+local signal yield of a narrow resonance.
 
-\subsection{Relation to the published HPS prompt searches}
+\subsection{Published HPS prompt-resonance benchmarks}
 
-The published 2015 and 2016 HPS prompt-search results established the experimental
-benchmark for narrow dark-photon searches in fixed-target $e^+e^-$ spectra. Those
-results remain the public reference points for the prompt program and are reproduced in
-Figure~\ref{fig:published-hps-context}. The analysis documented here should be viewed as
-the next statistical step beyond that published baseline: the detector inputs remain
-dataset-specific and conventional, but the background modeling, the treatment of
-blinded-bin covariance, the expected-band workflow, and the shared-$\eps^2$
-combination are all substantially more unified than in the original resonance-search
-pipeline.
+\subsubsection{2015 engineering run}
 
-The move from earlier local-window and sideband-reconfiguration studies to the present
-global-GP workflow was driven by validation experience inside this repository. First,
-piecewise windows produced visibly less smooth expected and observed limit curves near
-window boundaries. Second, local fit-range changes complicated the interpretation of
-cross-dataset combinations because different datasets could enter or leave the local
-model in slightly different ways at neighboring masses. Third, once the background is
-represented as a coherent mean-plus-covariance object at every mass hypothesis, the
-statistical combination becomes a true multi-channel likelihood problem rather than an
-ad hoc averaging of per-dataset limits. In internal validation studies these choices
-lead to markedly more stable scans and, in selected mass intervals, sensitivity gains
-that can reach the order-of-magnitude level relative to earlier exploratory analysis
-configurations. Because the leakage-retaining signal-template update documented in this
-note still requires a final rerun of the main limit products, those gains are treated
-here as provisional analysis-development observations rather than as final physics
-claims.
+The published 2015 HPS prompt search analyzed \SI{1170}{nb^{-1}} collected at a beam
+energy of \SI{1.056}{GeV} and searched for a resonance in the invariant-mass interval
+\SIrange{19}{81}{MeV} \cite{HPS2015DarkPhoton}. The resonance fit was performed in a
+sliding local window stepped in \SI{0.5}{MeV} increments. The fit window was taken to
+be $14\,\sigma_m$ wide below \SI{39}{MeV} and $13\,\sigma_m$ wide above
+\SI{39}{MeV}, with the background described by a fifth-order Chebyshev polynomial below
+\SI{39}{MeV} and a third-order Chebyshev polynomial above that transition. The most
+significant excess occurred at \SI{37.7}{MeV} with a local $p$-value of
+$1.7\times10^{-3}$; after the look-elsewhere correction the global $p$-value was 17\%.
+Since no significant signal was found, the analysis set 95\% power-constrained limits
+excluding couplings down to the level of $\eps^2 \simeq 6\times10^{-6}$.
+
+\subsubsection{2016 engineering run}
+
+The published 2016 prompt search analyzed the full 2016 engineering-run sample,
+\SI{10608}{nb^{-1}} at \SI{2.3}{GeV}, and searched the invariant-mass interval
+\SIrange{39}{179}{MeV} \cite{HPS2016PromptLong}. In the prompt channel the smallest
+local $p$-value was $6.38\times10^{-3}$ at \SI{94}{MeV}; after accounting for the
+look-elsewhere effect the global significance was approximately $1\,\sigma$. The
+corresponding 95\% \CLs\ upper limits excluded couplings of order $10^{-5}$, with
+68\% and 95\% expected bands reported explicitly and systematic uncertainties from the
+mass resolution and radiative-fraction determination propagated into the final result.
+
+The 2016 publication also sharpened the physics interpretation of the prompt search in
+ways that are directly relevant for the present note. The conversion from signal yield
+to $\eps^2$ was written in terms of the radiative trident rate, the radiative fraction
+was determined from selected Monte Carlo samples of radiative tridents, tridents, and
+converted wide-angle Bremsstrahlung, and the mass-resolution systematics were carried
+through to the prompt-significance and limit curves. Those ingredients remain central
+to the present GPR-based analysis even though the background model itself is now
+different.
 
 \begin{figure}[H]
 \centering
 \begin{subfigure}[t]{0.32\linewidth}
   \centering
   \graphicorplaceholder{\linewidth}{published_reference_figs/hps2015_published_limit.png}
-  \caption{Published 2015 engineering-run exclusion summary \cite{HPS2015DarkPhoton}.}
+  \caption{Published 2015 95\% power-constrained limit, reaching
+  $\eps^2 \sim 6\times10^{-6}$ over \SIrange{19}{81}{MeV}.}
 \end{subfigure}
 \hfill
 \begin{subfigure}[t]{0.32\linewidth}
   \centering
   \graphicorplaceholder{\linewidth}{published_reference_figs/hps2016_published_prompt_pvalue.png}
-  \caption{Published 2016 prompt-search local/global $p_0$ bookkeeping \cite{HPS2016PromptLong}.}
+  \caption{Published 2016 prompt-search local/global $p$-value scan over
+  \SIrange{39}{179}{MeV}.}
 \end{subfigure}
 \hfill
 \begin{subfigure}[t]{0.32\linewidth}
   \centering
   \graphicorplaceholder{\linewidth}{published_reference_figs/hps2016_published_prompt_limit.png}
-  \caption{Published 2016 prompt-search upper-limit summary \cite{HPS2016PromptLong}.}
+  \caption{Published 2016 prompt-search 95\% \CLs\ limit, excluding couplings of order
+  $10^{-5}$.}
 \end{subfigure}
-\caption{Public HPS prompt-search reference figures included for historical context.
-The present GPR analysis note does not supersede these results on the basis of the
-copied pre-rerun study products alone; instead, it documents the methodological path
-toward the next prompt-resonance result.}
+\caption{Published HPS prompt-resonance benchmarks. The 2015 result established the
+first HPS prompt exclusion in the \SIrange{19}{81}{MeV} region, while the 2016 result
+extended the reach to higher masses and incorporated a more mature treatment of
+systematic uncertainties and expected-limit bands.}
 \label{fig:published-hps-context}
 \end{figure}
 
+\subsection{Motivation for the present GPR analysis}
+
+The motivation for the current analysis is not simply to replace one smooth-background
+fit with another. The earlier local-window resonance searches were necessarily tied to
+window-dependent background parameterizations and per-window stability choices. In the
+current study, the global GP description of the invariant-mass spectrum provides a
+single mean-and-covariance prediction for the blinded bins at each mass point. That
+allows the signal extraction, local significance, expected limits, and shared-$\eps^2$
+combination to be formulated within one coherent statistical framework.
+
+From an analysis perspective, the most important practical gain is stability. The GP
+approach is demonstrably smoother than the earlier piecewise background fits and is
+therefore better suited to extended search windows and to the combination of data sets
+with different resolutions, exposures, and kinematic coverage. That stability is what
+makes it realistic to validate wider search intervals, to compare 2015 and 2016 within
+a common framework, and eventually to incorporate the 2021 data sample in the same
+statistical language.
+
 \subsection{Scope of this note}
 
-The first goal of the document is to provide a physics-analysis description of the
-current package at a level suitable for collaboration review and later journal-facing
-adaptation. The second goal is practical: the note is organized as a self-contained
-Overleaf handoff with explicit figure destinations for upper-limit bands,
-injection/extraction validation, representative fit displays, kernel studies, published
-reference figures, and significance bookkeeping. Wherever the underlying 2021 inputs or
-fully rerun products are not yet finalized, the corresponding sections are retained as
-explicit placeholders rather than written as if the analysis were already complete.
+The note has two aims. First, it documents the current narrow prompt
+$e^+e^-$-resonance analysis at a level suitable for collaboration review and later
+adaptation into a journal manuscript. Second, it organizes the available figures,
+tables, and placeholders according to the final analysis sequence so that the completed
+results can be inserted without restructuring the document. Where a 2021 input or a
+post-rerun study product is not yet finalized, the corresponding text is kept explicit
+about that status rather than written as if the analysis were already complete.
