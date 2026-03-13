@@ -22,7 +22,7 @@ class HistogramNames:
     """Histogram names within ROOT files."""
     hist_2015: str = "invariant_mass"
     hist_2016: str = "h_Minv_General_Final_1"
-    hist_2021: str = "h_invM_8000"
+    hist_2021: str = "preselection/h_invM_8000"
 
 
 @dataclass
@@ -47,7 +47,7 @@ class Config:
     # Histogram names
     hist_2015: str = "invariant_mass"
     hist_2016: str = "h_Minv_General_Final_1"
-    hist_2021: str = "h_invM_8000"
+    hist_2021: str = "preselection/h_invM_8000"
 
     # Analysis ranges (GeV)
     range_2015: Tuple[float, float] = (0.015, 0.140)

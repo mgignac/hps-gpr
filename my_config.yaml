@@ -19,7 +19,7 @@ only_2021_mc: false
 # =====================
 hist_2015: "invariant_mass"
 hist_2016: "h_Minv_General_Final_1"
-hist_2021: "h_invM_8000"
+hist_2021: "preselection/h_invM_8000"
 
 # =====================
 # Analysis ranges (GeV)

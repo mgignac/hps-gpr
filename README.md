@@ -78,7 +78,7 @@ as the reference map (especially for local path conventions and histogram-key ch
 
 Current 2021 production defaults in this repo use:
 - ROOT file: `/sdf/home/e/epeets/run/2021_bump/preselection_invM_psumlt2p8_hists.root`
-- histogram: `h_invM_8000`
+- histogram: `preselection/h_invM_8000`
 - scan window: `30-250 MeV`
 - resolution-scaled GP upper length-scale cap: `9 sigma_m`
 
