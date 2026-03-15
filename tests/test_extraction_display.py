@@ -1,4 +1,5 @@
 import json
+from types import SimpleNamespace
 
 import numpy as np
 
@@ -31,6 +32,7 @@ def _fake_prediction(ds, mass, config, train_exclude_nsigma=None):
         edges=np.asarray(edges, float),
         sigma_val=float(sigma),
         blind=blind,
+        blind_mask=np.asarray(blind_mask, bool),
         x_full=np.asarray(x_full, float),
         y_full=np.asarray(y_full, int),
         mu_full=np.asarray(mu_full, float),
@@ -105,3 +107,88 @@ def test_combined_extraction_display_suite_writes_outputs(tmp_path, monkeypatch)
     assert payload["inj_nsigma_combined"] == 5.0
     assert payload["datasets"] == ["2015", "2016"]
     assert len(payload["per_dataset"]) == 2
+
+
+def test_three_channel_combined_extraction_display_suite_writes_outputs(tmp_path, monkeypatch):
+    import hps_gpr.extraction_display as exd
+
+    monkeypatch.setattr(exd, "estimate_background_for_dataset", _fake_prediction)
+    monkeypatch.setattr(exd, "_sigmaA_reference", lambda pred, mass, source="asimov", rng=None: 10.0)
+    monkeypatch.setattr(exd, "cls_limit_for_amplitude", lambda **kwargs: (18.0, None))
+    monkeypatch.setattr(exd, "combined_cls_limit_epsilon2", lambda mass, ds_list, preds, config: 5.5e-10)
+
+    cfg = Config(
+        enable_2015=True,
+        enable_2016=True,
+        enable_2021=True,
+        output_dir=str(tmp_path),
+        extraction_display_dataset_key="combined",
+        extraction_display_dataset_keys=["2015", "2016", "2021"],
+        extraction_display_masses_gev=[0.040],
+        extraction_display_sigma_multipliers=[3.0],
+        extraction_display_refit_gp_on_toy=False,
+    )
+
+    written = run_extraction_display_suite(cfg)
+
+    assert len(written) == 1
+    png = tmp_path / "extraction_display" / "combined" / "extract_display_combined_m040MeV_z3p0.png"
+    meta = tmp_path / "extraction_display" / "combined" / "extract_display_combined_m040MeV_z3p0.json"
+    assert png.exists()
+    assert meta.exists()
+    payload = json.loads(meta.read_text())
+    assert payload["datasets"] == ["2015", "2016", "2021"]
+    assert len(payload["per_dataset"]) == 3
+
+
+def test_combined_observed_display_suite_writes_outputs(tmp_path, monkeypatch):
+    import hps_gpr.extraction_display as exd
+
+    def _fake_fit_details(obs, mu, cov, tmpl, allow_negative=True):
+        mu = np.asarray(mu, float)
+        tmpl = np.asarray(tmpl, float)
+        return {
+            "b_fit": mu,
+            "lambda_hat": mu + 0.3 * tmpl,
+            "A_hat": 6.0,
+            "sigma_A": 2.0,
+            "success": True,
+        }
+
+    monkeypatch.setattr(exd, "estimate_background_for_dataset", _fake_prediction)
+    monkeypatch.setattr(exd, "cls_limit_for_amplitude", lambda **kwargs: (16.0, None))
+    monkeypatch.setattr(exd, "fit_A_profiled_gaussian_details", _fake_fit_details)
+    monkeypatch.setattr(exd, "p0_profiled_gaussian_LRT", lambda obs, mu, cov, tmpl: (1.2e-3, 3.03, 9.18, {}))
+    monkeypatch.setattr(
+        exd,
+        "evaluate_combined",
+        lambda mass, ds_list, preds, config: SimpleNamespace(eps2_up=6.2e-10, p0_analytic=8.0e-4, Z_analytic=3.16),
+    )
+
+    cfg = Config(
+        enable_2015=True,
+        enable_2016=True,
+        enable_2021=True,
+        output_dir=str(tmp_path),
+        extraction_display_dataset_keys=["2015", "2016", "2021"],
+    )
+
+    written = exd.run_observed_display_suite(
+        cfg,
+        mass=0.040,
+        dataset_key="combined",
+        dataset_keys=["2015", "2016", "2021"],
+    )
+
+    mass_dir = tmp_path / "observed_display" / "m040MeV"
+    hero = mass_dir / "observed_display_combined.png"
+    meta = mass_dir / "metadata.json"
+    assert hero.exists()
+    assert meta.exists()
+    assert len(written) == 7
+    payload = json.loads(meta.read_text())
+    assert payload["datasets"] == ["2015", "2016", "2021"]
+    assert len(payload["per_dataset"]) == 3
+    for ds_key in ["2015", "2016", "2021"]:
+        assert (mass_dir / f"observed_context_{ds_key}.png").exists()
+        assert (mass_dir / f"observed_zoom_{ds_key}.png").exists()

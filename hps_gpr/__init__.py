@@ -23,7 +23,14 @@ from .plotting import (
     plot_z_calibration_residual, plot_delta_z_minus_pull_vs_injected_sigma,
     plot_eps2_curves, plot_bands,
 )
-from .statistics import p0_from_blind_vectors, fit_A_profiled_gaussian, _p_local_from_global_summary
+from .statistics import (
+    p0_from_blind_vectors,
+    fit_A_profiled_gaussian,
+    _p_local_from_global_summary,
+    q0_from_local_p0,
+    max_q0_from_local_p0_curve,
+    global_p_from_max_q0_toys,
+)
 from .io import BlindPrediction, estimate_background_for_dataset
 from .conversion import epsilon2_from_A, A_from_epsilon2
 from .evaluation import (
@@ -45,7 +52,10 @@ from .injection import (
 from .extraction_display import (
     make_single_extraction_display,
     make_combined_extraction_display,
+    make_single_observed_display,
+    make_combined_observed_display,
     run_extraction_display_suite,
+    run_observed_display_suite,
 )
 
 __all__ = [
@@ -71,6 +81,9 @@ __all__ = [
     "p0_from_blind_vectors",
     "fit_A_profiled_gaussian",
     "_p_local_from_global_summary",
+    "q0_from_local_p0",
+    "max_q0_from_local_p0_curve",
+    "global_p_from_max_q0_toys",
     # IO
     "BlindPrediction",
     "estimate_background_for_dataset",
@@ -99,7 +112,10 @@ __all__ = [
     "summarize_injection_grid",
     "make_single_extraction_display",
     "make_combined_extraction_display",
+    "make_single_observed_display",
+    "make_combined_observed_display",
     "run_extraction_display_suite",
+    "run_observed_display_suite",
     # Plotting
     "set_plot_style",
     "set_injection_plot_style",

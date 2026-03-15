@@ -305,7 +305,8 @@ p_{0,d}(m) = 1-\Phi\!\left(Z_{\mathrm{local},d}(m)\right).
 \end{equation}
 This profiled multi-bin test replaces the older sum-count approximation used in the
 earliest drafts and is the only local-significance definition treated as current in
-this note.
+this note. In the asymptotic regime this is the standard profile-likelihood discovery
+construction used throughout collider physics \cite{Cowan1998,Cowan2011}.
 
 \subsection{\texorpdfstring{\CLs}{CLs} upper limits}
 
@@ -334,18 +335,25 @@ p_{\mathrm{weak}} &= P\!\left(\eps^2_{\mathrm{toy}} \ge \eps^2_{\mathrm{obs}}\ri
 p_{\mathrm{two}} &= 2\min\!\left(p_{\mathrm{strong}}, p_{\mathrm{weak}}\right).
 \end{align}
 These quantities are not discovery $p$-values in the same sense as the analytic
-profile-likelihood $p_0$. Instead, they measure where the observed upper limit falls
-relative to the toy-derived expected-limit distribution. That is why the curves often
-start near 0.5 rather than near 1.0: if the observed limit is close to the median of
-the background-only toy ensemble, then roughly half the toys lie above it and half lie
-below it. In that regime, $p_{\mathrm{strong}}$ and $p_{\mathrm{weak}}$ are both near
-0.5 by construction.
+profile-likelihood $p_0$ used for a local bump hunt \cite{Cowan1998,Cowan2011}.
+Instead, they measure where the observed upper limit falls relative to the
+background-only \CLs{} limit ensemble \cite{Junk1999,Read2002}. That is why the curves
+often start near 0.5 rather than near 1.0: if the observed limit is close to the
+median of the background-only toy ensemble, then roughly half the toys lie above it
+and half lie below it. In that regime, $p_{\mathrm{strong}}$ and
+$p_{\mathrm{weak}}$ are both near 0.5 by construction.
 
 These curves are still useful. They provide a compact summary of whether the observed
 limit is stronger than typical, weaker than typical, or statistically ordinary at a
 given mass. When plotted together with local and global reference lines, they also show
 how the observed-limit behavior compares with the usual one-sided Gaussian significance
-benchmarks.
+benchmarks. They should nevertheless be interpreted only as limit diagnostics. With
+$N_{\mathrm{toys}}$ background-only pseudoexperiments, the smallest non-zero empirical
+tail probability is of order $1/(N_{\mathrm{toys}}+1)$. For the common
+$N_{\mathrm{toys}}=\num{10000}$ setup used in the present validation studies, this is
+only $\mathcal{O}(10^{-4})$, corresponding to about \SI{3.7}{\sigma} one-sided. Toy
+limit tails at that granularity therefore cannot by themselves validate or refute a
+\SIrange{5}{7}{\sigma} local excess in the analytic bump-hunt statistic.
 
 \begin{figure}[H]
 \centering
@@ -456,6 +464,16 @@ has its largest upward fluctuation. It is not yet the final global-significance
 prescription intended for the finished prompt-search result. All global-significance
 statements in the present note should therefore be read as provisional until the
 dedicated rerun with the corrected global-$p$ treatment is complete.
+
+The reason for that caution is methodological rather than conceptual. An effective
+trials factor combined with a \v{S}id\'{a}k correction is a common monitoring
+approximation for dense one-dimensional scans, and it captures the right qualitative
+look-elsewhere trend. For a final quoted result, however, the more standard HEP
+procedure is to calibrate the scan-level maximum of the local test statistic
+$q_0(m)$ with background-only pseudoexperiments, or, when that is computationally
+prohibitive, to use the Gross--Vitells upcrossing formalism
+\cite{GrossVitells2010,Cowan2011}. That stronger calibration is the intended final
+path for this analysis.
 
 \begin{figure}[H]
 \centering

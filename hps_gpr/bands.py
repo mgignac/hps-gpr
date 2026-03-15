@@ -585,18 +585,14 @@ def expected_ul_bands_for_combination(
         # Analytic p0 / Z for combined observed data (null signal, A=0 template)
         if compute_obs:
             try:
-                # Build a unit template at eps2=1 to get a combined signal shape
-                from .template import build_window_template_from_full as _btf
-                tmpl_c = np.concatenate([
-                    _btf(
-                        preds[k].edges_full,
-                        preds[k].blind_mask,
-                        float(m),
-                        float(preds[k].sigma_val),
-                    )[0]
-                    for k in ds_here
-                ])
-                p0_obs_c, Z_obs_c, _, _ = p0_profiled_gaussian_LRT(obs_vec0, b_vec, cov_mat, tmpl_c)
+                # Use the same shared-epsilon^2 weighting as the combined fit itself.
+                eps2_scale = float(getattr(config, "eps2_lrt_scale", 1e10))
+                p0_obs_c, Z_obs_c, _, _ = p0_profiled_gaussian_LRT(
+                    obs_vec0,
+                    b_vec,
+                    cov_mat,
+                    s_unit / eps2_scale,
+                )
                 p0_obs_c = float(p0_obs_c)
                 Z_obs_c = float(Z_obs_c)
             except Exception:

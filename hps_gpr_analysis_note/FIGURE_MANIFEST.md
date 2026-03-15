@@ -41,7 +41,7 @@ standalone project.
 | `upper_limit_figs/2021_1pct/ul_bands_signal_yield_obsexp.png` | not yet exported | placeholder | Planned 2021 1% signal-yield bands. |
 | `upper_limit_figs/2021_1pct/ul_bands_eps2_obsexp.png` | not yet exported | placeholder | Planned 2021 1% `\eps^2` bands. |
 | `upper_limit_figs/2015_2016_2021_1pct_combined/ul_bands_signal_yield_obsexp.png` | not yet exported | placeholder | Planned 2015+2016 10%+2021 1% combined signal-yield bands. |
-| `upper_limit_figs/2015_2016_2021_1pct_combined/ul_bands_eps2_obsexp.png` | not yet exported | placeholder | Planned 2015+2016 10%+2021 1% combined `\eps^2` bands. |
+| `upper_limit_figs/2015_2016_2021_1pct_combined/ul_bands_eps2_obsexp.png` | `summary_combined_2015_2016_10pct_2021_1pct/ul_bands_eps2_obsexp.png` | provisional | Post-leakage, pre-radiative-penalty three-way combined `\eps^2` bands copied into the note tree for the current baseline discussion. |
 | `upper_limit_figs/first_round_unblinding_2015_2016_2021_10pct/ul_bands_signal_yield_obsexp.png` | not yet exported | placeholder | Planned 2015+2016 10%+2021 10% first-round unblinding signal-yield bands. |
 | `upper_limit_figs/first_round_unblinding_2015_2016_2021_10pct/ul_bands_eps2_obsexp.png` | not yet exported | placeholder | Planned 2015+2016 10%+2021 10% first-round unblinding `\eps^2` bands. |
 
@@ -61,6 +61,8 @@ standalone project.
 | `significance_figs/2015_2016_combined/Z_local_global.png` | `summary_combined_all/Z_local_global.png` | provisional | Pre-rerun combined local/global `Z` bookkeeping. |
 | `significance_figs/2015_2016_combined/ul_pvalues.png` | `summary_combined_all/ul_pvalues.png` | provisional | Combined toy-tail `p`-value summary. |
 | `significance_figs/2015_2016_combined/ul_pvalues_components_local_global_refs.png` | `summary_combined_all/ul_pvalues_components_local_global_refs.png` | provisional | Combined toy-tail `p`-value components with local/global reference lines. |
+| `significance_figs/2015_2016_2021_1pct_combined/p0_analytic_local_global.png` | `summary_combined_2015_2016_10pct_2021_1pct/p0_analytic_local_global.png` | provisional | Post-leakage, pre-radiative-penalty three-way analytic local/global `p_0` bookkeeping. |
+| `significance_figs/2015_2016_2021_1pct_combined/ul_pvalues_components_local_global_refs.png` | `summary_combined_2015_2016_10pct_2021_1pct/ul_pvalues_components_local_global_refs.png` | provisional | Three-way toy-tail limit diagnostics with local/global reference lines. |
 
 ## Fit-example figures
 
@@ -132,6 +134,8 @@ standalone project.
 - Every path referenced by the LaTeX source is relative to the root of
   `hps_gpr_analysis_note/`; there are no remaining references to repository-root figure
   locations.
+- The intended upload/build path is the full `hps_gpr_analysis_note/` directory as a
+  standalone Overleaf project.
 - The `provisional` label is used intentionally for methodology-sensitive outputs that
   should be regenerated after the leakage-retaining rerun.
 - The placeholder macro in `main.tex` allows the note to compile even when future

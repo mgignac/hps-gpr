@@ -751,6 +751,8 @@ def plot_ul_pvalue_components(
     outpath: Optional[str] = None,
     neff: Optional[float] = None,
     lee_method: str = "sidak",
+    indep_width_sigma: float = 1.96,
+    sigma_col: str = "sigma_mass_res_GeV",
 ) -> None:
     """Overlay p_strong, p_weak, p_two with local/global sigma-reference p-values."""
     if not {"p_strong", "p_weak", "p_two"}.intersection(set(df.columns)):
@@ -758,8 +760,8 @@ def plot_ul_pvalue_components(
 
     masses = df["mass_GeV"].to_numpy(float)
     if neff is None:
-        # For UL-tail diagnostics we use the tested-grid count as a robust default.
-        neff = max(1.0, float(len(masses)))
+        sig = df[sigma_col].to_numpy(float) if sigma_col in df.columns else None
+        neff = _effective_trials_from_spacing(masses, sig, indep_width_sigma=float(indep_width_sigma))
 
     fig, ax = plt.subplots(figsize=(10, 4.5))
     vals = []
@@ -807,6 +809,36 @@ def plot_ul_pvalue_components(
 # Significance / LEE plots
 # ---------------------------------------------------------------------------
 
+
+def _effective_trials_from_spacing(
+    masses: np.ndarray,
+    sigma_vals: Optional[np.ndarray],
+    *,
+    indep_width_sigma: float = 1.96,
+) -> float:
+    """Approximate N_eff from the scanned grid and the relevant resolution column."""
+    masses_arr = np.asarray(masses, float)
+    masses_arr = masses_arr[np.isfinite(masses_arr)]
+    if masses_arr.size < 2:
+        return 1.0
+
+    if sigma_vals is None:
+        return float(max(1.0, float(masses_arr.size)))
+
+    sigma_arr = np.asarray(sigma_vals, float)
+    if sigma_arr.size != np.asarray(masses).size:
+        return float(max(1.0, float(masses_arr.size)))
+
+    dm = np.diff(np.asarray(masses, float))
+    sig_mid = 0.5 * (sigma_arr[:-1] + sigma_arr[1:])
+    ok = np.isfinite(sig_mid) & (sig_mid > 0) & np.isfinite(dm) & (dm > 0)
+    if not np.any(ok):
+        return 1.0
+
+    neff = np.sum(dm[ok] / (max(float(indep_width_sigma), 1e-6) * sig_mid[ok]))
+    return float(np.clip(neff, 1.0, float(masses_arr.size)))
+
+
 def plot_analytic_p0(
     df: pd.DataFrame,
     *,
@@ -843,16 +875,7 @@ def plot_analytic_p0(
     if apply_lee:
         if neff is None:
             sig = df[sigma_col].to_numpy(float) if sigma_col in df.columns else None
-            if sig is not None and np.isfinite(sig).any():
-                dm = np.diff(masses)
-                if dm.size > 0:
-                    sig_mid = 0.5 * (sig[:-1] + sig[1:])
-                    ok = np.isfinite(sig_mid) & (sig_mid > 0) & np.isfinite(dm) & (dm > 0)
-                    neff = float(np.clip(np.sum(dm[ok] / (float(indep_width_sigma) * sig_mid[ok])), 1.0, float(len(masses))))
-                else:
-                    neff = 1.0
-            else:
-                neff = float(len(masses))
+            neff = _effective_trials_from_spacing(masses, sig, indep_width_sigma=float(indep_width_sigma))
         p0_global = np.asarray([
             _p_global_from_local(float(p), Neff=neff, method=lee_method)
             for p in p0_local
@@ -934,16 +957,7 @@ def plot_Z_local_global(
     if apply_lee:
         if neff is None:
             sig = df[sigma_col].to_numpy(float) if sigma_col in df.columns else None
-            if sig is not None and np.isfinite(sig).any():
-                dm = np.diff(masses)
-                if dm.size > 0:
-                    sig_mid = 0.5 * (sig[:-1] + sig[1:])
-                    ok = np.isfinite(sig_mid) & (sig_mid > 0) & np.isfinite(dm) & (dm > 0)
-                    neff = float(np.clip(np.sum(dm[ok] / (float(indep_width_sigma) * sig_mid[ok])), 1.0, float(len(masses))))
-                else:
-                    neff = 1.0
-            else:
-                neff = float(len(masses))
+            neff = _effective_trials_from_spacing(masses, sig, indep_width_sigma=float(indep_width_sigma))
         p_local = np.asarray([_p_from_z_one_sided(float(z)) for z in Z_local], float)
         p_global = np.asarray([
             _p_global_from_local(float(p), Neff=neff, method=lee_method)

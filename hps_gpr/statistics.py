@@ -617,3 +617,40 @@ def _p_local_from_global_summary(
         return float(np.clip(pg / N, 0.0, 1.0))
     # Šidák correction (exact for independent trials)
     return float(np.clip(1.0 - (1.0 - pg) ** (1.0 / N), 0.0, 1.0))
+
+
+def q0_from_local_p0(p0_local: np.ndarray) -> np.ndarray:
+    """Convert local one-sided p0 values into asymptotic q0 = Z^2 values."""
+    p = np.clip(np.asarray(p0_local, float), 1e-300, 1.0)
+    z = norm.isf(p)
+    return np.square(np.clip(z, 0.0, None))
+
+
+def max_q0_from_local_p0_curve(p0_local: np.ndarray) -> float:
+    """Return the maximum local q0 implied by a scan-level p0 curve."""
+    q0 = q0_from_local_p0(p0_local)
+    q0 = q0[np.isfinite(q0)]
+    if q0.size == 0:
+        return float("nan")
+    return float(np.nanmax(q0))
+
+
+def global_p_from_max_q0_toys(
+    q0_obs_max: float,
+    q0max_toys: np.ndarray,
+) -> float:
+    """Estimate a global p-value from the toy distribution of scan-level max q0.
+
+    This is the recommended stronger validation path for final global-significance
+    claims: compare the observed maximum local test statistic against the background-only
+    distribution of the maximum statistic over the full scan.
+    """
+    qobs = float(q0_obs_max)
+    toys = np.asarray(q0max_toys, float)
+    toys = toys[np.isfinite(toys)]
+    if not np.isfinite(qobs) or toys.size == 0:
+        return float("nan")
+    n = int(toys.size)
+    # Use the standard +1 smoothing so a finite toy sample never returns p=0 exactly.
+    p = (1.0 + float(np.count_nonzero(toys >= qobs))) / float(n + 1)
+    return float(np.clip(p, 0.0, 1.0))

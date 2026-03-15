@@ -1155,6 +1155,58 @@ def extract_display(config, dataset, output_dir, strengths):
         print(path)
 
 
+@main.command("observed-display")
+@click.option(
+    "--config",
+    "-c",
+    required=True,
+    type=click.Path(exists=True),
+    help="Path to configuration YAML file",
+)
+@click.option(
+    "--mass",
+    required=True,
+    type=float,
+    help="Mass hypothesis in GeV",
+)
+@click.option(
+    "--dataset",
+    "-d",
+    type=click.Choice(["2015", "2016", "2021", "combined"], case_sensitive=False),
+    help="Dataset key to render. Defaults to combined when multiple datasets are enabled.",
+)
+@click.option(
+    "--datasets",
+    type=str,
+    help="Optional comma-separated dataset list for combined displays (for example: 2015,2016,2021).",
+)
+@click.option(
+    "--output-dir",
+    "-o",
+    type=click.Path(),
+    help="Override observed-display output directory",
+)
+def observed_display(config, mass, dataset, datasets, output_dir):
+    """Generate reviewer-facing observed-data bump-validation plots for one mass."""
+    from .config import load_config
+    from .extraction_display import run_observed_display_suite
+
+    cfg = load_config(config)
+    if dataset and dataset.lower() != "combined" and datasets:
+        raise click.BadParameter("--datasets can only be used together with --dataset combined", param_hint="--datasets")
+
+    written = run_observed_display_suite(
+        cfg,
+        mass=float(mass),
+        dataset_key=(dataset.lower() if dataset else None),
+        dataset_keys=([tok.strip() for tok in str(datasets).split(",") if tok.strip()] if datasets else None),
+        output_dir=output_dir,
+    )
+    print(f"Wrote {len(written)} observed display plot(s)")
+    for path in written:
+        print(path)
+
+
 @main.command("slurm-combine")
 @click.option(
     "--output-dir",
@@ -1277,10 +1329,13 @@ def slurm_combine(output_dir, prefix):
                 df,
                 title=f"UL toy-tail p-value components + local/global references ({tag})",
                 outpath=os.path.join(suite_dir, "ul_pvalues_components_local_global_refs.png"),
+                indep_width_sigma=float(df["bands_train_exclude_nsigma"].dropna().iloc[0]) if "bands_train_exclude_nsigma" in df.columns and df["bands_train_exclude_nsigma"].notna().any() else 1.96,
+                sigma_col=("sigma_mass_res_min_GeV" if "sigma_mass_res_min_GeV" in df.columns else "sigma_mass_res_GeV"),
             )
 
             if "p0_analytic" in df.columns:
                 lee_width = float(df["bands_train_exclude_nsigma"].dropna().iloc[0]) if "bands_train_exclude_nsigma" in df.columns and df["bands_train_exclude_nsigma"].notna().any() else 1.96
+                sigma_col_combined = "sigma_mass_res_min_GeV" if "sigma_mass_res_min_GeV" in df.columns else "sigma_mass_res_GeV"
                 plot_analytic_p0(
                     df,
                     title=f"Analytic local/global p0 vs mass ({tag})",
@@ -1288,6 +1343,7 @@ def slurm_combine(output_dir, prefix):
                     apply_lee=True,
                     lee_method="sidak",
                     indep_width_sigma=lee_width,
+                    sigma_col=sigma_col_combined,
                 )
                 plot_Z_local_global(
                     df,
@@ -1296,6 +1352,7 @@ def slurm_combine(output_dir, prefix):
                     apply_lee=True,
                     lee_method="sidak",
                     indep_width_sigma=lee_width,
+                    sigma_col=sigma_col_combined,
                 )
 
             # Add per-dataset UL + local/global suites into combined summary folder
@@ -1322,10 +1379,25 @@ def slurm_combine(output_dir, prefix):
                 except Exception as e:
                     print(f"Warning: dataset eps2 UL plot failed for {ds_name}: {e}")
 
+            support_masses_by_ds = {}
+            if df_single is not None and len(df_single) and "dataset_set" in df.columns:
+                sets = df["dataset_set"].fillna("").astype(str)
+                masses_round = np.round(df["mass_GeV"].to_numpy(float), 6)
+                for ds_name in sorted(df_single["dataset"].astype(str).unique()):
+                    mask = sets.apply(lambda s: str(ds_name) in [tok for tok in str(s).split("+") if tok])
+                    support_masses_by_ds[str(ds_name)] = set(masses_round[mask.to_numpy(bool)])
+
             if df_single is not None and len(df_single):
                 for ds_name, sub in df_single.groupby("dataset"):
                     try:
                         sub = sub.sort_values("mass_GeV").reset_index(drop=True)
+                        support = support_masses_by_ds.get(str(ds_name), set())
+                        if support:
+                            sub_round = np.round(sub["mass_GeV"].to_numpy(float), 6)
+                            sub = sub[np.isin(sub_round, list(support))].copy()
+                            sub = sub.sort_values("mass_GeV").reset_index(drop=True)
+                        if sub.empty:
+                            continue
                         if "p0_analytic" in sub.columns:
                             plot_analytic_p0(
                                 sub,
