@@ -257,6 +257,134 @@ def generate_injection_slurm_scripts(
 
     return output_path, submit_path, n_jobs
 
+
+def generate_extraction_display_slurm_scripts(
+    config_path: str,
+    output_path: str,
+    dataset: str,
+    masses: List[float],
+    strengths: List[float],
+    output_root: str,
+    *,
+    dataset_keys: Optional[List[str]] = None,
+    mass_range: Optional[tuple] = None,
+    job_name: str = "hps-gpr-exdisp",
+    partition: str = "batch",
+    time_limit: str = "4:00:00",
+    memory: str = "4G",
+    conda_env: Optional[str] = None,
+    extra_sbatch: Optional[List[str]] = None,
+) -> tuple:
+    """Generate SLURM scripts for one extraction-display job per (mass, strength)."""
+    dataset_key = str(dataset).strip().lower()
+    combined_keys = [str(k).strip() for k in (dataset_keys or []) if str(k).strip()]
+
+    job_lines = [
+        "#!/bin/bash",
+        f"#SBATCH --job-name={job_name}",
+        f"#SBATCH --partition={partition}",
+        f"#SBATCH --time={time_limit}",
+        f"#SBATCH --mem={memory}",
+        "#SBATCH --output=logs/%j.out",
+        "#SBATCH --error=logs/%j.err",
+    ]
+
+    if extra_sbatch:
+        for directive in extra_sbatch:
+            job_lines.append(f"#SBATCH {directive}")
+
+    job_lines.extend([
+        "",
+        "mkdir -p logs",
+        "",
+    ])
+
+    if conda_env:
+        job_lines.extend([
+            "# Activate conda environment",
+            "source $(conda info --base)/etc/profile.d/conda.sh",
+            f"conda activate {conda_env}",
+            "",
+        ])
+
+    job_lines.extend([
+        "# EXTRACT_* and BASE_OUTPUT_DIR are passed via --export at submission time",
+        'JOB_OUTDIR="${BASE_OUTPUT_DIR}/extraction_display_jobs/${EXTRACT_DATASET}/m_${EXTRACT_MASS_TAG}/s_${EXTRACT_STRENGTH_TAG}"',
+        'mkdir -p "${JOB_OUTDIR}"',
+        "",
+        'CMD=(hps-gpr extract-display',
+        f'  --config "{config_path}"',
+        '  --dataset "${EXTRACT_DATASET}"',
+        '  --masses "${EXTRACT_MASS}"',
+        '  --strengths "${EXTRACT_STRENGTH}"',
+        '  --output-dir "${JOB_OUTDIR}")',
+        'if [ -n "${EXTRACT_DATASET_KEYS}" ]; then',
+        '  CMD+=(--datasets "${EXTRACT_DATASET_KEYS}")',
+        "fi",
+        '"${CMD[@]}"',
+    ])
+
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(job_lines) + "\n")
+    os.chmod(output_path, 0o755)
+    print(f"Wrote extraction-display SLURM job script to {output_path}")
+
+    submit_path = os.path.join(os.path.dirname(os.path.abspath(output_path)), "submit_extract_display_all.sh")
+    abs_job = os.path.abspath(output_path)
+    dataset_keys_str = ",".join(combined_keys)
+
+    submit_lines = [
+        "#!/bin/bash",
+        "# Submit one SLURM job per (mass, strength) extraction-display point",
+        f'JOB_SCRIPT="{abs_job}"',
+        f'BASE_OUTPUT_DIR="{output_root}"',
+        f'EXTRACT_DATASET="{dataset_key}"',
+        f'EXTRACT_DATASET_KEYS="{dataset_keys_str}"',
+        "",
+        "mkdir -p logs",
+        "",
+    ]
+
+    n_jobs = 0
+    n_skipped = 0
+    for mass in masses:
+        mass_f = float(mass)
+        if mass_range is not None:
+            lo, hi = float(mass_range[0]), float(mass_range[1])
+            if mass_f < lo or mass_f > hi:
+                n_skipped += 1
+                continue
+        mass_str = f"{mass_f:.6f}".rstrip("0").rstrip(".")
+        mass_tag = mass_str.replace("-", "m").replace(".", "p")
+        for strength in strengths:
+            strength_str = f"{float(strength):.6g}"
+            strength_tag = strength_str.replace("-", "m").replace(".", "p")
+            submit_lines.append(
+                "sbatch --export=ALL,"
+                "EXTRACT_DATASET=${EXTRACT_DATASET},"
+                f"EXTRACT_MASS={mass_str},"
+                f"EXTRACT_MASS_TAG={mass_tag},"
+                f"EXTRACT_STRENGTH={strength_str},"
+                f"EXTRACT_STRENGTH_TAG={strength_tag},"
+                "EXTRACT_DATASET_KEYS=${EXTRACT_DATASET_KEYS},"
+                "BASE_OUTPUT_DIR=${BASE_OUTPUT_DIR} "
+                "\"${JOB_SCRIPT}\""
+            )
+            n_jobs += 1
+
+    submit_lines.extend([
+        "",
+        f'echo "Submitted {n_jobs} extraction-display jobs."',
+        f'echo "Skipped {n_skipped} out-of-range masses for dataset selection {dataset_key}."',
+    ])
+
+    with open(submit_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(submit_lines) + "\n")
+    os.chmod(submit_path, 0o755)
+    print(f"Wrote extraction-display submission loop script to {submit_path}")
+
+    return output_path, submit_path, n_jobs
+
 def get_mass_range_for_task(
     datasets: dict,
     mass_step: float,

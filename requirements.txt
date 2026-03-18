@@ -12,6 +12,8 @@ scikit-learn>=1.0
 # Plotting
 matplotlib>=3.4
 mplhep>=0.3
+Pillow>=9.0
+PyMuPDF>=1.23
 
 # ROOT file reading
 uproot>=4.0

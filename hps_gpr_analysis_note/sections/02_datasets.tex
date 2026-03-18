@@ -77,43 +77,48 @@ review-ready workflow described here.
 \centering
 \small
 {\setlength{\tabcolsep}{6pt}
-\begin{tabularx}{\linewidth}{@{} P{0.24\linewidth} P{0.14\linewidth} P{0.18\linewidth} P{0.15\linewidth} Y @{}}
+\begin{tabularx}{\linewidth}{@{} P{0.24\linewidth} P{0.12\linewidth} P{0.16\linewidth} P{0.23\linewidth} Y @{}}
 \toprule
-Run period & Beam energy & Exposure used here & Prompt scan range & Role in this note \\
+Run period & Beam energy & Approx. EOT & Exposure used here & Prompt scan range \\
 \midrule
 2015 engineering run &
 \SI{1.056}{GeV} &
+$\sim 6.2\times10^{16}$ &
 \SI{1170}{nb^{-1}} &
-\SIrange{20}{130}{MeV} &
-Fully unblinded prompt-resonance validation sample anchored to the published 2015
-prompt search. \\
-2016 engineering run (10\% study sample) &
+\SIrange{20}{130}{MeV} \\
+2016 engineering run &
 \SI{2.3}{GeV} &
+$\sim 5.8\times10^{17}$ &
 10\% development subset of a
 \SI{10608}{nb^{-1}} parent sample &
-\SIrange{35}{210}{MeV} &
-Development-stage prompt sample used to validate the 2016 detector response,
-radiative fraction, and shared-$\eps^2$ combination logic. \\
-2021 physics run (0.03\%, 1\%, and 10\% stages) &
+\SIrange{35}{210}{MeV} \\
+2021 physics run &
 \SI{3.74}{GeV} &
-Staged subsets of a $\sim\SI{160}{pb^{-1}}$ run &
-\SIrange{30}{250}{MeV} &
-Upgraded-detector physics-run sample. The present note emphasizes the 1\% stage for
-the current combined baseline, while keeping later unblinding stages explicit. \\
+$\sim 6\times10^{18}$ &
+1\% review-stage subset of a $\sim\SI{160}{pb^{-1}}$ parent run &
+\SIrange{30}{250}{MeV} \\
 \bottomrule
 \end{tabularx}
 }
 \caption{Data-taking campaigns carried through the present prompt-resonance note. The
-scan ranges quoted here are the current GPR analysis ranges rather than the smaller
-published-window searches.}
+quoted EOT values are campaign-scale approximations intended only to indicate the order
+of magnitude of the accumulated statistics. In the present note, the fully unblinded
+2015 engineering run anchors the methodology validation, the 2016 program is carried
+through the current 10\% development sample on the way to the first 100\%
+unblinding-stage analysis, and the upgraded-detector 2021 program is represented by
+the current 1\% subset on the way to the final 100\% unblinding stage. The scan ranges
+quoted here are the current GPR analysis ranges rather than the smaller published
+window searches; the corresponding prompt-search publications scanned
+\SIrange{19}{81}{MeV} in 2015 and \SIrange{39}{179}{MeV} in 2016
+\cite{HPS2015DarkPhoton,HPS2016PromptLong}.}
 \label{tab:dataset-summary}
 \end{table}
 
 The staged-analysis logic matters for the way the results are interpreted. The 2015
 sample remains the cleanest environment for methodology validation because it is fully
 unblinded. The 2016 and 2021 analyses are instead organized in review-friendly stages:
-small subsets for functional-form and toy studies, then larger subsets for the first
-complete upper-limit and combination passes. The 2021 1\% sample is the key current
-physics-stage input to the shared-$\eps^2$ result discussed later in the note, while
-the 2021 10\% stage and the fully unblinded 2021 analysis remain reserved for later
-milestones.
+the present note uses the 2016 10\% and 2021 1\% subsets to validate the statistical
+machinery, while reserving the 2016 100\% first-unblinding milestone and the final
+fully unblinded 2021 analysis for later releases. The 2021 1\% sample is therefore the
+key current upgraded-detector input to the shared-$\eps^2$ result discussed later in
+the note, rather than a statement about the final 2021 physics reach.

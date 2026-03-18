@@ -1,4 +1,4 @@
-from hps_gpr.cli import _parse_strength_tokens
+from hps_gpr.cli import _parse_mass_tokens, _parse_strength_tokens
 
 
 def test_parse_strength_tokens_supports_sigma_prefix():
@@ -8,3 +8,12 @@ def test_parse_strength_tokens_supports_sigma_prefix():
 
 def test_parse_strength_tokens_none_returns_empty():
     assert _parse_strength_tokens(None) == []
+
+
+def test_parse_mass_tokens_supports_comma_separated_values():
+    vals = _parse_mass_tokens("0.040,0.080,0.120")
+    assert vals == [0.04, 0.08, 0.12]
+
+
+def test_parse_mass_tokens_none_returns_empty():
+    assert _parse_mass_tokens(None) == []

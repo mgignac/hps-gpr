@@ -30,6 +30,19 @@ def _parse_strength_tokens(raw: str) -> list:
     return out
 
 
+def _parse_mass_tokens(raw: str) -> list:
+    """Parse comma-separated mass tokens in GeV."""
+    if raw is None:
+        return []
+    out = []
+    for tok in str(raw).split(","):
+        t = tok.strip()
+        if not t:
+            continue
+        out.append(float(t))
+    return out
+
+
 @main.command()
 @click.option(
     "--config",
@@ -838,6 +851,145 @@ def slurm_gen_inject(config, datasets, masses, strengths, n_toys, output, job_na
     print(f"  bash {submit_script}")
 
 
+@main.command("slurm-gen-extract-display")
+@click.option(
+    "--config",
+    "-c",
+    required=True,
+    type=click.Path(exists=True),
+    help="Path to configuration YAML file",
+)
+@click.option(
+    "--dataset",
+    required=True,
+    type=click.Choice(["2015", "2016", "2021", "combined"], case_sensitive=False),
+    help="Extraction-display target to render in batch jobs.",
+)
+@click.option(
+    "--datasets",
+    type=str,
+    help="Optional comma-separated dataset list for combined extraction-display jobs (for example: 2015,2016,2021).",
+)
+@click.option(
+    "--masses",
+    required=True,
+    help="Comma-separated masses (GeV)",
+)
+@click.option(
+    "--strengths",
+    required=True,
+    help="Comma-separated injection strengths (e.g. 3,5,7 or s3,s5,s7)",
+)
+@click.option(
+    "--output",
+    "-o",
+    default="submit_extraction_display.slurm",
+    help="Output SLURM script path",
+)
+@click.option(
+    "--job-name",
+    default="hps-gpr-exdisp",
+    help="SLURM job name",
+)
+@click.option(
+    "--partition",
+    default="batch",
+    help="SLURM partition",
+)
+@click.option(
+    "--time",
+    default="4:00:00",
+    help="Time limit per task",
+)
+@click.option(
+    "--memory",
+    default="4G",
+    help="Memory per task",
+)
+@click.option(
+    "--conda-env",
+    help="Conda environment to activate",
+)
+@click.option(
+    "--account",
+    help="SLURM account/project to charge",
+)
+def slurm_gen_extract_display(config, dataset, datasets, masses, strengths, output, job_name, partition, time, memory, conda_env, account):
+    """Generate SLURM scripts for per-(dataset set,mass,strength) extraction-display jobs."""
+    from .config import load_config
+    from .slurm import generate_extraction_display_slurm_scripts
+
+    cfg = load_config(config)
+
+    mass_list = _parse_mass_tokens(masses)
+    try:
+        strength_list = _parse_strength_tokens(str(strengths))
+    except ValueError as exc:
+        raise click.BadParameter(
+            "Could not parse --strengths. Use comma-separated values like 3,5,7 or s3,s5,s7.",
+            param_hint="--strengths",
+        ) from exc
+
+    if not mass_list:
+        raise click.BadParameter("No masses provided", param_hint="--masses")
+    if not strength_list:
+        raise click.BadParameter("No strengths provided", param_hint="--strengths")
+
+    extra = [f"--account={account}"] if account else None
+    ds_ranges = {
+        "2015": tuple(cfg.range_2015),
+        "2016": tuple(cfg.range_2016),
+        "2021": tuple(cfg.range_2021),
+    }
+    target = str(dataset).strip().lower()
+    combined_keys = [d.strip() for d in str(datasets or "").split(",") if d.strip()]
+
+    if target == "combined":
+        if not combined_keys:
+            combined_keys = [str(k).strip() for k in getattr(cfg, "extraction_display_dataset_keys", []) if str(k).strip()]
+        if len(combined_keys) < 2:
+            raise click.BadParameter(
+                "Combined extraction-display jobs need at least two dataset keys.",
+                param_hint="--datasets",
+            )
+        ranges = [ds_ranges[k] for k in combined_keys if k in ds_ranges]
+        if len(ranges) != len(combined_keys):
+            raise click.BadParameter(
+                "Combined dataset list must only include 2015, 2016, and/or 2021.",
+                param_hint="--datasets",
+            )
+        mass_range = (
+            max(float(lo) for lo, _ in ranges),
+            min(float(hi) for _, hi in ranges),
+        )
+    else:
+        if combined_keys:
+            raise click.BadParameter(
+                "--datasets is only supported when --dataset combined is selected.",
+                param_hint="--datasets",
+            )
+        mass_range = ds_ranges.get(target)
+
+    job_script, submit_script, n_jobs = generate_extraction_display_slurm_scripts(
+        config_path=config,
+        output_path=output,
+        dataset=target,
+        masses=mass_list,
+        strengths=strength_list,
+        output_root=cfg.output_dir,
+        dataset_keys=combined_keys if target == "combined" else None,
+        job_name=job_name,
+        partition=partition,
+        time_limit=time,
+        memory=memory,
+        conda_env=conda_env,
+        extra_sbatch=extra,
+        mass_range=mass_range,
+    )
+    print(f"\nPrepared {n_jobs} extraction-display jobs.")
+    print("To submit all jobs, run:")
+    print(f"  bash {submit_script}")
+
 
 @main.command("inject-plot")
 @click.option(
@@ -1134,7 +1286,17 @@ def inject_plot(input_dir, output_dir, dataset, write_merged_toys):
     type=str,
     help="Optional comma-separated injected sigma levels for this run (e.g. 3,5,7 or s3,s5,s7). Overrides extraction_display_sigma_multipliers.",
 )
-def extract_display(config, dataset, output_dir, strengths):
+@click.option(
+    "--masses",
+    type=str,
+    help="Optional comma-separated mass list in GeV (for example: 0.040,0.080). Overrides extraction_display_masses_gev.",
+)
+@click.option(
+    "--datasets",
+    type=str,
+    help="Optional comma-separated dataset list for combined displays (for example: 2015,2016,2021).",
+)
+def extract_display(config, dataset, output_dir, strengths, masses, datasets):
     """Generate reviewer-facing extraction displays from one pseudoexperiment per point."""
     from .config import load_config
     from .extraction_display import run_extraction_display_suite
@@ -1147,12 +1309,74 @@ def extract_display(config, dataset, output_dir, strengths):
     written = run_extraction_display_suite(
         cfg,
         dataset_key=(dataset.lower() if dataset else None),
+        dataset_keys=([d.strip() for d in str(datasets).split(",") if d.strip()] if datasets else None),
         output_dir=(os.path.join(cfg.output_dir, "extraction_display", dataset.lower()) if dataset and output_dir else None),
+        masses=(_parse_mass_tokens(masses) if masses else None),
         sigma_multipliers=(_parse_strength_tokens(strengths) if strengths else None),
     )
     print(f"Wrote {len(written)} extraction display plot(s)")
     for path in written:
         print(path)
+
+
+@main.command("project-eps2-reach")
+@click.option(
+    "--input-csv",
+    "-i",
+    required=True,
+    type=click.Path(exists=True),
+    help="Dataset-level epsilon^2 CSV (for example combined_single.csv or merged ul_bands_eps2 table with dataset rows).",
+)
+@click.option(
+    "--output",
+    "-o",
+    default="projected_unblinded_reach_eps2.png",
+    type=click.Path(),
+    show_default=True,
+    help="Output plot path/stem. A CSV sidecar with the projection table is written beside it.",
+)
+@click.option(
+    "--scale-2015",
+    type=float,
+    default=1.0,
+    show_default=True,
+    help="Luminosity/statistics scale factor to apply to 2015.",
+)
+@click.option(
+    "--scale-2016",
+    type=float,
+    default=10.0,
+    show_default=True,
+    help="Luminosity/statistics scale factor to apply to 2016.",
+)
+@click.option(
+    "--scale-2021",
+    type=float,
+    default=100.0,
+    show_default=True,
+    help="Luminosity/statistics scale factor to apply to 2021.",
+)
+def project_eps2_reach(input_csv, output, scale_2015, scale_2016, scale_2021):
+    """Project combined epsilon^2 reach from dataset-level curves using sqrt(L) scaling."""
+    import pandas as pd
+
+    from .plotting import plot_projected_unblinded_eps2_reach
+
+    df = pd.read_csv(input_csv)
+    table = plot_projected_unblinded_eps2_reach(
+        df,
+        outpath=output,
+        lumi_scale_by_dataset={
+            "2015": float(scale_2015),
+            "2016": float(scale_2016),
+            "2021": float(scale_2021),
+        },
+    )
+    root, _ = os.path.splitext(output)
+    table_path = f"{root}.csv"
+    table.to_csv(table_path, index=False)
+    print(f"Wrote projection plot(s) with stem {root}")
+    print(f"Wrote projection table to {table_path}")
 
 
 @main.command("observed-display")

@@ -159,14 +159,14 @@ before the final global-significance evaluation is frozen.}
 
 \begin{figure}[p]
 \centering
-\graphicorplaceholder{0.96\linewidth}{combined_search_figs/extract_display_combined_m040MeV_z7p0.png}
+\graphicorplaceholder{0.96\linewidth}{extract_display_combined_m040MeV_z5p0.png}
 \caption{Illustrative combined extraction display at \SI{40}{MeV}. The annotation box
 summarizes the injected common coupling, the extracted coupling, the observed combined
-limit, and the fitted per-dataset yields. The upper panels show how the two input data
-sets respond individually, while the lower panel shows the combined Gaussian signal
-representation. This figure is intentionally kept large because the interplay between
-the dataset-level fits and the combined interpretation is the central visual message of
-the shared-likelihood method.}
+limit, and the fitted per-dataset responses. The upper panels show how
+the two input data sets respond individually, while the lower panel shows the combined
+Gaussian signal representation. The no-refit version is used here because it is the
+clearest visualization of the shared-likelihood method before the extra complication of
+toy-by-toy GP retraining is introduced.}
 \label{fig:results-combined-1516-display}
 \end{figure}
 
@@ -175,31 +175,6 @@ complete, insert an explicit comparison of the combined GPR limit with the publi
 2015 and 2016 prompt exclusions. That comparison will be especially informative because
 the present GP-based analysis is already being validated over a wider search interval
 than the earlier local-window searches.}
-
-\subsection{2021 0.03\% analysis}
-\label{sec:results-2021-003}
-
-\analysisplaceholder{\textbf{Placeholder section.} Insert the 2021 0.03\% validation
-upper-limit and significance products here once the corresponding summary suite is
-finalized. This section should mirror the structure of the completed 2015 and 2016
-subsections.}
-
-\begin{figure}[H]
-\centering
-\begin{subfigure}[t]{0.48\linewidth}
-  \centering
-  \graphicorplaceholder{\linewidth}{upper_limit_figs/2021_0pt03pct/ul_bands_signal_yield_obsexp.png}
-  \caption{Signal-yield upper limits.}
-\end{subfigure}
-\hfill
-\begin{subfigure}[t]{0.48\linewidth}
-  \centering
-  \graphicorplaceholder{\linewidth}{upper_limit_figs/2021_0pt03pct/ul_bands_eps2_obsexp.png}
-  \caption{$\eps^2$ upper limits.}
-\end{subfigure}
-\caption{Planned location for the 2021 0.03\% upper-limit summary.}
-\label{fig:results-2021-003-placeholder}
-\end{figure}
 
 \subsection{2021 1\% analysis}
 \label{sec:results-2021-1pct}
@@ -313,13 +288,14 @@ should not be identified with one another.}
 mass spectrum in the fit region together with the GP background prediction, the
 profiled background, the best-fit signal$+$background model, and the blinded window.
 The middle row recasts the same mass window as residuals relative to the profiled
-background and overlays the extracted signal component for each dataset. The lower
-panel maps the extracted signal templates into the common variable
+background, overlays the extracted signal component for each dataset, and includes the
+residual uncertainty bands used throughout the observed-data validation workflow. The
+lower panel maps the extracted signal templates into the common variable
 $(m-m_0)/\sigma_m$ and shows how the dataset-level extractions sum to the combined
-black curve. The bundled image predates the lower-panel display fix, so the slight
-edge truncation in the black curve is a plotting artifact of the old interpolation
-path; the code has been corrected in the current repository so that the next
-data-access rerender uses the full template support.}
+black curve. The updated note-local display now uses the corrected lower-panel
+interpolation path, so the combined black curve is rendered over the full template
+support and can be compared directly with the pseudoexperiment displays of
+Section~\ref{sec:toys}.}
 \label{fig:results-combined-151621-1pct-display}
 \end{figure}
 

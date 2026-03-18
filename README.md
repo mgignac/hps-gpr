@@ -267,6 +267,14 @@ The injection framework already supports pseudoexperiments in two modes:
 - `inj_refit_gp_on_toy: false` (default fast mode): conditional GP toys in the blind window.
 - `inj_refit_gp_on_toy: true` (full procedural mode): build full-range pseudo-data from the GP global-fit mean, inject signal, and refit GP on sidebands toy-by-toy before extraction.
 
+For reviewer-facing extraction displays there is a second, separate switch:
+- `extraction_display_refit_gp_on_toy: false`: make the closure-style no-refit display. This keeps the sideband-trained GP fixed and is the right choice when you want the pseudoexperiment display to match the observed-data validation display as closely as possible.
+- `extraction_display_refit_gp_on_toy: true`: make the full-refit absorption diagnostic. This regenerates the toy across the full mass range and retrains the GP on the toy sidebands before extraction.
+
+These settings answer different questions:
+- `inj_refit_gp_on_toy` controls how large toy ensembles are generated for summary/closure studies.
+- `extraction_display_refit_gp_on_toy` controls the one-pseudoexperiment reviewer plots used in the note.
+
 The second mode corresponds to the requested "GP mean/global fit" pseudoexperiment workflow and is the closest match to the v15_8 notebook methodology.
 
 Ready-made configs are included:
@@ -300,8 +308,8 @@ For reviewer-facing figures it is often more useful to show one carefully constr
 - one pseudoexperiment per requested `(mass, injected significance)` point
 - a full-range context panel
 - a blind-window fit panel zoomed to `blind window ± 0.5 sigma`
-- an extracted-signal panel with the injected/extracted Gaussian extending outside the blind window
-- a right-side boxed summary with the injected level, realized event count, extracted yield, and epsilon-squared numbers
+- an extracted-signal panel with residual uncertainty bands and the injected/extracted Gaussian extending outside the blind window
+- a right-side boxed summary with the injected level, realized event count, extracted yield, per-dataset extracted significance, and epsilon-squared numbers
 
 Five ready-made configs are included:
 - `study_configs/config_2015_extraction_display_v15p8.yaml`
@@ -330,19 +338,30 @@ hps-gpr extract-display --config study_configs/config_2015_2016_2021_1pct_combin
 
 # Optional: override the sigma-level list for this run only
 hps-gpr extract-display --config study_configs/config_2015_extraction_display_v15p8.yaml --strengths 5
+
+# Optional: override both the representative masses and the combined dataset list
+hps-gpr extract-display \
+  --config study_configs/config_2015_2016_2021_1pct_combined_extraction_display_v15p8.yaml \
+  --dataset combined \
+  --datasets 2015,2016,2021 \
+  --masses 0.040,0.080,0.120 \
+  --strengths 5
 ```
 
 What these plots mean:
 - They are not coverage plots or ensemble summaries; they are single representative pseudoexperiments meant to expose the mechanics of the search and extraction.
 - For single-dataset displays, the injected strength is specified in units of the local reference `sigma_A` and then converted into a full-range injected signal whose expected yield inside the blind window matches the fitted `A` convention.
-- For the combined 2015+2016 display, the injected signal is built from a common `epsilon^2` model, not by forcing the same per-dataset event yield in both years. The target combined significance is translated into one shared `epsilon^2`, then mapped to dataset-specific injected amplitudes using each dataset's `A(epsilon^2)` response and extraction resolution.
+- For combined displays, the injected signal is built from a common `epsilon^2` model, not by forcing the same per-dataset event yield in each year. The target combined significance is translated into one shared `epsilon^2`, then mapped to dataset-specific injected amplitudes using each dataset's `A(epsilon^2)` response and extraction resolution.
+- The no-refit display is the clean closure test: it asks whether the extraction fit can recover the injected signal when the sideband-conditioned background model is treated as fixed.
+- The refit display is the absorption diagnostic: it asks how much signal can be absorbed when the GP is retrained on the toy sidebands.
 - The lower panel is therefore directly interpretable as "what signal was truly injected" versus "what the blind-window fit extracted" for that pseudoexperiment, while the side box shows the observed UL scale for context.
 
 To customize later:
 - edit `extraction_display_masses_gev` in the YAML to add or remove mass points
 - edit `extraction_display_sigma_multipliers` to change the injected `n sigma` values
 - for the combined config, edit `extraction_display_dataset_keys` if you want to extend the common-signal display to a different enabled dataset set
-- use `--strengths` on the CLI when you want a one-off subset without editing the YAML
+- use `--strengths` and `--masses` on the CLI when you want a one-off subset without editing the YAML
+- use `--datasets` with `--dataset combined` when you want to render a different enabled dataset combination than the YAML default
 - outputs are written under `output_dir/extraction_display/<dataset-or-combined>/` as both PNG and PDF, with a JSON sidecar for the numerical values shown in the figure
 
 #### Observed-data mass-validation displays
@@ -401,94 +420,41 @@ Typical products in `outputs/observed_validation_123/m123MeV/`:
 - `metadata_combined.json`
 
 Batch workflow tip:
-- extraction displays are independent across injected sigma level, so for cluster production it is natural to submit one job per strength and let each job render all requested masses for that strength only
-- this avoids running `3 sigma`, `5 sigma`, and `7 sigma` serially in one long walltime slot
+- extraction displays are independent across `(dataset set, mass, injected sigma)` points, so the recommended cluster workflow is now one batch job per point
+- this avoids running `40 MeV`, `80 MeV`, and `120 MeV` serially inside one long walltime slot and makes the reviewer figures easier to rerun selectively
 
-Example shell pattern:
+Recommended SLURM launcher:
 
 ```bash
-for z in 3 5 7; do
-  hps-gpr extract-display \
-    --config study_configs/config_2015_2016_combined_extraction_display_v15p8.yaml \
-    --strengths "${z}" \
-    --output-dir "outputs/extraction_display_combined_z${z}"
-done
+hps-gpr slurm-gen-extract-display \
+  --config study_configs/config_2015_2016_2021_1pct_combined_extraction_display_v15p8.yaml \
+  --dataset combined \
+  --datasets 2015,2016,2021 \
+  --masses 0.040,0.080,0.120 \
+  --strengths 3,5 \
+  --job-name hps151621_exdisp \
+  --partition roma \
+  --account hps:hps-prod \
+  --time 06:00:00 \
+  --memory 8G \
+  --output submit_extract_display_151621.slurm
+
+bash submit_extract_display_all.sh
 ```
 
-Copy/paste batch examples by workflow:
+For local one-off reruns, the CLI overrides are usually enough:
 
 ```bash
-# 2015: one run per injected sigma level
-for z in 3 5 7; do
-  hps-gpr extract-display \
-    --config study_configs/config_2015_extraction_display_v15p8.yaml \
-    --dataset 2015 \
-    --strengths "${z}" \
-    --output-dir "outputs/extraction_display_2015_z${z}"
-done
-
-# 2016 10%: one run per injected sigma level
-for z in 3 5 7; do
-  hps-gpr extract-display \
-    --config study_configs/config_2016_extraction_display_v15p8.yaml \
-    --dataset 2016 \
-    --strengths "${z}" \
-    --output-dir "outputs/extraction_display_2016_10pct_z${z}"
-done
-
-# Combined 2015+2016: one run per injected sigma level
-for z in 3 5 7; do
-  hps-gpr extract-display \
-    --config study_configs/config_2015_2016_combined_extraction_display_v15p8.yaml \
-    --dataset combined \
-    --strengths "${z}" \
-    --output-dir "outputs/extraction_display_combined_z${z}"
-done
-```
-
-Ready-to-run SLURM launcher scripts are also included at the repo top level if you prefer a single command that submits the 3 sigma / 5 sigma / 7 sigma jobs for you:
-
-```bash
-# Submit 2015 extraction-display jobs
-bash submit_2015_extraction_display.sh
-
-# Submit 2016 10% extraction-display jobs
-bash submit_2016_10pct_extraction_display.sh
-
-# Submit combined 2015+2016 extraction-display jobs
-bash submit_2015_2016_combined_extraction_display.sh
-```
-
-Those scripts:
-- submit one SLURM job per injected strength
-- default to `roma`, `hps:hps-prod`, `04:00:00`, and `6G`
-- can be retuned from bash, for example:
-
-```bash
-PARTITION=roma ACCOUNT=hps:hps-prod TIME_LIMIT=06:00:00 MEMORY=8G SIGMAS="3 5 7" bash submit_2015_2016_combined_extraction_display.sh
-```
-
-On SLURM the same idea becomes one task per sigma level, for example:
-
-```bash
-#!/bin/bash
-#SBATCH --job-name=hps_exdisp_combined
-#SBATCH --partition=roma
-#SBATCH --account=hps:hps-prod
-#SBATCH --time=04:00:00
-#SBATCH --memory=6G
-#SBATCH --array=0-2
-
-SIGMAS=(3 5 7)
-Z="${SIGMAS[$SLURM_ARRAY_TASK_ID]}"
-
 hps-gpr extract-display \
-  --config study_configs/config_2015_2016_combined_extraction_display_v15p8.yaml \
-  --strengths "${Z}" \
-  --output-dir "outputs/extraction_display_combined_z${Z}"
+  --config study_configs/config_2015_2016_2021_1pct_combined_extraction_display_v15p8.yaml \
+  --dataset combined \
+  --datasets 2015,2016,2021 \
+  --masses 0.040 \
+  --strengths 5 \
+  --output-dir outputs/extraction_display_m040_z5
 ```
 
-That layout keeps the outputs separated by injected strength and gives a straightforward reviewer-production path: one mass set per YAML, one significance level per batch job.
+That layout keeps the outputs separated by mass/significance and gives a straightforward reviewer-production path: one reviewer figure per batch job, with selective reruns when a single display changes.
 
 ### SLURM Batch Processing
 
@@ -720,7 +686,13 @@ outputs/
 │   ├── z_calibration_residual_<dataset>.png
 │   ├── z_calibration_residual_comparison.png
 │   ├── combined_search_power_scenarios.png
+│   ├── combined_search_power_constituent_pvalues_5sigma.png
+│   ├── combined_constituent_pvalues_target5sigma.csv
 │   └── combined_signal_allocation_mXXXMeV.png/.csv
+├── projections/                    # Suggested home for `hps-gpr project-eps2-reach`
+│   ├── projected_unblinded_reach_eps2.png
+│   ├── projected_unblinded_reach_eps2.pdf
+│   └── projected_unblinded_reach_eps2.csv
 ├── extraction_display/             # Created by `hps-gpr extract-display`
 │   ├── 2015/ or 2016/ or combined/
 │   │   ├── extract_display_<tag>.png
@@ -764,20 +736,24 @@ Injection/extraction plotting suite (`inject-plot`) covers the v15_8 closure che
 
 ### Combined-search power study outputs
 
-`hps-gpr inject-plot` now also produces a focused combined-sensitivity study for 2015+2016 (and compares against 2021 when present):
+`hps-gpr inject-plot` now also produces a focused combined-sensitivity study for whatever enabled dataset set is present in the injection summary, including the full `2015+2016+2021` shared search:
 
 - **Scenario plot**: `combined_search_power_scenarios.png`
-  - compares `1σ(2015)+1σ(2016)` vs `1σ(2021)`
-  - compares `1σ(2015)+2σ(2016)` vs `3σ(2021)`
+  - for the three-dataset workflow this includes `1σ(2015)+1σ(2016)+1σ(2021)`
+  - and `1σ(2015)+2σ(2016)+3σ(2021)`
   - uses inverse-variance weighting based on `sigmaA_ref(m)` from toys.
 - **Constituent p-value requirement plot**: `combined_search_power_constituent_pvalues_5sigma.png`
   - shows per-dataset local `Z` and one-sided `p0` required to realize a combined `5σ` excess.
   - writes a reproducible table: `combined_constituent_pvalues_target5sigma.csv`.
-- **Allocation plots (publication-ready)** for representative masses (default 40, 80, 110 MeV):
+- **Allocation plots (publication-ready)** for representative masses (default 40, 80, 120 MeV):
   - `combined_signal_allocation_m040MeV.png`
   - `combined_signal_allocation_m080MeV.png`
-  - `combined_signal_allocation_m110MeV.png`
+  - `combined_signal_allocation_m120MeV.png`
   - plus matching `.csv` tables with per-dataset injected amplitudes for target combined `Z=1,3,5`.
+- **Projection plot**: `projected_unblinded_reach_eps2.png`
+  - combines dataset-level `eps2` curves with `sqrt(L)` scaling assumptions
+  - defaults to `2015 x1`, `2016 x10`, `2021 x100`
+  - writes a sidecar table: `projected_unblinded_reach_eps2.csv`
 
 These plots are designed to show *why* combined searches improve sensitivity:
 - statistically optimal weighting emphasizes the dataset with smaller `sigmaA_ref` (higher information content);
@@ -833,7 +809,7 @@ else:
 written = plot_combined_search_power(
     df,
     outdir=out_dir,
-    masses_focus=[0.040, 0.080, 0.110],
+    masses_focus=[0.040, 0.080, 0.120],
     z_targets=[1.0, 3.0, 5.0],
 )
 print("wrote", len(written), "plots to", out_dir)
@@ -843,7 +819,20 @@ PY
 Expected allocation products include:
 - `combined_signal_allocation_m040MeV.png` + `.csv`
 - `combined_signal_allocation_m080MeV.png` + `.csv`
-- `combined_signal_allocation_m110MeV.png` + `.csv`
+- `combined_signal_allocation_m120MeV.png` + `.csv`
+
+Copy/paste: generate the projected unblinded `eps^2` reach from a dataset-level CSV:
+
+```bash
+hps-gpr project-eps2-reach \
+  --input-csv outputs/prod_2015_2016_10pct_2021_1pct_10k_bands/summary_plots/scan_summary_single.csv \
+  --output outputs/prod_2015_2016_10pct_2021_1pct_10k_bands/projections/projected_unblinded_reach_eps2.png \
+  --scale-2015 1 \
+  --scale-2016 10 \
+  --scale-2021 100
+```
+
+The input CSV just needs dataset-level rows with `dataset`, `mass_GeV`, and one supported `eps2` column such as `eps2_up`, `eps2_obs`, or the expected-band columns (`eps2_med`, `eps2_lo1`, `eps2_hi1`, ...).
 
 ### Statistical validation checklist (publication gate)
 

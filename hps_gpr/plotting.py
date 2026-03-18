@@ -2271,6 +2271,292 @@ def _sigma_ref_by_mass(df: pd.DataFrame, dataset_key: str) -> pd.DataFrame:
     return out.sort_values("mass_GeV").reset_index(drop=True)
 
 
+def _dataset_color(key: str) -> str:
+    palette = {
+        "2015": "#0072B2",
+        "2016": "#E69F00",
+        "2021": "#009E73",
+        "combined": "#111111",
+    }
+    return palette.get(str(key), "#4C72B0")
+
+
+def _canonical_dataset_label(label: str) -> str:
+    """Map dataset-like labels onto canonical run-period keys when possible."""
+    raw = str(label).strip()
+    low = raw.lower()
+    years = [year for year in ("2015", "2016", "2021") if year in low]
+    if "combined" in low or len(years) > 1:
+        return "combined"
+    if len(years) == 1:
+        return years[0]
+    return raw
+
+
+def _preferred_dataset_order(keys: List[str]) -> List[str]:
+    preferred = ["2015", "2016", "2021"]
+    ordered = [k for k in preferred if k in keys]
+    ordered.extend(sorted(k for k in keys if k not in preferred))
+    return ordered
+
+
+def _sigma_ref_table(df: pd.DataFrame, dataset_keys: List[str]) -> pd.DataFrame:
+    merged = None
+    for ds in dataset_keys:
+        sub = _sigma_ref_by_mass(df, ds).rename(columns={"sigmaA_ref": f"sigmaA_ref_{ds}"})
+        merged = sub if merged is None else merged.merge(sub, on="mass_GeV", how="inner")
+    if merged is None:
+        return pd.DataFrame()
+    return merged.sort_values("mass_GeV").reset_index(drop=True)
+
+
+def _scenario_definitions(dataset_keys: List[str]) -> List[Tuple[str, Dict[str, float]]]:
+    scenarios = [("All datasets at 1σ", {ds: 1.0 for ds in dataset_keys})]
+    if dataset_keys == ["2015", "2016", "2021"]:
+        scenarios.append(
+            ("2015 1σ, 2016 2σ, 2021 3σ", {"2015": 1.0, "2016": 2.0, "2021": 3.0})
+        )
+        return scenarios
+    if len(dataset_keys) == 2:
+        scenarios.append(
+            (
+                f"{dataset_keys[0]} 1σ, {dataset_keys[1]} 2σ",
+                {dataset_keys[0]: 1.0, dataset_keys[1]: 2.0},
+            )
+        )
+        return scenarios
+    scenarios.append(
+        (
+            "Ascending sigma allocation",
+            {ds: float(i + 1) for i, ds in enumerate(dataset_keys)},
+        )
+    )
+    return scenarios
+
+
+def _combined_z_from_scenario(merged: pd.DataFrame, dataset_keys: List[str], scenario: Dict[str, float]) -> np.ndarray:
+    sigmas = {
+        ds: merged[f"sigmaA_ref_{ds}"].to_numpy(float)
+        for ds in dataset_keys
+    }
+    weights = {ds: 1.0 / np.square(sigmas[ds]) for ds in dataset_keys}
+    sum_w = np.sum([weights[ds] for ds in dataset_keys], axis=0)
+    num = np.zeros_like(sum_w, float)
+    for ds in dataset_keys:
+        z_inj = float(scenario.get(ds, 0.0))
+        num += (z_inj * sigmas[ds]) * weights[ds]
+    return num / np.sqrt(sum_w)
+
+
+def _constituent_requirement_table(
+    merged: pd.DataFrame,
+    dataset_keys: List[str],
+    *,
+    z_target: float,
+) -> pd.DataFrame:
+    rows = {
+        "mass_GeV": merged["mass_GeV"].to_numpy(float),
+        "z_target_combined": np.full(len(merged), float(z_target), float),
+        "p0_target_combined": np.full(len(merged), float(_p_from_z_one_sided(float(z_target))), float),
+    }
+    sum_w = np.zeros(len(merged), float)
+    weights = {}
+    for ds in dataset_keys:
+        sigma = merged[f"sigmaA_ref_{ds}"].to_numpy(float)
+        rows[f"sigmaA_ref_{ds}"] = sigma
+        weights[ds] = 1.0 / np.square(sigma)
+        sum_w += weights[ds]
+    for ds in dataset_keys:
+        frac = weights[ds] / sum_w
+        z_req = float(z_target) * np.sqrt(frac)
+        rows[f"info_frac_{ds}"] = frac
+        rows[f"z_required_{ds}"] = z_req
+        rows[f"p0_required_{ds}"] = np.asarray([_p_from_z_one_sided(float(z)) for z in z_req], float)
+    return pd.DataFrame(rows)
+
+
+def _eps2_projection_columns(df: pd.DataFrame) -> Dict[str, str]:
+    candidates = {
+        "obs": ["eps2_obs", "ul_eps2_obs", "eps2_up"],
+        "lo2": ["eps2_lo2", "toy_eps2_uls_q02"],
+        "lo1": ["eps2_lo1", "toy_eps2_uls_q16"],
+        "med": ["eps2_med", "toy_eps2_uls_q50"],
+        "hi1": ["eps2_hi1", "toy_eps2_uls_q84"],
+        "hi2": ["eps2_hi2", "toy_eps2_uls_q97"],
+        "mean": ["eps2_mean", "toy_eps2_uls_mean"],
+    }
+    found: Dict[str, str] = {}
+    cols = set(df.columns)
+    for canonical, names in candidates.items():
+        for name in names:
+            if name in cols:
+                found[canonical] = name
+                break
+    return found
+
+
+def _normalize_projection_input(df_curves: pd.DataFrame) -> pd.DataFrame:
+    """Normalize common CSV-style input variants for projection plotting."""
+    work = df_curves.copy()
+
+    dataset_col = next(
+        (col for col in ("dataset", "dataset_set", "run_period") if col in work.columns),
+        None,
+    )
+    if dataset_col is None:
+        raise ValueError("projection input requires a dataset-like column")
+    work["dataset"] = work[dataset_col].map(_canonical_dataset_label).astype(str)
+
+    mass_col = next(
+        (
+            col
+            for col in ("mass_GeV", "mass", "mass_MeV", "mass_mev", "mass_GEV")
+            if col in work.columns
+        ),
+        None,
+    )
+    if mass_col is None:
+        raise ValueError("projection input requires a mass column")
+    mass = pd.to_numeric(work[mass_col], errors="coerce")
+    mass_name = mass_col.lower()
+    finite_mass = mass[np.isfinite(mass.to_numpy(float))]
+    if "mev" in mass_name:
+        mass = mass / 1e3
+    elif mass_col == "mass" and finite_mass.size and float(np.nanmedian(np.abs(finite_mass))) > 1.0:
+        mass = mass / 1e3
+    work["mass_GeV"] = mass
+    return work
+
+
+def project_unblinded_eps2_reach_table(
+    df_curves: pd.DataFrame,
+    *,
+    lumi_scale_by_dataset: Optional[Dict[str, float]] = None,
+    dataset_order: Optional[List[str]] = None,
+) -> pd.DataFrame:
+    """Combine per-dataset epsilon^2 curves into current and projected reach tables."""
+    if df_curves is None or df_curves.empty:
+        raise ValueError("projection input table is empty")
+
+    work = _normalize_projection_input(df_curves)
+    work = work[work["dataset"] != "combined"].copy()
+    work = work[np.isfinite(work["mass_GeV"].to_numpy(float))].copy()
+    if work.empty:
+        raise ValueError("projection input has no finite dataset-level rows")
+
+    eps2_cols = _eps2_projection_columns(work)
+    if not eps2_cols:
+        raise ValueError("projection input has no supported epsilon^2 columns")
+
+    keys = dataset_order or _preferred_dataset_order(sorted(work["dataset"].unique().tolist()))
+    keys = [k for k in keys if k in set(work["dataset"].unique())]
+    if not keys:
+        raise ValueError("projection input has no supported datasets")
+
+    scales = {"2015": 1.0, "2016": 10.0, "2021": 100.0}
+    if lumi_scale_by_dataset:
+        scales.update({_canonical_dataset_label(str(k)): float(v) for k, v in lumi_scale_by_dataset.items()})
+
+    rows = []
+    for mass, sub_m in work.groupby("mass_GeV", dropna=False):
+        row = {"mass_GeV": float(mass)}
+        for canonical, src in eps2_cols.items():
+            current_info = 0.0
+            projected_info = 0.0
+            for ds in keys:
+                sub_ds = sub_m[sub_m["dataset"] == ds].copy()
+                if sub_ds.empty:
+                    continue
+                vals = pd.to_numeric(sub_ds[src], errors="coerce").to_numpy(float)
+                vals = vals[np.isfinite(vals) & (vals > 0.0)]
+                if vals.size == 0:
+                    continue
+                value = float(np.mean(vals))
+                row[f"{canonical}_{ds}"] = value
+                row[f"projected_{canonical}_{ds}"] = value / np.sqrt(float(scales.get(ds, 1.0)))
+                current_info += 1.0 / (value * value)
+                projected_info += float(scales.get(ds, 1.0)) / (value * value)
+            row[f"current_{canonical}"] = float(1.0 / np.sqrt(current_info)) if current_info > 0 else float("nan")
+            row[f"projected_{canonical}"] = float(1.0 / np.sqrt(projected_info)) if projected_info > 0 else float("nan")
+        rows.append(row)
+
+    out = pd.DataFrame(rows).sort_values("mass_GeV").reset_index(drop=True)
+    for ds in keys:
+        out[f"lumi_scale_{ds}"] = float(scales.get(ds, 1.0))
+    return out
+
+
+def plot_projected_unblinded_eps2_reach(
+    df_curves: pd.DataFrame,
+    *,
+    outpath: str,
+    lumi_scale_by_dataset: Optional[Dict[str, float]] = None,
+    dataset_order: Optional[List[str]] = None,
+) -> pd.DataFrame:
+    """Plot current and projected combined epsilon^2 reach from dataset-level curves."""
+    table = project_unblinded_eps2_reach_table(
+        df_curves,
+        lumi_scale_by_dataset=lumi_scale_by_dataset,
+        dataset_order=dataset_order,
+    )
+
+    set_injection_plot_style("paper")
+    fig, ax = plt.subplots(figsize=(9.4, 5.3), constrained_layout=True)
+    x = table["mass_GeV"].to_numpy(float) * 1e3
+
+    if {"current_lo1", "current_hi1", "current_med"}.issubset(table.columns):
+        y0 = table["current_med"].to_numpy(float)
+        lo = table["current_lo1"].to_numpy(float)
+        hi = table["current_hi1"].to_numpy(float)
+        if np.any(np.isfinite(y0)):
+            ax.fill_between(x, lo, hi, color="#9ecae1", alpha=0.28, lw=0, label="Current expected ±1σ")
+            ax.plot(x, y0, color="#3182bd", lw=2.0, label="Current expected median")
+    if "current_obs" in table.columns and np.any(np.isfinite(table["current_obs"].to_numpy(float))):
+        ax.plot(x, table["current_obs"].to_numpy(float), color="#08519c", lw=1.8, ls="--", label="Current observed/baseline")
+
+    if {"projected_lo1", "projected_hi1", "projected_med"}.issubset(table.columns):
+        y1 = table["projected_med"].to_numpy(float)
+        lo = table["projected_lo1"].to_numpy(float)
+        hi = table["projected_hi1"].to_numpy(float)
+        if np.any(np.isfinite(y1)):
+            ax.fill_between(x, lo, hi, color="#fdd0a2", alpha=0.28, lw=0, label="Projected expected ±1σ")
+            ax.plot(x, y1, color="#e6550d", lw=2.1, label="Projected expected median")
+    if "projected_obs" in table.columns and np.any(np.isfinite(table["projected_obs"].to_numpy(float))):
+        ax.plot(x, table["projected_obs"].to_numpy(float), color="#a63603", lw=1.9, ls="--", label="Projected baseline scaling")
+
+    value_cols = [
+        c for c in table.columns
+        if c != "mass_GeV" and not c.startswith("lumi_scale_")
+    ]
+    numeric = table[value_cols].apply(pd.to_numeric, errors="coerce") if value_cols else pd.DataFrame()
+    if numeric.empty or not np.any(np.isfinite(numeric.to_numpy(float))):
+        raise ValueError("projection table contains no finite epsilon^2 values")
+
+    scale_cols = [c for c in table.columns if c.startswith("lumi_scale_")]
+    scale_note = ", ".join(
+        f"{c.removeprefix('lumi_scale_')} x{float(table[c].iloc[0]):.0f}"
+        for c in scale_cols
+    )
+    ax.set_yscale("log")
+    ax.set_xlabel("Mass hypothesis [MeV]")
+    ax.set_ylabel(r"95% CL upper limit on $\epsilon^2$")
+    _set_title_above(ax, "Projected Unblinded Reach in Eps2")
+    _grid(ax)
+    ax.legend(loc="best", frameon=True)
+    ax.text(
+        0.01,
+        0.01,
+        f"Projection assumes sqrt(L) scaling using dataset-level epsilon^2 curves: {scale_note}.",
+        transform=ax.transAxes,
+        ha="left",
+        va="bottom",
+        fontsize=8.2,
+        bbox=dict(boxstyle="round,pad=0.25", fc="white", ec="0.7", alpha=0.92),
+    )
+    _save_plot_outputs(fig, outpath)
+    return table
+
+
 def plot_combined_search_power(
     df_toys: pd.DataFrame,
     *,
@@ -2281,10 +2567,9 @@ def plot_combined_search_power(
     r"""Plot scenario-based significance gains for combined searches.
 
     Produces:
-      1) A mass-scan comparison for user-requested scenarios
-         (1σ in 2015 + 1σ in 2016 vs 1σ in 2021, and
-          1σ in 2015 + 2σ in 2016 vs 3σ in 2021).
-      2) Mass-focused allocation plots (default: 40, 80, 110 MeV) that show
+      1) A mass-scan comparison for the configured multi-dataset scenarios.
+      2) A constituent requirement plot for a target combined 5σ excess.
+      3) Mass-focused allocation plots (default: 40, 80, 120 MeV) that show
          inverse-variance weighted per-dataset signal partitioning required to
          realize target combined significances (default: 1, 3, 5σ).
 
@@ -2303,106 +2588,114 @@ def plot_combined_search_power(
     if not needed.issubset(set(work.columns)):
         print("[plot_combined_search_power] skipped: missing required columns")
         return saved
+    work["dataset"] = work["dataset"].map(_canonical_dataset_label).astype(str)
+    work = work[work["dataset"] != "combined"].copy()
 
-    s15 = _sigma_ref_by_mass(work, "2015")
-    s16 = _sigma_ref_by_mass(work, "2016")
-    s21 = _sigma_ref_by_mass(work, "2021")
-    if s15.empty or s16.empty:
-        print("[plot_combined_search_power] skipped: need both 2015 and 2016 toy rows")
+    dataset_keys = _preferred_dataset_order(
+        [
+            str(ds)
+            for ds in sorted(set(work["dataset"].astype(str)))
+            if str(ds) != "combined"
+        ]
+    )
+    if len(dataset_keys) < 2:
+        print("[plot_combined_search_power] skipped: need at least two dataset-level sigmaA_ref curves")
         return saved
 
-    m1516 = s15.merge(s16, on="mass_GeV", suffixes=("_2015", "_2016"))
-    if m1516.empty:
-        print("[plot_combined_search_power] skipped: no common masses between 2015 and 2016")
+    merged = _sigma_ref_table(work, dataset_keys)
+    if merged.empty:
+        print("[plot_combined_search_power] skipped: no common masses across requested datasets")
         return saved
 
-    w15 = 1.0 / np.square(m1516["sigmaA_ref_2015"].to_numpy(float))
-    w16 = 1.0 / np.square(m1516["sigmaA_ref_2016"].to_numpy(float))
-    sw = w15 + w16
-
-    A15_11 = 1.0 * m1516["sigmaA_ref_2015"].to_numpy(float)
-    A16_11 = 1.0 * m1516["sigmaA_ref_2016"].to_numpy(float)
-    z_comb_11 = (A15_11 * w15 + A16_11 * w16) / np.sqrt(sw)
-
-    A15_12 = 1.0 * m1516["sigmaA_ref_2015"].to_numpy(float)
-    A16_12 = 2.0 * m1516["sigmaA_ref_2016"].to_numpy(float)
-    z_comb_12 = (A15_12 * w15 + A16_12 * w16) / np.sqrt(sw)
+    scenarios = _scenario_definitions(dataset_keys)
 
     set_injection_plot_style("paper")
-    fig, axs = plt.subplots(1, 2, figsize=(12.6, 4.9), constrained_layout=True)
-    m = m1516["mass_GeV"].to_numpy(float) * 1e3
-
-    axs[0].plot(m, z_comb_11, color="#0072B2", marker="o", label=r"Combined: $Z_{inj}^{2015}=1, Z_{inj}^{2016}=1$")
-    axs[0].set_title("Scenario A: 1σ + 1σ vs 2021 baseline")
-    axs[0].set_ylabel(r"Expected combined significance $\hat{Z}_{comb}$")
-    axs[0].set_xlabel("Mass hypothesis [MeV]")
-    axs[0].axhline(1.0, color="#D55E00", ls="--", lw=1.2, label=r"2021-only reference: $Z_{inj}^{2021}=1$")
-    _grid(axs[0])
-
-    axs[1].plot(m, z_comb_12, color="#009E73", marker="s", label=r"Combined: $Z_{inj}^{2015}=1, Z_{inj}^{2016}=2$")
-    axs[1].set_title("Scenario B: 1σ + 2σ vs 2021 baseline")
-    axs[1].set_ylabel(r"Expected combined significance $\hat{Z}_{comb}$")
-    axs[1].set_xlabel("Mass hypothesis [MeV]")
-    axs[1].axhline(3.0, color="#CC79A7", ls="--", lw=1.2, label=r"2021-only reference: $Z_{inj}^{2021}=3$")
-    _grid(axs[1])
-
-    if not s21.empty:
-        cmp = m1516.merge(s21, on="mass_GeV", how="inner")
-        if not cmp.empty:
-            axs[0].plot(cmp["mass_GeV"].to_numpy(float) * 1e3, np.full(len(cmp), 1.0), alpha=0.0)
-
-    for ax in axs:
+    m = merged["mass_GeV"].to_numpy(float) * 1e3
+    n_scen = max(1, len(scenarios))
+    fig, axs = plt.subplots(
+        n_scen,
+        1,
+        figsize=(10.0, 3.6 * n_scen + 0.4),
+        constrained_layout=True,
+        sharex=True,
+    )
+    axs = np.atleast_1d(axs)
+    markers = ["o", "s", "^", "D"]
+    scenario_colors = ["#0072B2", "#D55E00", "#009E73", "#CC79A7"]
+    for idx, (title, scenario) in enumerate(scenarios):
+        ax = axs[idx]
+        z_comb = _combined_z_from_scenario(merged, dataset_keys, scenario)
+        label = ", ".join(f"{ds}={float(scenario[ds]):.0f}σ" for ds in dataset_keys if ds in scenario)
+        ax.plot(
+            m,
+            z_comb,
+            color=scenario_colors[idx % len(scenario_colors)],
+            marker=markers[idx % len(markers)],
+            lw=1.9,
+            label=r"Expected $\hat{Z}_{comb}$",
+        )
+        ax.axhline(5.0, color="0.35", ls="--", lw=1.0, label="5σ reference")
+        ax.set_ylabel(r"Expected combined significance $\hat{Z}_{comb}$")
+        _set_title_above(ax, title)
+        _grid(ax)
         ax.legend(loc="best", frameon=True)
-    _set_title_above(axs[0], axs[0].get_title())
-    _set_title_above(axs[1], axs[1].get_title())
+        ax.text(
+            0.01,
+            0.03,
+            f"Injected local-significance pattern: {label}",
+            transform=ax.transAxes,
+            ha="left",
+            va="bottom",
+            fontsize=8.4,
+            bbox=dict(boxstyle="round,pad=0.25", fc="white", ec="0.7", alpha=0.92),
+        )
+    axs[-1].set_xlabel("Mass hypothesis [MeV]")
     out = os.path.join(outdir, "combined_search_power_scenarios.png")
     _save_plot_outputs(fig, out)
     saved.append(out)
 
-    # Constituents required to realize a 5σ combined excess under
-    # inverse-variance combination at shared signal-strength scaling.
     z_target_const = 5.0
-    z15_req = z_target_const * np.sqrt(w15 / sw)
-    z16_req = z_target_const * np.sqrt(w16 / sw)
-    p15_req = np.array([_p_from_z_one_sided(float(z)) for z in z15_req], float)
-    p16_req = np.array([_p_from_z_one_sided(float(z)) for z in z16_req], float)
-    p_comb_req = np.array([_p_from_z_one_sided(float(z_target_const))] * len(z15_req), float)
-
-    req = pd.DataFrame(
-        {
-            "mass_GeV": m1516["mass_GeV"].to_numpy(float),
-            "sigmaA_ref_2015": m1516["sigmaA_ref_2015"].to_numpy(float),
-            "sigmaA_ref_2016": m1516["sigmaA_ref_2016"].to_numpy(float),
-            "z_target_combined": np.full(len(m1516), float(z_target_const), float),
-            "z_required_2015": z15_req,
-            "z_required_2016": z16_req,
-            "p0_required_2015": p15_req,
-            "p0_required_2016": p16_req,
-            "p0_target_combined": p_comb_req,
-            "info_frac_2015": w15 / sw,
-            "info_frac_2016": w16 / sw,
-        }
-    )
+    req = _constituent_requirement_table(merged, dataset_keys, z_target=float(z_target_const))
     req_csv = os.path.join(outdir, "combined_constituent_pvalues_target5sigma.csv")
     req.to_csv(req_csv, index=False)
 
-    fig, (axz, axp) = plt.subplots(1, 2, figsize=(12.6, 4.9), constrained_layout=True)
-    axz.plot(m, z15_req, color="#0072B2", marker="o", label=r"2015 constituent $Z$")
-    axz.plot(m, z16_req, color="#E69F00", marker="s", label=r"2016 constituent $Z$")
+    fig, (axz, axp) = plt.subplots(2, 1, figsize=(10.0, 8.4), constrained_layout=True, sharex=True)
     axz.axhline(z_target_const, color="k", ls="--", lw=1.0, label=r"Combined target $Z=5$")
-    axz.set_xlabel("Mass hypothesis [MeV]")
     axz.set_ylabel(r"Required constituent significance $Z_i$")
     _set_title_above(axz, r"Constituent $Z_i$ for $Z_{comb}=5$")
     _grid(axz)
 
-    axp.plot(m, p15_req, color="#0072B2", marker="o", label=r"2015 constituent $p_0$")
-    axp.plot(m, p16_req, color="#E69F00", marker="s", label=r"2016 constituent $p_0$")
-    axp.plot(m, p_comb_req, color="k", ls="--", lw=1.0, label=r"Combined target $p_0$ (5$\sigma$)")
+    axp.plot(
+        m,
+        req["p0_target_combined"].to_numpy(float),
+        color="k",
+        ls="--",
+        lw=1.0,
+        label=r"Combined target $p_0$ (5$\sigma$)",
+    )
     axp.set_yscale("log")
     axp.set_xlabel("Mass hypothesis [MeV]")
     axp.set_ylabel(r"One-sided $p_0$")
     _set_title_above(axp, r"Constituent $p_0$ thresholds for $Z_{comb}=5$")
     _grid(axp)
+
+    markers = ["o", "s", "^", "D", "v"]
+    for idx, ds in enumerate(dataset_keys):
+        color = _dataset_color(ds)
+        axz.plot(
+            m,
+            req[f"z_required_{ds}"].to_numpy(float),
+            color=color,
+            marker=markers[idx % len(markers)],
+            label=rf"{ds} constituent $Z$",
+        )
+        axp.plot(
+            m,
+            req[f"p0_required_{ds}"].to_numpy(float),
+            color=color,
+            marker=markers[idx % len(markers)],
+            label=rf"{ds} constituent $p_0$",
+        )
 
     for ax in (axz, axp):
         ax.legend(loc="best", frameon=True)
@@ -2417,64 +2710,78 @@ def plot_combined_search_power(
     _save_plot_outputs(fig, out)
     saved.append(out)
 
-    focus_vals = [0.040, 0.080, 0.110] if masses_focus is None else [float(x) for x in masses_focus]
+    focus_vals = [0.040, 0.080, 0.120] if masses_focus is None else [float(x) for x in masses_focus]
     zvals = [1.0, 3.0, 5.0] if z_targets is None else [float(z) for z in z_targets]
 
     for m0 in focus_vals:
-        idx = int(np.argmin(np.abs(m1516["mass_GeV"].to_numpy(float) - m0)))
-        mass_sel = float(m1516.iloc[idx]["mass_GeV"])
-        sig15 = float(m1516.iloc[idx]["sigmaA_ref_2015"])
-        sig16 = float(m1516.iloc[idx]["sigmaA_ref_2016"])
-        w15m = 1.0 / (sig15 * sig15)
-        w16m = 1.0 / (sig16 * sig16)
-        swm = w15m + w16m
-
-        # Inverse-variance significance partition: z_i^2 fractions follow w_i/sum(w)
-        frac15 = w15m / swm
-        frac16 = w16m / swm
+        idx = int(np.argmin(np.abs(merged["mass_GeV"].to_numpy(float) - m0)))
+        mass_sel = float(merged.iloc[idx]["mass_GeV"])
+        mass_req_tag = int(round(float(m0) * 1e3))
+        sigmas = {ds: float(merged.iloc[idx][f"sigmaA_ref_{ds}"]) for ds in dataset_keys}
+        weights = {ds: 1.0 / (sigmas[ds] * sigmas[ds]) for ds in dataset_keys}
+        sum_w = float(np.sum(list(weights.values())))
 
         rows = []
         for zt in zvals:
-            z15 = float(zt) * np.sqrt(frac15)
-            z16 = float(zt) * np.sqrt(frac16)
-            rows.append({
+            row = {
                 "mass_GeV": mass_sel,
+                "mass_selected_GeV": mass_sel,
+                "mass_requested_GeV": float(m0),
+                "mass_selected_MeV": float(mass_sel * 1e3),
+                "mass_requested_MeV": float(m0 * 1e3),
                 "z_target_comb": float(zt),
-                "sigmaA_ref_2015": sig15,
-                "sigmaA_ref_2016": sig16,
-                "z_inj_2015": z15,
-                "z_inj_2016": z16,
-                "A_inj_2015": z15 * sig15,
-                "A_inj_2016": z16 * sig16,
-                "info_frac_2015": frac15,
-                "info_frac_2016": frac16,
-            })
+            }
+            for ds in dataset_keys:
+                frac = weights[ds] / sum_w
+                z_i = float(zt) * np.sqrt(frac)
+                row[f"sigmaA_ref_{ds}"] = sigmas[ds]
+                row[f"z_inj_{ds}"] = z_i
+                row[f"A_inj_{ds}"] = z_i * sigmas[ds]
+                row[f"info_frac_{ds}"] = frac
+            rows.append(row)
         alloc = pd.DataFrame(rows)
-        alloc_csv = os.path.join(outdir, f"combined_signal_allocation_m{int(round(mass_sel*1e3)):03d}MeV.csv")
+        alloc_csv = os.path.join(outdir, f"combined_signal_allocation_m{mass_req_tag:03d}MeV.csv")
         alloc.to_csv(alloc_csv, index=False)
 
         fig, ax = plt.subplots(figsize=(9.2, 5.0), constrained_layout=True)
         xx = np.arange(len(zvals))
-        bw = 0.34
-        ax.bar(xx - bw/2, alloc["A_inj_2015"].to_numpy(float), width=bw, color="#0072B2", label="2015 injected A")
-        ax.bar(xx + bw/2, alloc["A_inj_2016"].to_numpy(float), width=bw, color="#E69F00", label="2016 injected A")
-        for i, (_, r) in enumerate(alloc.iterrows()):
-            ax.text(i - bw/2, r["A_inj_2015"] * 1.02, f"z={r['z_inj_2015']:.2f}", ha="center", va="bottom", fontsize=9)
-            ax.text(i + bw/2, r["A_inj_2016"] * 1.02, f"z={r['z_inj_2016']:.2f}", ha="center", va="bottom", fontsize=9)
+        n_ds = max(1, len(dataset_keys))
+        bw = 0.72 / n_ds
+        for j, ds in enumerate(dataset_keys):
+            offset = (j - (n_ds - 1) / 2.0) * bw
+            color = _dataset_color(ds)
+            vals = alloc[f"A_inj_{ds}"].to_numpy(float)
+            ax.bar(xx + offset, vals, width=bw, color=color, label=f"{ds} injected A")
+            for i, (_, r) in enumerate(alloc.iterrows()):
+                ax.text(
+                    i + offset,
+                    r[f"A_inj_{ds}"] * 1.02,
+                    f"z={r[f'z_inj_{ds}']:.2f}",
+                    ha="center",
+                    va="bottom",
+                    fontsize=8.5,
+                )
         ax.set_xticks(xx)
         ax.set_xticklabels([f"Z_comb={z:.0f}" for z in zvals])
         ax.set_ylabel(r"Injected amplitude $A_{inj}$ [events]")
         ax.set_xlabel("Target combined significance")
-        ax.set_title(f"2015+2016 signal-allocation model at m={mass_sel*1e3:.0f} MeV")
+        title = f"{'+'.join(dataset_keys)} signal-allocation model at requested m={m0*1e3:.0f} MeV"
+        if not np.isclose(mass_sel, float(m0), atol=5e-4):
+            title += f" (nearest available {mass_sel*1e3:.0f} MeV)"
+        ax.set_title(title)
+        frac_note = ", ".join(
+            f"{ds}={float(alloc[f'info_frac_{ds}'].iloc[0]):.2f}"
+            for ds in dataset_keys
+        )
         note = (
-            f"Information fractions: 2015={frac15:.2f}, 2016={frac16:.2f}. "
+            f"Information fractions: {frac_note}. "
             "Partition assumes inverse-variance weighting (Cowan et al., EPJC 71 (2011) 1554)."
         )
         ax.text(0.01, 0.99, note, transform=ax.transAxes, ha="left", va="top", fontsize=8,
                 bbox=dict(boxstyle="round,pad=0.25", fc="white", ec="0.7", alpha=0.9))
         _grid(ax)
         ax.legend(loc="upper left", frameon=True)
-        out = os.path.join(outdir, f"combined_signal_allocation_m{int(round(mass_sel*1e3)):03d}MeV.png")
+        out = os.path.join(outdir, f"combined_signal_allocation_m{mass_req_tag:03d}MeV.png")
         _save_plot_outputs(fig, out)
         saved.append(out)
 

@@ -47,9 +47,13 @@ standalone project.
 | --- | --- | --- | --- |
 | `resolution_figs/hps2015_mass_resolution_internal_fig24.png` | Cropped from bundled PDF `hps_2015_resonance_search_internal_note.pdf` | stable | Internal-note 2015 mass-resolution figure used in the dataset-specific resolution discussion. |
 | `normalization_figs/hps2015_radiative_fraction_internal_fig31.png` | Cropped from bundled PDF `hps_2015_resonance_search_internal_note.pdf` | stable | Internal-note 2015 radiative-fraction figure. |
+| `2015_radiative_radiative_fraction.pdf` | User-provided note-local PDF | stable | Two-page 2015 radiative-fraction source PDF used to build the dedicated review figure. |
+| `normalization_figs/hps2015_radiative_fraction_review.png` | Generated from `2015_radiative_radiative_fraction.pdf` by `scripts/generate_note_figures.py` | stable | Dedicated two-panel 2015 radiative-fraction figure with cross-section composition on the left and the 8.5% conservative fit on the right. |
 | `resolution_figs/hps2016_mass_resolution_internal_fig29.png` | Cropped from bundled PDF `HPS_2016_Bump_Hunt_Internal_Note_note.pdf` | stable | Internal-note 2016 mass-resolution figure. |
 | `normalization_figs/hps2016_radiative_fraction_internal_fig30.png` | Cropped from bundled PDF `HPS_2016_Bump_Hunt_Internal_Note_note.pdf` | stable | Internal-note 2016 radiative-fraction figure. |
 | `resolution_figs/hps2021_resolution_and_frad.png` | Generated from `config_2015_2016_10pct_2021_1pct_10k_rpen7.yaml` by `scripts/generate_note_figures.py` | stable | Note-native summary of the 2021 resolution parameterization and radiative-fraction penalty inputs. |
+| `resolution_figs/hps2021_mass_resolution_parameterization.png` | Generated from `config_2015_2016_10pct_2021_1pct_10k_rpen7.yaml` by `scripts/generate_note_figures.py` | stable | Standalone 2021 mass-resolution panel used in the dedicated resolution subsection. |
+| `normalization_figs/hps2021_radiative_fraction_inputs.png` | Generated from `config_2015_2016_10pct_2021_1pct_10k_rpen7.yaml` by `scripts/generate_note_figures.py` | stable | Standalone 2021 radiative-fraction input panel used in the provisional 2021 radiative-fraction discussion. |
 
 ## Upper-limit figures
 
@@ -61,8 +65,6 @@ standalone project.
 | `upper_limit_figs/2016_10pct/ul_bands_eps2_obsexp.png` | `summary_combined_2016/ul_bands_eps2_obsexp.png` | provisional | Pre-rerun 2016 10% `\eps^2` limit bands. |
 | `upper_limit_figs/2015_2016_combined/ul_bands_signal_yield_obsexp.png` | Generated note-local PNG stand-in | generated placeholder | Reserve this exact final Overleaf path for the combined signal-yield bands after the rerun. |
 | `upper_limit_figs/2015_2016_combined/ul_bands_eps2_obsexp.png` | `summary_combined_all/ul_bands_eps2_obsexp.png` | provisional | Pre-rerun 2015+2016 combined `\eps^2` limit bands. |
-| `upper_limit_figs/2021_0pt03pct/ul_bands_signal_yield_obsexp.png` | not yet exported | placeholder | Planned 2021 0.03% signal-yield bands. |
-| `upper_limit_figs/2021_0pt03pct/ul_bands_eps2_obsexp.png` | not yet exported | placeholder | Planned 2021 0.03% `\eps^2` bands. |
 | `upper_limit_figs/2021_1pct/ul_bands_signal_yield_obsexp.png` | not yet exported | placeholder | Planned 2021 1% signal-yield bands. |
 | `upper_limit_figs/2021_1pct/ul_bands_eps2_obsexp.png` | not yet exported | placeholder | Planned 2021 1% `\eps^2` bands. |
 | `upper_limit_figs/2015_2016_2021_1pct_combined/ul_bands_signal_yield_obsexp.png` | not yet exported | placeholder | Planned 2015+2016 10%+2021 1% combined signal-yield bands. |
@@ -112,15 +114,18 @@ standalone project.
 
 | Bundle path | Original source | Status | Notes |
 | --- | --- | --- | --- |
-| `combined_search_figs/extract_display_2015_m025MeV_z7p0.png` | `z7 copy/extract_display_2015_m025MeV_z7p0 copy.png` | provisional | Individual 2015 common-signal extraction display. |
-| `combined_search_figs/extract_display_2016_m080MeV_z7p0.png` | `z7 copy/extract_display_2016_m080MeV_z7p0.png` | provisional | Individual 2016 common-signal extraction display. |
-| `combined_search_figs/extract_display_combined_m040MeV_z7p0.png` | `z7 copy/extraction_display_combined/combined/extract_display_combined_m040MeV_z7p0.png` | provisional | Combined 40 MeV display retained as an illustrative diagnostic. |
-| `observed_display_combined_119MeV.png` | User-provided note-local PNG `observed_display_combined_119MeV.png` | provisional | Observed shared-coupling extraction display at 119 MeV. Bundled image predates the lower-panel interpolation fix now implemented in `hps_gpr/extraction_display.py`. |
-| `combined_search_figs/combined_search_power_scenarios.png` | `injection_summary_9/combined_search_power_scenarios.png` | provisional | Scenario-level combined search-power study. |
-| `combined_search_figs/combined_search_power_constituent_pvalues_5sigma.png` | `injection_summary_9/combined_search_power_constituent_pvalues_5sigma.png` | provisional | Constituent-dataset significance requirements for a target combined excess. |
+| `combined_search_figs/extract_display_2015_m025MeV_z7p0.png` | `z7 copy/extract_display_2015_m025MeV_z7p0 copy.png` | provisional | Individual 2015 common-signal extraction display retained for the older two-dataset diagnostic block. |
+| `combined_search_figs/extract_display_2016_m080MeV_z7p0.png` | `z7 copy/extract_display_2016_m080MeV_z7p0.png` | provisional | Individual 2016 common-signal extraction display retained for the older two-dataset diagnostic block. |
+| `combined_search_figs/extract_display_combined_m040MeV_z7p0.png` | `z7 copy/extraction_display_combined/combined/extract_display_combined_m040MeV_z7p0.png` | provisional | Legacy two-dataset combined 40 MeV display retained for historical comparison. |
+| `extract_display_combined_m040MeV_z5p0.png` | User-provided note-local PNG `extract_display_combined_m040MeV_z5p0.png` | provisional | Main reviewer-facing no-refit pseudoexperiment display used in the updated combined-extraction subsection. |
+| `extract_display_combined_m040MeV_z3p0_refit.png` | User-provided note-local PNG `extract_display_combined_m040MeV_z3p0_refit.png` | provisional | Full-refit diagnostic pseudoexperiment display used to illustrate signal absorption. |
+| `observed_display_combined_119MeV.png` | `observed_display_combined_corrected_119.png` copied into the note tree | provisional | Corrected observed shared-coupling extraction display at 119 MeV with the lower-panel interpolation fix applied. |
+| `combined_search_figs/combined_search_power_scenarios.png` | Regenerated from `injection_summary_9/inj_extract_summary_2015.csv` and `injection_summary_9/inj_extract_summary_2016.csv` with the updated stacked-layout plotter | provisional | Current bundled search-power scenario panel. The same code path now supports the intended three-dataset rerender once the 2021 injection-summary CSV is bundled. |
+| `combined_search_figs/combined_search_power_constituent_pvalues_5sigma.png` | Regenerated from `injection_summary_9/inj_extract_summary_2015.csv` and `injection_summary_9/inj_extract_summary_2016.csv` with the updated stacked-layout plotter | provisional | Constituent-dataset significance requirements for a target combined excess, shown in the final top-bottom publication layout. |
 | `combined_search_figs/combined_signal_allocation_m040MeV.png` | `injection_summary_9/combined_signal_allocation_m040MeV.png` | provisional | Signal-allocation study at 40 MeV. |
 | `combined_search_figs/combined_signal_allocation_m080MeV.png` | `injection_summary_9/combined_signal_allocation_m080MeV.png` | provisional | Signal-allocation study at 80 MeV. |
-| `combined_search_figs/combined_signal_allocation_m115MeV.png` | `injection_summary_9/combined_signal_allocation_m115MeV.png` | provisional | Signal-allocation study at 115 MeV. |
+| `combined_search_figs/combined_signal_allocation_m120MeV.png` | Regenerated from `injection_summary_9/` using the updated three-dataset plotting code | provisional | Signal-allocation study at 120 MeV. |
+| `combined_search_figs/projected_unblinded_reach_eps2_placeholder.png` | Generated by `scripts/generate_note_figures.py` | generated placeholder | Placeholder full-luminosity projection figure reserved for the CSV-driven final export. |
 
 ## Injection and extraction validation figures
 
@@ -147,7 +152,7 @@ standalone project.
 
 | Bundle path | Original source | Status | Notes |
 | --- | --- | --- | --- |
-| `toy_generation_figs/good_fit_2021_0pt03_pct.png` | `good_fit_2021_0pt03_pct.png` | stable | Representative analytic functional-form fit for the 2021 0.03% subset. |
+| `toy_generation_figs/good_fit_2021_0pt03_pct.png` | `good_fit_2021_0pt03_pct.png` | stable | Representative analytic functional-form fit from the early 2021 upgraded-detector validation sample. |
 | `toy_generation_figs/good_fit_2015_placeholder.png` | not yet exported | placeholder | Planned analytic-fit toy seed for 2015. |
 | `toy_generation_figs/good_fit_2016_placeholder.png` | not yet exported | placeholder | Planned analytic-fit toy seed for 2016. |
 

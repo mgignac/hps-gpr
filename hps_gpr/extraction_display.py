@@ -91,12 +91,29 @@ class SingleExtractionDisplay:
         return float("nan")
 
     @property
+    def Z_hat(self) -> float:
+        if np.isfinite(self.sigma_A) and self.sigma_A > 0:
+            return float(self.A_hat / self.sigma_A)
+        return float("nan")
+
+    @property
     def signal_curve_injected(self) -> np.ndarray:
         return float(self.A_inj_total) * self.ctx.signal_per_blind_amp_full
 
     @property
     def signal_curve_extracted(self) -> np.ndarray:
         return float(self.A_hat) * self.ctx.signal_per_blind_amp_full
+
+    @property
+    def residual_obs(self) -> np.ndarray:
+        return self.y_win_toy - np.asarray(self.b_fit, float)
+
+    @property
+    def residual_sigma(self) -> np.ndarray:
+        cov = np.asarray(self.cov_win_fit, float)
+        bg = np.sqrt(np.clip(np.diag(cov), 0.0, None)) if cov.ndim == 2 else np.zeros_like(self.y_win_toy, float)
+        cnt = np.sqrt(np.clip(np.asarray(self.lambda_fit, float), 1.0, None))
+        return np.sqrt(np.square(bg) + np.square(cnt))
 
     def to_metadata(self) -> Dict[str, object]:
         return {
@@ -107,6 +124,7 @@ class SingleExtractionDisplay:
             "A_inj_total": float(self.A_inj_total),
             "A_hat": float(self.A_hat),
             "sigma_A": float(self.sigma_A),
+            "Zhat": float(self.Z_hat),
             "pull": float(self.pull),
             "eps2_inj": float(self.eps2_inj),
             "eps2_up_obs": float(self.ctx.eps2_up_obs),
@@ -437,14 +455,16 @@ def make_single_extraction_display(
     mass: float,
     inj_nsigma: float,
     seed: int,
+    ctx: Optional[_SingleDisplayContext] = None,
 ) -> SingleExtractionDisplay:
-    ctx = _build_single_context(
-        ds,
-        config,
-        mass=float(mass),
-        sigma_source=str(getattr(config, "extraction_display_sigma_source", "asimov")),
-        train_exclude_nsigma=getattr(config, "extraction_display_train_exclude_nsigma", None),
-    )
+    if ctx is None:
+        ctx = _build_single_context(
+            ds,
+            config,
+            mass=float(mass),
+            sigma_source=str(getattr(config, "extraction_display_sigma_source", "asimov")),
+            train_exclude_nsigma=getattr(config, "extraction_display_train_exclude_nsigma", None),
+        )
     return _simulate_single_display_from_context(
         ctx,
         config,
@@ -465,17 +485,19 @@ def make_combined_extraction_display(
     mass: float,
     inj_nsigma: float,
     seed: int,
+    contexts: Optional[Sequence[_SingleDisplayContext]] = None,
 ) -> CombinedExtractionDisplay:
-    contexts = [
-        _build_single_context(
-            ds,
-            config,
-            mass=float(mass),
-            sigma_source=str(getattr(config, "extraction_display_sigma_source", "asimov")),
-            train_exclude_nsigma=getattr(config, "extraction_display_train_exclude_nsigma", None),
-        )
-        for ds in datasets
-    ]
+    if contexts is None:
+        contexts = [
+            _build_single_context(
+                ds,
+                config,
+                mass=float(mass),
+                sigma_source=str(getattr(config, "extraction_display_sigma_source", "asimov")),
+                train_exclude_nsigma=getattr(config, "extraction_display_train_exclude_nsigma", None),
+            )
+            for ds in datasets
+        ]
     info_sum = float(
         np.sum(
             [
@@ -670,16 +692,17 @@ def plot_single_extraction_display(
     ax_fit.legend(loc="upper left", frameon=True, fontsize=8.8)
     _grid(ax_fit)
 
-    sig_obs = display.y_win_toy - display.b_fit
-    ax_sig.errorbar(x_win, sig_obs, yerr=np.sqrt(np.clip(display.y_win_toy, 1.0, None)), fmt="o", ms=3.0, lw=0.9, color="black", label="Data - profiled background", zorder=4)
+    resid_sig = np.asarray(display.residual_sigma, float)
+    ax_sig.fill_between(x_win, -resid_sig, resid_sig, color="0.78", alpha=0.55, lw=0, zorder=1, label="Residual ±1σ")
+    ax_sig.errorbar(x_win, display.residual_obs, yerr=np.sqrt(np.clip(display.y_win_toy, 1.0, None)), fmt="o", ms=3.0, lw=0.9, color="black", label="Pseudoexperiment - profiled background", zorder=4)
     ax_sig.plot(xz, display.signal_curve_injected[m_zoom], color="#C44E52", lw=1.6, ls=":", label="Injected signal", zorder=5)
     ax_sig.plot(xz, display.signal_curve_extracted[m_zoom], color="#2CA02C", lw=1.8, label="Extracted signal", zorder=6)
-    ax_sig.axhline(0.0, color="0.2", lw=0.9, alpha=0.7, zorder=1)
+    ax_sig.axhline(0.0, color="0.2", lw=0.9, alpha=0.7, zorder=2)
     _shade_blind_window(ax_sig, pred.blind, blind_train=blind_train, alpha=float(blind_shade_alpha), color=str(blind_shade_color), zorder=0)
     ax_sig.set_xlim(float(xz[0]), float(xz[-1]))
     ax_sig.set_xlabel("Mass [GeV]")
     ax_sig.set_ylabel("Signal counts / bin")
-    _set_title_above(ax_sig, "Extracted signal component")
+    _set_title_above(ax_sig, "Residual and extracted signal")
     ax_sig.legend(loc="upper left", frameon=True, fontsize=8.8)
     _grid(ax_sig)
 
@@ -690,6 +713,7 @@ def plot_single_extraction_display(
         f"Injected level: {display.inj_nsigma:.1f} sigma",
         f"A_inj (total): {display.A_inj_total:.1f}",
         f"A_hat: {display.A_hat:.1f} ± {display.sigma_A:.1f}",
+        f"Zhat: {display.Z_hat:.2f}",
         f"Pull: {display.pull:.2f}",
         f"eps^2_inj: {display.eps2_inj:.3e}",
         f"obs UL eps^2: {display.ctx.eps2_up_obs:.3e}",
@@ -858,8 +882,9 @@ def plot_combined_extraction_display(
         ax_fit[idx].legend(loc="upper left", frameon=True, fontsize=8.3)
         _grid(ax_fit[idx])
 
-        sig_obs = disp.y_win_toy - disp.b_fit
-        ax_sig[idx].errorbar(x_win, sig_obs, yerr=np.sqrt(np.clip(disp.y_win_toy, 1.0, None)), fmt="o", ms=2.9, lw=0.9, color="black", label="Data - profiled background", zorder=4)
+        resid_sig = np.asarray(disp.residual_sigma, float)
+        ax_sig[idx].fill_between(x_win, -resid_sig, resid_sig, color="0.78", alpha=0.55, lw=0, zorder=1, label="Residual ±1σ")
+        ax_sig[idx].errorbar(x_win, disp.residual_obs, yerr=np.sqrt(np.clip(disp.y_win_toy, 1.0, None)), fmt="o", ms=2.9, lw=0.9, color="black", label="Pseudoexperiment - profiled background", zorder=4)
         ax_sig[idx].plot(xz, disp.signal_curve_injected[m_zoom], color=colors["inj"], lw=1.6, ls=":", label="Injected signal", zorder=5)
         ax_sig[idx].plot(xz, disp.signal_curve_extracted[m_zoom], color=c, lw=1.8, label="Extracted signal", zorder=6)
         ax_sig[idx].axhline(0.0, color="0.2", lw=0.9, alpha=0.7, zorder=1)
@@ -867,7 +892,7 @@ def plot_combined_extraction_display(
         ax_sig[idx].set_xlim(float(xz[0]), float(xz[-1]))
         ax_sig[idx].set_xlabel("Mass [GeV]")
         ax_sig[idx].set_ylabel("Signal counts / bin")
-        _set_title_above(ax_sig[idx], f"{disp.ctx.ds.label} extracted signal")
+        _set_title_above(ax_sig[idx], f"{disp.ctx.ds.label} residual and extracted signal")
         ax_sig[idx].legend(loc="upper left", frameon=True, fontsize=8.3)
         _grid(ax_sig[idx])
 
@@ -895,7 +920,7 @@ def plot_combined_extraction_display(
     for disp in display.displays:
         info_lines.extend(
             [
-                f"{disp.ctx.ds.key}: A_inj={disp.A_inj_total:.1f}, A_hat={disp.A_hat:.1f} ± {disp.sigma_A:.1f}",
+                f"{disp.ctx.ds.key}: A_inj={disp.A_inj_total:.1f}, A_hat={disp.A_hat:.1f} ± {disp.sigma_A:.1f}, Zhat={disp.Z_hat:.2f}",
                 f"{disp.ctx.ds.key}: eps^2_UL={disp.ctx.eps2_up_obs:.3e}, signal={disp.Nsig_realized_total} total / {disp.Nsig_realized_blind} blind",
             ]
         )
@@ -1002,7 +1027,7 @@ def plot_single_observed_zoom(
     ax_sig.axhline(0.0, color="0.2", lw=0.9, alpha=0.7, zorder=2)
     _shade_blind_window(ax_sig, pred.blind, blind_train=display.ctx.blind_train, alpha=float(blind_shade_alpha), color=str(blind_shade_color), zorder=0)
     ax_sig.set_xlabel("Mass [GeV]")
-    ax_sig.set_ylabel("Residual / signal")
+    ax_sig.set_ylabel("Signal counts / bin")
     _set_title_above(ax_sig, f"Residual view (max |pull| = {np.nanmax(np.abs(display.pull_win)):.2f})")
     ax_sig.legend(loc="upper left", frameon=True, fontsize=8.5)
     _grid(ax_sig)
@@ -1067,7 +1092,7 @@ def plot_combined_observed_display(
         ax_sig[idx].axhline(0.0, color="0.2", lw=0.9, alpha=0.7, zorder=2)
         _shade_blind_window(ax_sig[idx], pred.blind, blind_train=disp.ctx.blind_train, alpha=float(blind_shade_alpha), color=str(blind_shade_color), zorder=0)
         ax_sig[idx].set_xlabel("Mass [GeV]")
-        ax_sig[idx].set_ylabel("Residual / signal")
+        ax_sig[idx].set_ylabel("Signal counts / bin")
         _set_title_above(ax_sig[idx], f"{disp.ctx.ds.label} residual")
         ax_sig[idx].legend(loc="upper left", frameon=True, fontsize=8.2)
         _grid(ax_sig[idx])
@@ -1122,14 +1147,17 @@ def run_extraction_display_suite(
     config,
     *,
     dataset_key: Optional[str] = None,
+    dataset_keys: Optional[Sequence[str]] = None,
     output_dir: Optional[str] = None,
+    masses: Optional[Sequence[float]] = None,
     sigma_multipliers: Optional[Sequence[float]] = None,
 ) -> List[str]:
     datasets = make_datasets(config)
     if not datasets:
         raise RuntimeError("No datasets enabled for extraction display")
 
-    masses = [float(m) for m in getattr(config, "extraction_display_masses_gev", [])]
+    raw_masses = masses if masses is not None else getattr(config, "extraction_display_masses_gev", [])
+    masses = [float(m) for m in raw_masses]
     if not masses:
         raise RuntimeError("Config field extraction_display_masses_gev is empty")
     raw_sigmas = sigma_multipliers if sigma_multipliers is not None else getattr(config, "extraction_display_sigma_multipliers", [3.0, 5.0, 7.0])
@@ -1150,14 +1178,36 @@ def run_extraction_display_suite(
     written: List[str] = []
 
     if target == "combined":
-        requested = [str(k) for k in getattr(config, "extraction_display_dataset_keys", ["2015", "2016"])]
+        requested = dataset_keys if dataset_keys is not None else getattr(config, "extraction_display_dataset_keys", ["2015", "2016"])
+        requested = [str(k).strip() for k in requested if str(k).strip()]
         ds_list = [datasets[k] for k in requested if k in datasets]
         if len(ds_list) < 2:
             raise RuntimeError("Combined extraction display needs at least two enabled datasets")
+        context_cache = {
+            float(mass): [
+                _build_single_context(
+                    ds,
+                    config,
+                    mass=float(mass),
+                    sigma_source=str(getattr(config, "extraction_display_sigma_source", "asimov")),
+                    train_exclude_nsigma=getattr(config, "extraction_display_train_exclude_nsigma", None),
+                )
+                for ds in ds_list
+            ]
+            for mass in masses
+        }
         for mass in masses:
+            contexts = context_cache[float(mass)]
             for z in sigmas:
                 seed = _stable_display_seed(base_seed, "combined", float(mass), float(z))
-                display = make_combined_extraction_display(ds_list, config, mass=float(mass), inj_nsigma=float(z), seed=int(seed))
+                display = make_combined_extraction_display(
+                    ds_list,
+                    config,
+                    mass=float(mass),
+                    inj_nsigma=float(z),
+                    seed=int(seed),
+                    contexts=contexts,
+                )
                 stem = os.path.join(out_root, f"extract_display_combined_m{int(round(float(mass) * 1e3)):03d}MeV_z{_strength_tag(z)}")
                 plot_combined_extraction_display(
                     display,
@@ -1173,10 +1223,28 @@ def run_extraction_display_suite(
         raise RuntimeError(f"Dataset '{target}' is not enabled; enabled datasets: {sorted(datasets)}")
 
     ds = datasets[target]
+    context_cache = {
+        float(mass): _build_single_context(
+            ds,
+            config,
+            mass=float(mass),
+            sigma_source=str(getattr(config, "extraction_display_sigma_source", "asimov")),
+            train_exclude_nsigma=getattr(config, "extraction_display_train_exclude_nsigma", None),
+        )
+        for mass in masses
+    }
     for mass in masses:
+        ctx = context_cache[float(mass)]
         for z in sigmas:
             seed = _stable_display_seed(base_seed, str(ds.key), float(mass), float(z))
-            display = make_single_extraction_display(ds, config, mass=float(mass), inj_nsigma=float(z), seed=int(seed))
+            display = make_single_extraction_display(
+                ds,
+                config,
+                mass=float(mass),
+                inj_nsigma=float(z),
+                seed=int(seed),
+                ctx=ctx,
+            )
             stem = os.path.join(out_root, f"extract_display_{ds.key}_m{int(round(float(mass) * 1e3)):03d}MeV_z{_strength_tag(z)}")
             plot_single_extraction_display(
                 display,

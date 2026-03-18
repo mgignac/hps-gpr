@@ -15,16 +15,24 @@ logic: oppositely charged tracks matched to ECal clusters, tight cluster-time
 coincidence, track-quality and vertex requirements, and momentum selections that
 retain prompt radiative tridents while suppressing accidentals and converted
 wide-angle Bremsstrahlung. The 2015 and 2016 selections are already mature because
-they are inherited from the published prompt searches. The 2021 column is kept
-explicitly provisional where the final prompt-tight values still need to be
-synchronized with the reconstruction note for the upgraded detector era.
+they are inherited from the published prompt searches. The 2021 column remains
+provisional at the detailed cut-value level because the dedicated upgraded-era
+prompt-selection note is not yet bundled with the present draft.
 
 \input{tables/event_selection_table}
 
-The GPR layer does not add any new per-event selection on top of these prompt cuts. In
-the remainder of the note, each dataset is represented only by the selected
-invariant-mass histogram together with the detector response and normalization inputs
-derived from the same event category.
+The one 2021 choice that already matters directly for the current shared-$\eps^2$
+combination is the summed-momentum requirement used to define the 1\% study sample.
+The histogram input currently used by the GPR workflow applies
+$p_{\mathrm{sum}}<\SI{2.8}{GeV}$. Relative to a looser upgraded-era preselection, this
+acts as a deliberately prompt-tight cut: it suppresses the high-momentum tail where
+wide-angle Bremsstrahlung and other prompt-background contaminants become more
+important, while retaining the narrow prompt-resonance topology at a level that is
+roughly aligned with the high-$p_{\mathrm{sum}}$ acceptance fractions already used in
+the 2015 and 2016 studies. The GPR layer does not add any further per-event selection
+on top of these prompt cuts. In the remainder of the note, each dataset is represented
+only by the selected invariant-mass histogram together with the detector response and
+normalization inputs derived from the same event category.
 
 \subsection{2015 mass resolution}
 \label{sec:massres-2015}
@@ -53,23 +61,11 @@ mismodelling of the momentum response \cite{HPS2015DarkPhoton,HPS2015InternalNot
 
 \begin{figure}[H]
 \centering
-\begin{subfigure}[t]{0.48\linewidth}
-  \centering
-  \graphicorplaceholder{\linewidth}{resolution_figs/hps2015_mass_resolution_internal_fig24.png}
-  \caption{2015 mass-resolution parameterization from scaled $A^\prime$ MC and M{\o}ller
-  data \cite{HPS2015InternalNote}.}
-\end{subfigure}
-\hfill
-\begin{subfigure}[t]{0.48\linewidth}
-  \centering
-  \graphicorplaceholder{\linewidth}{normalization_figs/hps2015_radiative_fraction_internal_fig31.png}
-  \caption{2015 radiative fraction used to normalize the prompt yield to
-  $\eps^2$ \cite{HPS2015InternalNote}.}
-\end{subfigure}
-\caption{Key 2015 prompt-search inputs reused in the present GPR note. The mass
-resolution is anchored by M{\o}ller data and scaled $A^\prime$ MC, while the
-radiative-fraction curve sets the signal-yield to $\eps^2$ conversion.}
-\label{fig:2015-resolution-radfrac}
+\graphicorplaceholder{0.82\linewidth}{resolution_figs/hps2015_mass_resolution_internal_fig24.png}
+\caption{2015 mass-resolution parameterization from scaled $A^\prime$ MC and M{\o}ller
+data \cite{HPS2015InternalNote}. The larger standalone presentation is retained here
+because this figure is the primary detector-response input for the 2015 prompt search.}
+\label{fig:2015-resolution}
 \end{figure}
 
 \subsection{2016 mass resolution}
@@ -82,8 +78,7 @@ uncertainties \cite{HPS2016BumpInternal,HPS2016PromptLong}. The M{\o}ller point 
 momentum peaks quantified the data--MC momentum mismatch, and smeared $A^\prime$ MC
 samples were then used to derive the mass dependence of the prompt resolution. In the
 2016 bump-hunt note this procedure is summarized by the smeared $A^\prime$ points shown
-in Figure~\ref{fig:2016-resolution-radfrac}, which were fitted with a fourth-order
-polynomial.
+in Figure~\ref{fig:2016-resolution}, which were fitted with a fourth-order polynomial.
 
 The current GPR workflow uses the same published-resolution logic, with one practical
 extension: the historical polynomial is not allowed to turn over and improve
@@ -103,27 +98,15 @@ The 2016 review emphasis is therefore twofold. First, the mass resolution must b
 described as a data-validated quantity rather than a free fit parameter. Second, the
 momentum-smearing correction is central to that validation because it is the step that
 reconciles the M{\o}ller and $A^\prime$ MC widths with the observed detector response
-\cite{HPS2016BumpInternal,HPS2016PromptLong}.
+\cite{HPS2016BumpInternal,HPS2016PromptLong}. The updated crop emphasizes the smeared
+$A^\prime$ trend itself rather than the surrounding page context.
 
 \begin{figure}[H]
 \centering
-\begin{subfigure}[t]{0.48\linewidth}
-  \centering
-  \graphicorplaceholder{\linewidth}{resolution_figs/hps2016_mass_resolution_internal_fig29.png}
-  \caption{2016 smeared-$A^\prime$ and M{\o}ller-based mass-resolution summary
-  \cite{HPS2016BumpInternal}.}
-\end{subfigure}
-\hfill
-\begin{subfigure}[t]{0.48\linewidth}
-  \centering
-  \graphicorplaceholder{\linewidth}{normalization_figs/hps2016_radiative_fraction_internal_fig30.png}
-  \caption{2016 radiative-fraction study from radiative, trident, and converted-WAB MC
-  \cite{HPS2016BumpInternal}.}
-\end{subfigure}
-\caption{Key 2016 prompt-search inputs reused in the GPR note. The mass-resolution plot
-shows why the momentum-smearing and M{\o}ller calibration steps are essential, while the
-radiative-fraction plot shows the MC composition entering the normalization.}
-\label{fig:2016-resolution-radfrac}
+\graphicorplaceholder{0.82\linewidth}{resolution_figs/hps2016_mass_resolution_internal_fig29.png}
+\caption{2016 smeared-$A^\prime$ and M{\o}ller-based mass-resolution summary
+\cite{HPS2016BumpInternal}.}
+\label{fig:2016-resolution}
 \end{figure}
 
 \subsection{2021 mass resolution}
@@ -137,25 +120,18 @@ a separate resolution parameterization. The current GPR implementation uses
 \label{eq:sigma2021}
 \end{equation}
 again with $m$ and $\sigma_{2021}$ in GeV. In contrast to 2015 and 2016, the present
-note does not yet bundle a standalone M{\o}ller-validation figure for the 2021
-parameterization. That absence should be stated explicitly for reviewers: the 2021
-resolution input is already implemented and used in the current 1\% combination, but
-its detector-response documentation is not yet as mature in this note as the
-engineering-run case.
-
-Figure~\ref{fig:2021-resolution-radfrac} therefore serves a different purpose from the
-2015 and 2016 internal-note reproductions. It records the actual parameterizations
-currently used by the GPR package for the 2021 prompt workflow, together with the
-baseline and penalty-adjusted radiative-fraction inputs that enter the shared-$\eps^2$
-conversion.
+note does not yet bundle a standalone M{\o}ller-validation figure or a dedicated 2021
+internal selection note for this parameterization. That absence should be stated
+explicitly for reviewers: the 2021 resolution input is already implemented and used in
+the current 1\% combination, but its detector-response documentation is not yet as
+mature in this note as the engineering-run case.
 
 \begin{figure}[H]
 \centering
-\graphicorplaceholder{0.88\linewidth}{resolution_figs/hps2021_resolution_and_frad.png}
-\caption{Current 2021 prompt-analysis parameterizations used by the GPR package. The
-left panel shows the 2021 mass-resolution model, while the right panel shows the
-baseline and penalty-adjusted radiative-fraction inputs used in the present note.}
-\label{fig:2021-resolution-radfrac}
+\graphicorplaceholder{0.70\linewidth}{resolution_figs/hps2021_mass_resolution_parameterization.png}
+\caption{Current 2021 prompt-analysis mass-resolution parameterization used by the GPR
+package for the 1\% upgraded-era workflow.}
+\label{fig:2021-resolution}
 \end{figure}
 
 \subsection{Radiative fraction and the \texorpdfstring{$\eps^2$}{epsilon2} normalization}
@@ -177,34 +153,89 @@ that converts a fitted prompt signal yield into a limit on the coupling. In the
 present notation,
 \begin{equation}
 K_d(m) \equiv A_d(\eps^2 = 1)
-= \frac{3\pi\,m\,f_{\mathrm{rad},d}^{\mathrm{eff}}(m)\,\rho_d(m)}{2\alpha_{\mathrm{EM}}},
+= \frac{3\pi\,m\,f_{\mathrm{rad},d}(m)\,\rho_d(m)}{2\alpha_{\mathrm{EM}}},
 \qquad
 A_d = K_d(m)\,\eps^2,
 \label{eq:kd-radfrac}
 \end{equation}
-where $\rho_d(m)$ is the selected prompt-spectrum density in dataset $d$ and
-$f_{\mathrm{rad},d}^{\mathrm{eff}}$ is the radiative fraction after any systematic
-penalty.
+where $\rho_d(m)$ is the selected prompt-spectrum density in dataset $d$. The
+dataset-specific radiative-fraction story then differs in important ways between the
+engineering-run searches and the provisional 2021 workflow.
+
+\subsubsection{2015 Radiative Fraction}
 
 The 2015 prompt search used a constant approximation,
 \begin{equation}
 f_{\mathrm{rad},2015}(m) = 0.085,
 \end{equation}
-which is the baseline retained in the current GPR workflow. The 2016 prompt search
-used a fifth-order polynomial derived from radiative, trident, and converted-WAB MC
-after the full prompt selection. That full shape should be described because it is part
-of the published methodology, but the present GPR implementation uses a constant
-approximation,
+which is the baseline retained in the current GPR workflow. The dedicated 2015
+radiative-fraction study is especially useful because it makes the logic of that
+constant fit explicit: the selected radiative trident component is first compared to
+the total prompt composition, and the red horizontal line at 8.5\% is then adopted as
+a conservative description across the scanned mass interval. That constant is therefore
+not a fit artifact of the GPR package; it is inherited from the internal HPS prompt
+normalization study and used here for continuity with the published 2015 analysis.
+
+\begin{figure}[H]
+\centering
+\graphicorplaceholder{0.96\linewidth}{normalization_figs/hps2015_radiative_fraction_review.png}
+\caption{Dedicated 2015 radiative-fraction inputs. The left panel shows the selected
+cross-section composition, while the right panel shows the radiative fraction used for
+normalization. The red horizontal line denotes the 8.5\% constant adopted as the
+conservative fit across the 2015 prompt-search dataset.}
+\label{fig:2015-radfrac}
+\end{figure}
+
+\subsubsection{2016 Radiative Fraction}
+
+The 2016 prompt search used a fifth-order polynomial derived from radiative, trident,
+and converted-WAB MC after the full prompt selection. That full shape matters for the
+methodology discussion because it is part of the published HPS normalization chain:
+the selected radiative yield, the competing prompt backgrounds, and the converted-WAB
+contamination were all studied together in order to map fitted signal yield into
+$\eps^2$ consistently over the broader 2016 mass range. In the present GPR package,
+however, the working 2016 normalization is simplified to a constant approximation,
 \begin{equation}
 f_{\mathrm{rad},2016}(m) = 0.05,
 \end{equation}
-for stability over the wider scan range. For the current 2021 1\% workflow, the same
-constant value is used as a provisional normalization input,
+because that choice is numerically stable over the wider scan range used in the global
+fit. The review point is therefore two-stage: the note should preserve the richer 2016
+determination for provenance, while also stating plainly that the current production
+GPR rerun uses a conservative constant surrogate.
+
+\begin{figure}[H]
+\centering
+\graphicorplaceholder{0.82\linewidth}{normalization_figs/hps2016_radiative_fraction_internal_fig30.png}
+\caption{2016 radiative-fraction study from radiative, trident, and converted-WAB MC
+\cite{HPS2016BumpInternal}. This is the provenance figure for the 2016 normalization
+discussion even though the present wide-range GPR rerun uses a constant approximation
+for stability.}
+\label{fig:2016-radfrac}
+\end{figure}
+
+\subsubsection{2021 Radiative Fraction}
+
+For the current 2021 1\% workflow, the radiative-fraction input remains provisional.
+The present package uses the constant choice
 \begin{equation}
 f_{\mathrm{rad},2021}(m) = 0.05,
 \end{equation}
-with the explicit understanding that the final 2021 normalization note may update this
-choice.
+with the explicit understanding that the final upgraded-detector normalization note may
+replace both the baseline value and its associated systematic treatment. The figure
+below therefore documents the input presently used by the code rather than claiming a
+final 2021 radiative-fraction determination.
+
+\begin{figure}[H]
+\centering
+\graphicorplaceholder{0.70\linewidth}{normalization_figs/hps2021_radiative_fraction_inputs.png}
+\caption{Current 2021 radiative-fraction inputs used by the GPR package. The baseline
+constant and its penalty-adjusted counterpart are shown only as provisional workflow
+inputs for the present 1\% study.}
+\label{fig:2021-radfrac}
+\end{figure}
+
+\subsection{Systematic penalties from the radiative fraction}
+\label{sec:radfrac-penalty}
 
 The package also supports a dataset-dependent radiative-fraction penalty,
 \begin{equation}
@@ -212,11 +243,24 @@ f_{\mathrm{rad},d}^{\mathrm{eff}}(m)
 = \left(1-\delta_{f,d}\right) f_{\mathrm{rad},d}(m).
 \label{eq:frad-penalty}
 \end{equation}
+This penalty is deliberately applied at the yield-to-$\eps^2$ conversion stage rather
+than inside the local likelihood. It therefore acts as a normalization systematic on
+the inferred coupling, not as a change in the shape of the blind-window extraction
+model.
+
 For the current combined rerun summarized later in the note,
 $\delta_{f,d}=0.07$ for 2015, 2016, and 2021. At the single-dataset level, this means
 that a fixed signal-yield limit maps to a weaker coupling limit by approximately
-$1/(1-\delta_f)\simeq 1.075$. In the combined analysis, the same logic applies to every
-constituent dataset at once: each conversion factor $K_d(m)$ is reduced, so the shared
-$\eps^2$ value required to produce the same per-dataset yields becomes larger. This is
-why the radiative-fraction penalty is best described as a normalization systematic on
-the coupling interpretation rather than as a change in the underlying likelihood shape.
+$1/(1-\delta_f)\simeq 1.075$. In the combined analysis, the same logic applies to
+every constituent dataset at once: each conversion factor $K_d(m)$ is reduced, so the
+shared $\eps^2$ value required to produce the same per-dataset yields becomes larger.
+This is why the radiative-fraction penalty should be described as a correlated
+normalization systematic on the coupling interpretation.
+
+The practical reason to keep this discussion separate from the baseline
+radiative-fraction subsection is that the two questions are not the same. The baseline
+$f_{\mathrm{rad},d}(m)$ determines how prompt backgrounds are translated into a signal
+normalization for each dataset. The penalty $\delta_{f,d}$ instead quantifies how
+conservative one chooses to be when carrying that normalization into the final
+$\eps^2$ statement. In reviewer terms: the former is the nominal calibration, the
+latter is the systematic safety margin carried by the current combination.
