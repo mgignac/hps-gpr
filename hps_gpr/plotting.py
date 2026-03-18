@@ -54,6 +54,9 @@ def _savefig_png_pdf(fig: plt.Figure, outpath: str, *, dpi: int = 180) -> None:
         base = root
     else:
         base = outpath
+    outdir = os.path.dirname(base)
+    if outdir:
+        ensure_dir(outdir)
     fig.savefig(f"{base}.png", dpi=dpi)
     fig.savefig(f"{base}.pdf", dpi=dpi)
 
@@ -202,6 +205,10 @@ def _save_plot_outputs(fig: plt.Figure, outpath: Optional[str], *, png_dpi: int 
         png_path, pdf_path = f"{root}.png", f"{root}.pdf"
     else:
         png_path, pdf_path = f"{outpath}.png", f"{outpath}.pdf"
+    for target in (png_path, pdf_path):
+        outdir = os.path.dirname(target)
+        if outdir:
+            ensure_dir(outdir)
     fig.savefig(png_path, dpi=png_dpi)
     fig.savefig(pdf_path)
     plt.close(fig)
