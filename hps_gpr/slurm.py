@@ -312,14 +312,16 @@ def generate_extraction_display_slurm_scripts(
         'JOB_OUTDIR="${BASE_OUTPUT_DIR}/extraction_display_jobs/${EXTRACT_DATASET}/m_${EXTRACT_MASS_TAG}/s_${EXTRACT_STRENGTH_TAG}"',
         'mkdir -p "${JOB_OUTDIR}"',
         "",
+        'EXTRACT_DATASET_KEYS_CSV="${EXTRACT_DATASET_KEYS//:/,}"',
+        "",
         'CMD=(hps-gpr extract-display',
         f'  --config "{config_path}"',
         '  --dataset "${EXTRACT_DATASET}"',
         '  --masses "${EXTRACT_MASS}"',
         '  --strengths "${EXTRACT_STRENGTH}"',
         '  --output-dir "${JOB_OUTDIR}")',
-        'if [ -n "${EXTRACT_DATASET_KEYS}" ]; then',
-        '  CMD+=(--datasets "${EXTRACT_DATASET_KEYS}")',
+        'if [ -n "${EXTRACT_DATASET_KEYS_CSV}" ]; then',
+        '  CMD+=(--datasets "${EXTRACT_DATASET_KEYS_CSV}")',
         "fi",
         '"${CMD[@]}"',
     ])
@@ -331,7 +333,7 @@ def generate_extraction_display_slurm_scripts(
 
     submit_path = os.path.join(os.path.dirname(os.path.abspath(output_path)), "submit_extract_display_all.sh")
     abs_job = os.path.abspath(output_path)
-    dataset_keys_str = ",".join(combined_keys)
+    dataset_keys_str = ":".join(combined_keys)
 
     submit_lines = [
         "#!/bin/bash",

@@ -23,7 +23,8 @@ def test_generate_extraction_display_slurm_scripts_writes_expected_commands(tmp_
     assert "hps-gpr extract-display" in job_text
     assert '--masses "${EXTRACT_MASS}"' in job_text
     assert '--strengths "${EXTRACT_STRENGTH}"' in job_text
-    assert '--datasets "${EXTRACT_DATASET_KEYS}"' in job_text
+    assert 'EXTRACT_DATASET_KEYS_CSV="${EXTRACT_DATASET_KEYS//:/,}"' in job_text
+    assert '--datasets "${EXTRACT_DATASET_KEYS_CSV}"' in job_text
     assert 'EXTRACT_DATASET="combined"' in submit_text
-    assert 'EXTRACT_DATASET_KEYS="2015,2016,2021"' in submit_text
+    assert 'EXTRACT_DATASET_KEYS="2015:2016:2021"' in submit_text
     assert "EXTRACT_MASS=0.08" in submit_text
