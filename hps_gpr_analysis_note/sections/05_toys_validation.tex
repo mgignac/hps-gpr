@@ -29,7 +29,8 @@ The first class of toys starts from an analytic fit to the smooth $e^+e^-$
 invariant-mass spectrum and fluctuates pseudo-data around that closed-form background
 model. These studies isolate the question of gross spectral smoothness from the later
 question of GP conditioning. They are therefore useful as the first closure test before
-the full inference chain is exercised.
+the full inference chain is exercised. Figure~\ref{fig:analytic-fit-toys} shows the
+kind of smooth seed spectrum used for this earliest validation stage.
 
 \begin{figure}[H]
 \centering
@@ -158,6 +159,8 @@ of an individual mass hypothesis. The 2015 \SI{30}{MeV} display and the 2016 10\
 \SI{58}{MeV} display are retained because they show, in real data, how the profiled
 background deformation competes with the narrow signal template. The 2016 example is
 particularly useful because the best-fit amplitude is negative.
+Figure~\ref{fig:data-fit-examples} is included to make those competing fit components
+visible before moving to ensemble summaries.
 
 \begin{figure}[p]
 \centering
@@ -203,7 +206,9 @@ the truncation of the 2015 spectrum near \SI{150}{MeV} and may also contain resi
 signal-leakage effects that should be revisited after the next likelihood update. For
 the note-local summary, the same layout is extended to the current combined study, with
 the bottom row reserved for the 2021 1\% and combined exports once the full
-three-dataset toy summary is frozen.
+three-dataset toy summary is frozen. Figure~\ref{fig:pull-vs-mass} is the most compact
+visual summary of this closure test because it shows the pull mean and pull width
+together.
 
 \begin{figure}[p]
 \centering
@@ -246,6 +251,7 @@ nominal Gaussian expectations of approximately 68\% and 95\%. For both 2015 and 
 core search region. The combined coverage panel is especially useful because it tests
 whether the shared-$\eps^2$ uncertainty remains interpretable as an interval statement
 after statistically independent datasets have been merged in one likelihood.
+Figure~\ref{fig:coverage} makes that interval-level test explicit.
 
 \begin{figure}[p]
 \centering
@@ -285,7 +291,8 @@ The significance-calibration studies provide a third layer of validation by comp
 the extracted significance scale with the injected scale. This information corroborates
 the combined-search-power studies discussed below: both are asking whether the
 multi-dataset procedure accumulates significance in a way consistent with the expected
-inverse-variance weighting of the constituent channels.
+inverse-variance weighting of the constituent channels. Figure~\ref{fig:z-calibration-residual}
+shows that comparison directly in $\Delta Z$.
 
 \begin{figure}[H]
 \centering
@@ -319,6 +326,8 @@ be rerendered for the intuitive ``1$\sigma$ + 1$\sigma$ + 1$\sigma$'' and
 ``1$\sigma$ + 2$\sigma$ + 3$\sigma$'' shared-coupling tests. The panels shown
 here are therefore still provisional in their numerical content, but they now use the
 publication-facing top-bottom layout and the final inverse-variance bookkeeping.
+Figure~\ref{fig:combined-search-power} then shows both the combined search-power scan
+and the constituent-dataset allocations needed to reach a target shared significance.
 
 \begin{figure}[H]
 \centering
@@ -370,6 +379,9 @@ injected shared signal at \SIlist{40;80;120}{MeV}. Those examples are deliberate
 shown without toy-by-toy GP retraining because they are meant to test extraction
 closure under the sideband-conditioned background model and to show, mass by mass, how
 the shared coupling is partitioned among 2015, 2016, and 2021.
+Figures~\ref{fig:combined-extract-displays} and
+~\ref{fig:combined-extract-displays-additional} are the main reviewer-facing examples of
+that shared-coupling bookkeeping.
 
 \begin{figure}[p]
 \centering
@@ -413,7 +425,8 @@ The full-refit comparison is retained as a diagnostic because it answers a diffe
 question: whether the sideband refit can absorb signal-like structure once the toy
 spectrum is regenerated over the full mass range. The visibly poorer recovery in that
 case is therefore not a contradiction of the no-refit closure test; it is the point of
-the absorption diagnostic.
+the absorption diagnostic. Figure~\ref{fig:combined-extract-displays-refit} documents
+that distinct failure mode explicitly.
 
 \begin{figure}[p]
 \centering
