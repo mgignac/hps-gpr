@@ -10,15 +10,18 @@ the smooth trident spectrum, but they also made clear where the older strategy b
 fragile. Window-by-window fits produced visibly less smooth limit curves, amplified the
 dependence of the result on local fit boundaries, and complicated any attempt to write
 a statistically coherent multi-dataset combination. The present workflow therefore uses
-a single global fit over the full histogram range of each dataset and excludes only a
-narrow mass-dependent training region around the test mass. That choice yields a
-background description that is smoother, easier to validate, and naturally compatible
-with a combined likelihood in a shared parameter of interest.
+a full-range per-hypothesis GP fit over the histogram range of each dataset and
+excludes only a narrow mass-dependent training region around the test mass. That choice
+yields a background description that is smoother, easier to validate, and naturally
+compatible with a combined likelihood in a shared parameter of interest.
 
 \subsection{Observable, scan grid, and blinding}
 
 The input observable is the reconstructed $e^+e^-$ invariant-mass histogram for each
-dataset. The default scan step in the package is
+dataset. Throughout this section, $d$ labels the dataset, $m$ denotes the reconstructed
+$e^+e^-$ invariant mass, $m_0$ is the test-mass hypothesis, and $\sigma_d(m)$ is the
+dataset-specific mass resolution introduced in
+Section~\ref{sec:event-selection}. The default scan step in the package is
 \begin{equation}
 \Delta m = \SI{1}{MeV},
 \end{equation}
@@ -44,6 +47,22 @@ scale is used for the nominal GP training exclusion in the current validation st
 although the package exposes the training exclusion and the extraction blind window as
 independent controls.
 
+The notation $\mathcal{B}_d(m_0)$ denotes the set of histogram bins that lie inside the
+blinded interval for dataset $d$ at test mass $m_0$. In the current production
+configuration there is no additional gap between the extraction window and the GP
+training sample: the nominal training exclusion starts immediately outside
+$\mathcal{B}_d(m_0)$. A wider exclusion, for example $1.96\,\sigma_d$ instead of
+$1.64\,\sigma_d$, would reduce signal leakage into the training region from about 10\%
+to about 5\%, but it would also increase the interpolation distance and therefore the
+GP predictive uncertainty. In the simple background-dominated proxy
+$S/\sqrt{B}\propto F(k)/\sqrt{k}$ with $F(k)=\mathrm{erf}(k/\sqrt{2})$, the optimum lies
+near $k\simeq1.4$, so the adopted $1.64\,\sigma_d$ choice remains close to the
+sensitivity optimum while still containing about 90\% of a Gaussian signal. The
+$1.96\,\sigma_d$ choice is therefore treated as a robustness option that prioritizes
+less training-region contamination over slightly better expected reach, not as a
+clearly superior default. Full-refit pseudoexperiments in Section~\ref{sec:toys} are
+the main guard against any residual signal-absorption bias from this choice.
+
 \subsection{Log-space preprocessing and the choice \texorpdfstring{$\alpha=1/y$}{alpha=1/y}}
 
 Following recent HEP GPR background-modeling studies
@@ -51,10 +70,29 @@ Following recent HEP GPR background-modeling studies
 \begin{equation}
 x = \log m,
 \qquad
-z = \log y,
+z =
+\begin{cases}
+\log y, & y>0, \\
+0, & y=0,
+\end{cases}
 \end{equation}
-where $y$ is the observed bin count. A heteroscedastic diagonal term $\alpha_i$ is then
-added to the kernel covariance,
+where $y$ is the observed bin count. The log transformation is used for two related
+reasons. First, the prompt trident spectrum spans a wide dynamic range, and modeling
+$z$ rather than $y$ turns multiplicative shape variations into approximately additive
+ones. Second, $x=\log m$ makes equal distances in the GP coordinate correspond to equal
+fractional changes in mass, which is the relevant scale once the detector resolution is
+written in the transformed coordinate as $\sigma_x(m)\simeq \sigma_d(m)/m$. Barr and
+Liu emphasize that applying logarithms to both axes improves convergence and
+performance for wide, steeply falling spectra \cite{BarrLiu2025}.
+
+The GP is therefore used to model an unobserved smooth mean function
+$z_{\mathrm{true},d}(x)$ for the log-count spectrum. In that language, ``latent'' means
+only that the smooth log-rate is not observed directly; it is inferred from the
+histogram counts through the transformed coordinates and the heteroscedastic variance
+term. For Poisson counts $Y_i \sim \mathrm{Pois}(\lambda_i)$, the delta method gives
+$\mathrm{Var}[\log Y_i]\approx \mathrm{Var}[Y_i]/E[Y_i]^2 \approx 1/\lambda_i$, which
+motivates the plug-in choice $\alpha_i\approx 1/y_i$ for occupied bins. A
+heteroscedastic diagonal term $\alpha_i$ is then added to the training covariance,
 \begin{equation}
 \alpha_i =
 \begin{cases}
@@ -63,16 +101,23 @@ added to the kernel covariance,
 \end{cases}
 \label{eq:alpha-oney}
 \end{equation}
-with the explicit zero-count floor implemented through
-\texttt{pre\_zero\_alpha = 1.0}.
+\begin{equation}
+K_{\mathrm{obs}} = K(X,X) + \mathrm{diag}(\bm{\alpha}),
+\end{equation}
+so that each $\alpha_i$ plays the role of an observation-variance term for bin $i$.
+This is the quantity that the \texttt{GaussianProcessRegressor} implementation adds to
+the diagonal during fitting, so in the present note it is treated as a variance model,
+not as an arbitrary tuning knob.
 
 This is a deliberate departure from the earlier Barr--Liu-inspired draft
-parameterization. In the present analysis, $\alpha_i$ is treated as the variance-like
-diagonal contribution expected by \texttt{GaussianProcessRegressor}, rather than as a
-pure regularization device. The working interpretation is therefore that the GP is
-fitted to a smooth latent log-rate with a variance assignment that mirrors the
-counting-noise structure of the original histogram, while avoiding the extra $\log y$
-weighting that was explored in the first rough drafts.
+parameterization. In the present analysis, $\alpha_i$ is treated as the latent-space
+variance assignment associated with the transformed counts, while avoiding the extra
+$\log y$ weighting explored in the first rough drafts. For empty bins the adopted floor
+$\alpha_i=1$ is a unit variance in log-count space, not a pseudo-count of one event. It
+simply prevents zero-count bins from receiving ill-defined or disproportionate weight
+after the log transformation. In this high-statistics search such bins are rare, so the
+floor acts mainly as a conservative legacy-stable safeguard rather than as a dominant
+source of uncertainty.
 
 \subsection{Kernel choice and CMS-motivated background modeling}
 \label{sec:kernel-choice}
@@ -88,14 +133,20 @@ signal-extraction studies \cite{Gandrakota2023} and with the log-space HEP backg
 modeling framework emphasized in Ref.~\cite{BarrLiu2025}. The HPS implementation keeps
 this kernel intentionally simple. The amplitude parameter $C$ sets the overall
 covariance scale, while $\ell$ controls how rapidly the background is allowed to bend
-in log-mass space. For a smooth prompt trident spectrum, that separation is both
-physically transparent and statistically sufficient.
+in log-mass space. For the smooth prompt trident continuum considered here, one overall
+covariance scale $C$ and one smoothness scale $\ell$ are adequate for the baseline
+model: they capture the observed broad curvature without introducing additional poorly
+constrained structure on signal-like mass scales.
 
 Earlier studies preserved in the analysis history explored more complicated kernels and
 piecewise procedures, but those variants are no longer the production baseline. This
 note therefore documents the Constant$\times$RBF model as the authoritative kernel
 choice and treats more elaborate alternatives as robustness checks rather than
-competing mainline methods.
+competing mainline methods. The first non-baseline comparison reserved for later
+documentation is a Constant$\times$Mat\'ern$(\nu=3/2)$ study with the same
+resolution-scaled bounds, because it relaxes the infinitely differentiable RBF
+assumption without changing the overall smooth-background prior class. A placeholder
+appendix for these comparisons is provided in Appendix~\ref{app:kernel-studies}.
 
 \subsection{Resolution-scaled length-scale parameterization and bounds}
 \label{sec:length-scale}
@@ -141,6 +192,12 @@ GP from drifting toward an effectively global polynomial interpolant. Together t
 controls keep the kernel flexible enough to describe the smooth spectrum while
 preventing it from becoming either too stiff or too unconstrained.
 
+Figure~\ref{fig:lengthscale-bounds} makes the bound prescription explicit. Panel (a)
+shows the detector-resolution scale in the GP coordinate, and panel (b) shows the
+allowed interval for the fitted length scale in each dataset. The key point is that the
+optimization band follows the detector scale across the scan rather than imposing a
+single mass-independent smoothing length.
+
 \begin{figure}[H]
 \centering
 \begin{subfigure}[t]{0.48\linewidth}
@@ -166,19 +223,24 @@ regime.}
 \subsection{Blind-window prediction in count space}
 
 For each mass point, the package trains the GP only on the bins outside the training
-exclusion window and predicts the latent mean and covariance in the blinded bins. Since
-the fit is performed in log-count space, the prediction is mapped back to count space
-through the standard lognormal moment relations:
+exclusion window and predicts the posterior mean and covariance of the latent smooth
+log-rate in the blinded bins. Since the fit is performed in log-count space, that
+posterior is mapped back to count space through the standard lognormal moment
+relations:
 \begin{align}
 \mu_i &= \exp\!\left(\mu^{(\log)}_i + \frac{1}{2}\Sigma^{(\log)}_{ii}\right), \\
-\mathrm{Cov}(y_i,y_j)
+\mathrm{Cov}(\lambda_i,\lambda_j)
 &= \mu_i\mu_j\left[\exp\!\left(\Sigma^{(\log)}_{ij}\right)-1\right].
 \end{align}
 The resulting blind-window mean vector $\bm{b}_d(m)$ and covariance matrix
 $\bm{C}_d(m)$ are the central statistical objects entering both the local extraction
 fit and the \CLs\ limit. In other words, once the GP prediction has been translated
 back into count space, the analysis no longer works with an abstract regression model;
-it works with an explicit multivariate background prediction in the blinded bins.
+it works with an explicit multivariate background prediction for the latent expected
+counts in the blinded bins. The Poisson counting fluctuation of the observed
+$n_{d,i}$ is handled separately by the likelihood, so $\bm{C}_d$ should be read as the
+covariance of the GP-predicted background mean rather than the covariance of the
+observed histogram counts themselves.
 
 \subsection{Signal model and conversion to \texorpdfstring{$\eps^2$}{epsilon2}}
 
@@ -190,6 +252,7 @@ w^{\mathrm{full}}_{d,i}(m_0) =
 \frac{1}{\sqrt{2\pi}\sigma_d(m_0)}
 \exp\!\left[-\frac{(m-m_0)^2}{2\sigma_d(m_0)^2}\right]\,dm,
 \end{equation}
+where $e_i$ and $e_{i+1}$ are the lower and upper edges of histogram bin $i$.
 normalized so that
 \begin{equation}
 \sum_{i \in \mathrm{full\ range}} w^{\mathrm{full}}_{d,i}(m_0) = 1.
@@ -203,6 +266,9 @@ w^{\mathrm{full}}_{d,i}(m_0), & i \in \mathcal{B}_d(m_0), \\
 \text{not used in the local fit}, & i \notin \mathcal{B}_d(m_0).
 \end{cases}
 \end{equation}
+By the blinded-bin slice we mean exactly this restriction of the full normalized
+Gaussian template to the subset of bins in $\mathcal{B}_d(m_0)$; the template is not
+renormalized after the restriction.
 Its blinded-bin sum is therefore
 \begin{equation}
 f_{\mathrm{blind},d}(m_0) = \sum_{i \in \mathcal{B}_d(m_0)} w_{d,i}(m_0) < 1,
@@ -231,7 +297,12 @@ fixed-target relation between $A^\prime$ production and radiative trident produc
 \; m_{A^\prime}\,\eps^2\,
 \frac{dN_{\gamma^\ast}}{dm}\bigg|_{m=m_{A^\prime}},
 \end{equation}
-with $N_{\mathrm{eff}}=1$ throughout the mass range of interest here. Writing the
+where $\alpha_{\mathrm{EM}}$ is the fine-structure constant, the factor $3\pi/2$ is the
+standard narrow-width coefficient relating on-shell $A^\prime$ production to radiative
+trident production, and $N_{\mathrm{eff}}$ counts the number of kinematically open
+visible decay channels contributing to the total $A^\prime$ width. Throughout the mass
+range of interest here only the $e^+e^-$ channel is open, so $N_{\mathrm{eff}}=1$.
+Writing the
 radiative differential rate as
 \begin{equation}
 \frac{dN_{\gamma^\ast}}{dm}
@@ -245,8 +316,13 @@ invariant-mass spectrum, the package converts between $A_d$ and $\eps^2$ through
 {3\pi\,m\,f_{\mathrm{rad},d}(m)\,\rho_d(m)},
 \label{eq:eps2-conversion}
 \end{equation}
-where $\rho_d(m)$ is the local integral density computed directly from the observed
-histogram in the interval $m\pm2\sigma_d(m)$. It is convenient to define the
+where $\rho_d(m)$ is estimated from the observed histogram as a local counts-per-GeV
+density in the separate normalization interval $m\pm2\sigma_d(m)$. That interval is
+intentionally not tied to the nominal $1.64\,\sigma_d$ extraction window: it is used
+only for the local yield-to-$\eps^2$ conversion, not for the GP training mask or the
+profiled likelihood window. Because the prompt spectrum is smooth on this scale, using
+a fixed $\pm2\,\sigma_d$ density estimator keeps the coupling normalization distinct
+from the optimization of the blind-window half-width. It is convenient to define the
 dataset-specific conversion factor
 \begin{equation}
 K_d(m) \equiv A_d(\eps^2 = 1)
@@ -255,15 +331,16 @@ K_d(m) \equiv A_d(\eps^2 = 1)
 so that a shared coupling $\eps^2$ predicts a dataset-specific total signal yield
 $A_d = K_d(m)\eps^2$.
 
-The code also supports an optional radiative-fraction penalty in this conversion. When
-enabled for dataset $d$, the effective radiative fraction is
+Unless stated otherwise, the methodology section uses the nominal radiative fraction
+$f_{\mathrm{rad},d}(m)$. The optional penalty that propagates normalization uncertainty
+into $\eps^2$ is treated as a systematic variation rather than as part of the core GP
+fit and is discussed separately in Section~\ref{sec:radfrac-penalty}. When that
+systematic option is enabled for dataset $d$, the effective radiative fraction is
 \begin{equation}
 f_{\mathrm{rad},d}^{\mathrm{eff}}(m)
 = \left(1-\delta_{f,d}\right) f_{\mathrm{rad},d}(m),
 \end{equation}
-so the same signal-yield limit maps to a weaker $\eps^2$ limit. This switch is
-intended to accommodate the several-percent uncertainty on the radiative-fraction
-normalization discussed in the published HPS prompt searches.
+so the same signal-yield limit maps to a weaker $\eps^2$ limit.
 
 \subsection{Local significance and single-dataset signal extraction}
 
@@ -286,7 +363,9 @@ b_{d,i} + (L_d\bm{\theta}_d)_i + A_d w_{d,i}
 \end{equation}
 where the Gaussian nuisance vector $\bm{\theta}_d \sim \mathcal{N}(0,I)$ encodes
 correlated background deformations consistent with the GP covariance in the blind
-window. Profiling Eq.~\eqref{eq:singlelike} yields the best-fit signal amplitude
+window, $L_d$ is the Cholesky factor of $\bm{C}_d$, and $N_d(m)$ is the number of bins
+in the local blinded set $\mathcal{B}_d(m)$. Profiling Eq.~\eqref{eq:singlelike}
+yields the best-fit signal amplitude
 $\hat A_d$ and its local uncertainty $\sigma_{A,d}$. For closure and linearity studies
 $\hat A_d$ is allowed to fluctuate below zero; for discovery and upper-limit test
 statistics the physical boundary $A_d \ge 0$ is imposed in the usual way.
@@ -364,6 +443,8 @@ Here $p_{\mathrm{strong}}$ quantifies how unusually \emph{strong} the observed l
 is relative to the toy ensemble, while $p_{\mathrm{weak}}$ quantifies how unusually
 \emph{weak} it is. They are therefore limit-diagnostic quantities rather than
 discovery-significance measures in the sense of $p_0$ \cite{Junk1999,Read2002,Cowan2011}.
+Figure~\ref{fig:pvalue-tail-schematic} sketches these tail definitions explicitly so
+the toy-limit diagnostic and the bump-hunt significance are not conflated.
 
 \begin{figure}[H]
 \centering
@@ -514,10 +595,12 @@ familiar $p_{\mathrm{global}}\simeq N_{\mathrm{eff}}p_{0,\min}$ form.
 The present note uses these quantities asymmetrically. The combined
 2015$+$2016 10\%$+$2021 1\% radiative-penalty summary is the only place where the
 global conversion is treated as the physics-facing look-elsewhere diagnostic. The
-single-dataset overlays are retained only to show where each dataset has its largest
-\emph{local} upward fluctuation; their orange global overlays should not be
-interpreted as final because those auxiliary summary PNGs predate the resolution-column
-cleanup described in Section~\ref{sec:results-combined-151621-1pct}.
+single-dataset overlays retained in Figure~\ref{fig:local-significances-across-datasets}
+are used only to show where each dataset has its largest \emph{local} upward
+fluctuation; their orange global overlays should not be interpreted as final because
+those auxiliary summary PNGs predate the resolution-column cleanup described in
+Section~\ref{sec:results-combined-151621-1pct}. The combined look-elsewhere summary
+actually interpreted later in the note is shown in Figure~\ref{fig:combined-significance-rpen}.
 
 \begin{figure}[p]
 \centering

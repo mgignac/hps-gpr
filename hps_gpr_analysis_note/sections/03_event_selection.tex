@@ -10,15 +10,17 @@ radiative-fraction treatment are documented together in this section.
 
 \subsection{Prompt event selection}
 
-Across all HPS campaigns, the prompt selection is built from the same experimental
-logic: oppositely charged tracks matched to ECal clusters, tight cluster-time
-coincidence, track-quality and vertex requirements, and momentum selections that
-retain prompt radiative tridents while suppressing accidentals and converted
-wide-angle Bremsstrahlung. The 2015 and 2016 selections are already mature because
-they are inherited from the published prompt searches. The 2021 column remains
-provisional at the detailed cut-value level because the dedicated 2021 prompt-selection
-documentation has not yet been folded into this note; the current 2021 entries should
-therefore be read as placeholder information that will be updated soon.
+Across all HPS campaigns, the prompt selection follows the same experimental logic:
+oppositely charged tracks matched to ECal clusters, tight cluster-time coincidence,
+track-quality and vertex requirements, and momentum cuts that retain prompt radiative
+tridents while suppressing accidentals and converted wide-angle Bremsstrahlung. The
+2015 and 2016 selections are already mature because they are inherited from the
+published prompt searches. The 2021 situation is different: the current GPR workflow
+already consumes a concrete upgraded-era production histogram, but the line-by-line
+bookkeeping has not yet been rewritten in the same ``preselection plus prompt-tight
+additions'' style. Table~\ref{tab:event-selection} therefore records only the working
+2021 values already implemented in the present 1\% sample, without implying that a
+fully frozen 2021 prompt note has already been merged into this document.
 
 \input{tables/event_selection_table}
 
@@ -40,6 +42,26 @@ closer to the radiative-trident topology used for the $A^\prime$ normalization. 
 practice, the tighter $p_{\mathrm{sum}}$ requirement removes the part of phase space
 where high-momentum prompt backgrounds become more important and where the yield-to-
 $\eps^2$ mapping would be diluted by a less signal-like composition.
+
+For reviewer purposes, the path to finalizing the 2021 column is now concrete rather
+than open ended. The production histogram already used in the analysis is the upgraded
+selection exported as \path{preselection\_invM\_psumlt2p8\_hists.root} with mass
+spectrum \path{preselection/h\_invM\_8000}. Freezing the publication-facing table means
+transcribing that production recipe into note language, then separating which cuts are
+baseline upgraded-detector preselection requirements and which are genuinely
+prompt-tight additions for the final resonance workflow. That bookkeeping step was
+already completed for 2015 and 2016 in the prompt-search notes; it is precisely the
+missing documentation layer for 2021, not a missing event sample.
+
+This distinction also explains why the older analyses read differently. In the 2015 and
+2016 prompt notes, ``preselection'' denoted the broad reconstruction-level sample that
+entered the prompt-search optimization, while ``prompt selection'' denoted the narrower
+subset used for the published resonance result after timing, momentum-sum, and
+background-rejection tightening. The current 2021 GPR workflow is already closer to the
+latter category in physics content, because the exported histogram is a prompt-oriented
+study sample with the extra $p_{\mathrm{sum}}<\SI{2.8}{GeV}$ tightening. What is still
+missing is the final note-quality decomposition of that sample into the same
+review-friendly preselection/prompt columns used for the engineering-run papers.
 
 \subsection{2015 mass resolution}
 \label{sec:massres-2015}
@@ -67,7 +89,9 @@ the M{\o}ller calibration, the target-position uncertainty, and the limited resi
 mismodelling of the momentum response \cite{HPS2015DarkPhoton,HPS2015InternalNote}.
 For the prompt search itself, this curve sets the Gaussian signal width used at every
 test mass, and therefore also sets the blind-window width and the amount of smooth
-background admitted under a narrow-resonance hypothesis.
+background admitted under a narrow-resonance hypothesis. Figure~\ref{fig:2015-resolution}
+compresses that calibration chain into the single curve actually used downstream in the
+signal model.
 
 \begin{figure}[H]
 \centering
@@ -161,6 +185,9 @@ search consequence is the same as for the earlier data sets: the 2021 curve sets
 signal width, the blind-window width, and therefore the local prompt-background burden
 under each mass hypothesis. Because the upgraded front tracker changes the low-mass
 response, it is also a direct ingredient in the improved shared-coupling reach.
+Figure~\ref{fig:2021-resolution} should therefore be read as an implementation-facing
+summary of the current response model, not as a claim that the full 2021 detector-note
+validation is already complete in this manuscript.
 
 \begin{figure}[H]
 \centering
@@ -213,6 +240,7 @@ the total prompt composition, and the red horizontal line at 8.5\% is then adopt
 a conservative description across the scanned mass interval. That constant is therefore
 not a fit artifact of the GPR package; it is inherited from the internal HPS prompt
 normalization study and used here for continuity with the published 2015 analysis.
+Figure~\ref{fig:2015-radfrac} is included precisely to make that provenance visible.
 
 \begin{figure}[H]
 \centering
@@ -241,7 +269,9 @@ f_{\mathrm{rad},2016}(m) = 0.05,
 because that choice is numerically stable over the wider scan range used in the global
 fit. The review point is therefore two-stage: the note should preserve the richer 2016
 determination for provenance, while also stating plainly that the current production
-GPR rerun uses a conservative constant surrogate.
+GPR rerun uses a conservative constant surrogate. Figure~\ref{fig:2016-radfrac} keeps
+the original mass-dependent study in view so the simplification made by the present GPR
+rerun is explicit rather than hidden.
 
 \begin{figure}[H]
 \centering
@@ -265,7 +295,8 @@ f_{\mathrm{rad},2021}(m) = 0.05,
 with the explicit understanding that the final upgraded-detector normalization note may
 replace both the baseline value and its associated systematic treatment. The figure
 below therefore documents the input presently used by the code rather than claiming a
-final 2021 radiative-fraction determination.
+final 2021 radiative-fraction determination. Figure~\ref{fig:2021-radfrac} should be
+read in exactly that implementation-facing sense.
 
 \begin{figure}[H]
 \centering
@@ -298,8 +329,9 @@ that a fixed signal-yield limit maps to a weaker coupling limit by approximately
 $1/(1-\delta_f)\simeq 1.075$. In the combined analysis, the same logic applies to
 every constituent dataset at once: each conversion factor $K_d(m)$ is reduced, so the
 shared $\eps^2$ value required to produce the same per-dataset yields becomes larger.
-This is why the radiative-fraction penalty should be described as a correlated
-normalization systematic on the coupling interpretation.
+This is why the radiative-fraction penalty should be described as a coherent
+normalization systematic scenario on the coupling interpretation, not as a profiled
+shared nuisance parameter in the current likelihood.
 
 The practical reason to keep this discussion separate from the baseline
 radiative-fraction subsection is that the two questions are not the same. The baseline
